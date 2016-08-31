@@ -1,4 +1,4 @@
-# Rebus.TODO
+# Rebus.RabbitMq
 
 Provides a RabbitMQ transport implementation for [Rebus](https://github.com/rebus-org/Rebus).
 
