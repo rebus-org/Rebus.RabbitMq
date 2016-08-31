@@ -51,13 +51,13 @@ if exist "%destination%" (
 )
 
 mkdir "%destination%"
-if !ERRORLEVEL! neq 0 goto exit_fail
+if %ERRORLEVEL% neq 0 goto exit_fail
 
 "%msbuild%" "%sln%" /p:Configuration=Release /t:rebuild
-if !ERRORLEVEL! neq 0 goto exit_fail
+if %ERRORLEVEL% neq 0 goto exit_fail
 
 "%nuget%" pack "%name%\%name%.nuspec" -OutputDirectory "%destination%" -Version %version%
-if !ERRORLEVEL! neq 0 goto exit_fail
+if %ERRORLEVEL% neq 0 goto exit_fail
 
 goto exit
 
