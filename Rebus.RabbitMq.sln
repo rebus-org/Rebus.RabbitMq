@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rebus.RabbitMq", "Rebus.Rab
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rebus.RabbitMq.Tests", "Rebus.RabbitMq.Tests\Rebus.RabbitMq.Tests.csproj", "{B8B9F10C-A675-49F0-92F4-FBA327C8399F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rebus.Forklift.RabbitMq", "Rebus.Forklift.RabbitMq\Rebus.Forklift.RabbitMq.csproj", "{23BC81DE-220E-4B39-8056-18467C05DF07}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,6 +30,10 @@ Global
 		{B8B9F10C-A675-49F0-92F4-FBA327C8399F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B8B9F10C-A675-49F0-92F4-FBA327C8399F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B8B9F10C-A675-49F0-92F4-FBA327C8399F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23BC81DE-220E-4B39-8056-18467C05DF07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23BC81DE-220E-4B39-8056-18467C05DF07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23BC81DE-220E-4B39-8056-18467C05DF07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23BC81DE-220E-4B39-8056-18467C05DF07}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
