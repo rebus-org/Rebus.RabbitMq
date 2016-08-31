@@ -1,2 +1,7 @@
+install:
+- ps: >-
+    choco install rabbitmq -Version 3.4.1.0
+
 before_build:
   - nuget restore
+
