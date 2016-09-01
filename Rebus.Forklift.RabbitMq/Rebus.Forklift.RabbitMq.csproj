@@ -37,7 +37,7 @@
       <HintPath>..\packages\GoCommando.0.3\lib\net35\GoCommando.dll</HintPath>
     </Reference>
     <Reference Include="Rebus, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Rebus.0.99.74\lib\NET45\Rebus.dll</HintPath>
+      <HintPath>..\packages\Rebus.2.0.0-a5\lib\NET45\Rebus.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Rebus.Forklift.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
