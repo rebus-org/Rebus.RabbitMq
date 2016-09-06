@@ -6,16 +6,10 @@ namespace Rebus.RabbitMq
 {
     class CustomQueueingConsumer : DefaultBasicConsumer, IQueueingBasicConsumer
     {
-        public SharedQueue<BasicDeliverEventArgs> Queue { get; }
+        public SharedQueue<BasicDeliverEventArgs> Queue { get; } = new SharedQueue<BasicDeliverEventArgs>();
 
-        public CustomQueueingConsumer(IModel model) : this(model, new SharedQueue<BasicDeliverEventArgs>())
+        public CustomQueueingConsumer(IModel model) :base(model)
         {
-        }
-
-        public CustomQueueingConsumer(IModel model, SharedQueue<BasicDeliverEventArgs> queue)
-          : base(model)
-        {
-            Queue = queue;
         }
 
         public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, byte[] body)
