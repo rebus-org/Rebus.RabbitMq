@@ -39,7 +39,7 @@ namespace Rebus.RabbitMq
 
         readonly object _consumerInitializationLock = new object();
 
-        QueueingBasicConsumer _consumer;
+        CustomQueueingConsumer _consumer;
         ushort _maxMessagesToPrefetch;
 
         bool _declareExchanges = true;
@@ -56,11 +56,12 @@ namespace Rebus.RabbitMq
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
-						if (maxMessagesToPrefetch <= 0) throw new ArgumentException($"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
+            if (maxMessagesToPrefetch <= 0) throw new ArgumentException($"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
 
-						_connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory);
+            _connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory);
             _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
             _log = rebusLoggerFactory.GetCurrentClassLogger();
+
             Address = inputQueueAddress;
         }
 
@@ -316,7 +317,7 @@ namespace Rebus.RabbitMq
                         {
                             _consumer = InitializeConsumer();
                         }
-                        catch(Exception exception)
+                        catch (Exception exception)
                         {
                             _log.Warn("Could not initialize consumer: {0} - waiting 2 seconds", exception);
 
@@ -357,7 +358,7 @@ namespace Rebus.RabbitMq
 
                               if (headerValue is byte[])
                               {
-                                  var stringHeaderValue = HeaderValueEncoding.GetString((byte[]) headerValue);
+                                  var stringHeaderValue = HeaderValueEncoding.GetString((byte[])headerValue);
 
                                   return stringHeaderValue;
                               }
@@ -400,7 +401,7 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Creates the consumer.
         /// </summary>
-        QueueingBasicConsumer InitializeConsumer()
+        CustomQueueingConsumer InitializeConsumer()
         {
             IConnection connection = null;
             IModel model = null;
@@ -410,7 +411,7 @@ namespace Rebus.RabbitMq
                 connection = _connectionManager.GetConnection();
                 model = connection.CreateModel();
                 model.BasicQos(0, _maxMessagesToPrefetch, false);
-                var consumer = new QueueingBasicConsumer(model);
+                var consumer = new CustomQueueingConsumer(model);
 
                 model.BasicConsume(Address, false, consumer);
 
