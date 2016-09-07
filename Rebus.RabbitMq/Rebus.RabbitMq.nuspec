@@ -14,7 +14,7 @@
     <tags>rebus rabbitmq amqp</tags>
     <iconUrl>https://github.com/mookid8000/Rebus/raw/master/artwork/little_rebusbus2_copy-200x200.png</iconUrl>
     <dependencies>
-      <dependency id="Rebus" version="2.0.0-a6" />
+      <dependency id="Rebus" version="2.0.0-a11" />
       <dependency id="RabbitMQ.Client" version="4.0.2" />
     </dependencies>
   </metadata>
