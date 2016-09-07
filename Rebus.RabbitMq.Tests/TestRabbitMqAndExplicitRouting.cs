@@ -58,9 +58,13 @@ namespace Rebus.RabbitMq.Tests
             var queueName = TestConfig.GetName("does_not_exist_yet");
             RabbitMqTransportFactory.DeleteQueue(queueName);
 
+            Thread.Sleep(1000);
+
             // first we send a message to a queue that does not exist at this time
             Console.WriteLine($"Sending 'hej med dig min ven!' message to '{queueName}'");
             await _bus.Advanced.Routing.Send(queueName, "hej med dig min ven!");
+
+            Thread.Sleep(1000);
 
             // then we start a server listening on the queue
             var gotTheMessage = new ManualResetEvent(false);
