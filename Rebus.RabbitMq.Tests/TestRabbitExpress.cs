@@ -9,8 +9,8 @@ using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Messages;
-using Rebus.Tests;
 using Rebus.Tests.Contracts;
+#pragma warning disable 1998
 
 namespace Rebus.RabbitMq.Tests
 {
@@ -22,7 +22,7 @@ namespace Rebus.RabbitMq.Tests
 
         protected override void SetUp()
         {
-            var queueName = TestConfig.QueueName("expressperf");
+            var queueName = TestConfig.GetName("expressperf");
 
             RabbitMqTransportFactory.DeleteQueue(queueName);
 

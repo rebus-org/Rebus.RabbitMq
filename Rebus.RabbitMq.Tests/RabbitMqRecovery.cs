@@ -8,7 +8,6 @@ using Rebus.Activation;
 using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Retry.Simple;
-using Rebus.Tests;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 
@@ -18,7 +17,7 @@ namespace Rebus.RabbitMq.Tests
     public class RabbitMqRecovery : FixtureBase
     {
         static readonly string ConnectionString = RabbitMqTransportFactory.ConnectionString;
-        static readonly string QueueName = TestConfig.QueueName("recoverytest");
+        static readonly string QueueName = TestConfig.GetName("recoverytest");
 
         [Test, Ignore("Only meant to be run manually, with Administrator priviledges")]
         public void VerifyThatEndpointCanRecoverAfterLosingRabbitMqConnection()

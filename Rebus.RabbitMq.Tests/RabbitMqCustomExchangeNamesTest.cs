@@ -36,7 +36,7 @@ namespace Rebus.RabbitMq.Tests
                 Configure.With(activator)
                     .Transport(t =>
                     {
-                        var queueName = TestConfig.QueueName("custom-exchange");
+                        var queueName = TestConfig.GetName("custom-exchange");
 
                         t.UseRabbitMq(connectionString, queueName)
                             .ExchangeNames(directExchangeName: customDirectExchangeName, topicExchangeName: customTopicExchangeName);

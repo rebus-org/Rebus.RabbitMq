@@ -6,7 +6,6 @@ using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Logging;
-using Rebus.Tests;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 
@@ -34,7 +33,7 @@ namespace Rebus.RabbitMq.Tests
         [Test]
         public async Task ReceivesManuallyRoutedMessage()
         {
-            var queueName = TestConfig.QueueName("manual_routing");
+            var queueName = TestConfig.GetName("manual_routing");
             var gotTheMessage = new ManualResetEvent(false);
 
             StartServer(queueName).Handle<string>(async str =>
@@ -56,7 +55,7 @@ namespace Rebus.RabbitMq.Tests
         [Test]
         public async Task AutomaticallyCreatesDestinationQueue()
         {
-            var queueName = TestConfig.QueueName("does_not_exist_yet");
+            var queueName = TestConfig.GetName("does_not_exist_yet");
             RabbitMqTransportFactory.DeleteQueue(queueName);
 
             // first we send a message to a queue that does not exist at this time

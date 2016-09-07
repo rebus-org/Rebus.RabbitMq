@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
-using Rebus.Tests;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 
@@ -16,9 +15,9 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture, Category("rabbitmq")]
     public class RabbitMqPubSubTest : FixtureBase
     {
-        readonly string _publisherQueueName = TestConfig.QueueName("publisher");
-        readonly string _subscriber1QueueName = TestConfig.QueueName("sub1");
-        readonly string _subscriber2QueueName = TestConfig.QueueName("sub2");
+        readonly string _publisherQueueName = TestConfig.GetName("publisher");
+        readonly string _subscriber1QueueName = TestConfig.GetName("sub1");
+        readonly string _subscriber2QueueName = TestConfig.GetName("sub2");
         BuiltinHandlerActivator _publisher;
 
         protected override void SetUp()

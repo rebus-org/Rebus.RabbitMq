@@ -10,7 +10,6 @@ using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Routing.TypeBased;
-using Rebus.Tests;
 using Rebus.Tests.Contracts;
 
 #pragma warning disable 1998
@@ -22,7 +21,7 @@ namespace Rebus.RabbitMq.Tests
     public class TestRabbitMqReconnection : FixtureBase
     {
         const string ConnectionString = "amqp://localhost";
-        readonly string _receiverQueueName = TestConfig.QueueName("receiver");
+        readonly string _receiverQueueName = TestConfig.GetName("receiver");
         IBus _sender;
         BuiltinHandlerActivator _receiver;
 

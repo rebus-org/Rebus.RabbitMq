@@ -10,7 +10,6 @@ using Rebus.Extensions;
 using Rebus.Logging;
 using Rebus.Messages;
 using Rebus.Serialization;
-using Rebus.Tests;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 
@@ -22,7 +21,7 @@ namespace Rebus.RabbitMq.Tests
     public class ReceiveNonRebusMessageWithRabbitMq : FixtureBase
     {
         const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
-        readonly string _inputQueueName = TestConfig.QueueName("custom-msg");
+        readonly string _inputQueueName = TestConfig.GetName("custom-msg");
         BuiltinHandlerActivator _activator;
 
         protected override void SetUp()
