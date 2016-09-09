@@ -8,3 +8,7 @@
 
 * Update RabbitMQ client dependency to 4.0.1
 * Update target framework to .NET 4.5.2
+
+## 2.0.0-b01
+
+* Test release
