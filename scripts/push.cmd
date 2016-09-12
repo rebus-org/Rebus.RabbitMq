@@ -33,8 +33,6 @@ if %ERRORLEVEL% neq 0 (
   goto exit_fail
 )
 
-git tag %version%
-git push --tags
 
 goto exit
 
