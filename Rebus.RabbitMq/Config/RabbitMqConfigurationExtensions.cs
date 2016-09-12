@@ -1,9 +1,11 @@
-﻿using Rebus.Config;
+﻿using System;
 using Rebus.Logging;
+using Rebus.RabbitMq;
 using Rebus.Subscriptions;
 using Rebus.Transport;
+// ReSharper disable ExpressionIsAlwaysNull
 
-namespace Rebus.RabbitMq
+namespace Rebus.Config
 {
     /// <summary>
     /// Configuration extensions for the RabbitMQ transport
@@ -17,14 +19,18 @@ namespace Rebus.RabbitMq
         /// </summary>
         public static RabbitMqOptionsBuilder UseRabbitMqAsOneWayClient(this StandardConfigurer<ITransport> configurer, string connectionString)
         {
+            if (configurer == null) throw new ArgumentNullException(nameof(configurer));
+            if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
+
             var options = new RabbitMqOptionsBuilder();
 
             configurer
                 .OtherService<RabbitMqTransport>()
                 .Register(c =>
                 {
+                    string explicitlyOmittedQueueName = null;
                     var rebusLoggerFactory = c.Get<IRebusLoggerFactory>();
-                    var transport = new RabbitMqTransport(connectionString, null, rebusLoggerFactory);
+                    var transport = new RabbitMqTransport(connectionString, explicitlyOmittedQueueName, rebusLoggerFactory);
                     options.Configure(transport);
                     return transport;
                 });
@@ -43,8 +49,12 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Configures Rebus to use RabbitMQ to move messages around
         /// </summary>
-        public static RabbitMqOptionsBuilder UseRabbitMq(this StandardConfigurer<ITransport> configurer,  string connectionString, string inputQueueName)
+        public static RabbitMqOptionsBuilder UseRabbitMq(this StandardConfigurer<ITransport> configurer, string connectionString, string inputQueueName)
         {
+            if (configurer == null) throw new ArgumentNullException(nameof(configurer));
+            if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
+            if (inputQueueName == null) throw new ArgumentNullException(nameof(inputQueueName));
+
             var options = new RabbitMqOptionsBuilder();
 
             configurer

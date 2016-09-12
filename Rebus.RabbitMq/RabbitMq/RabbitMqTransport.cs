@@ -14,6 +14,7 @@ using Rebus.Messages;
 using Rebus.Subscriptions;
 using Rebus.Transport;
 using RabbitMQ.Client.Events;
+using Rebus.Config;
 using Rebus.Exceptions;
 using Headers = Rebus.Messages.Headers;
 // ReSharper disable EmptyGeneralCatchClause

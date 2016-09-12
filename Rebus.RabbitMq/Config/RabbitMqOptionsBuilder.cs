@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using Rebus.RabbitMq;
 
-namespace Rebus.RabbitMq
+namespace Rebus.Config
 {
     /// <summary>
     /// Allows for fluently configuring RabbitMQ options
