@@ -16,3 +16,7 @@
 ## 2.0.0-b02
 
 * More convenient namespaces
+
+## 2.0.0
+
+* Release 2.0.0
