@@ -61,7 +61,7 @@ namespace Rebus.RabbitMq
 
             _connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory);
             _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
-            _log = rebusLoggerFactory.GetCurrentClassLogger();
+            _log = rebusLoggerFactory.GetLogger<RabbitMqTransport>();
 
             Address = inputQueueAddress;
         }

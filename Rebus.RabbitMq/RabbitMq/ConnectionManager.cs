@@ -23,7 +23,7 @@ namespace Rebus.RabbitMq
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
 
-            _log = rebusLoggerFactory.GetCurrentClassLogger();
+            _log = rebusLoggerFactory.GetLogger<ConnectionManager>();
 
             if (inputQueueAddress != null)
             {
