@@ -8,6 +8,7 @@ using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
+// ReSharper disable ArgumentsStyleNamedExpression
 
 #pragma warning disable 1998
 
@@ -25,7 +26,7 @@ namespace Rebus.RabbitMq.Tests
             var client = Using(new BuiltinHandlerActivator());
 
             _bus = Configure.With(client)
-                .Logging(l => l.Console(minLevel:LogLevel.Warn))
+                .Logging(l => l.Console(minLevel: LogLevel.Warn))
                 .Transport(t => t.UseRabbitMqAsOneWayClient(ConnectionString))
                 .Start();
         }
@@ -48,7 +49,7 @@ namespace Rebus.RabbitMq.Tests
             Console.WriteLine("Waiting for message to arrive");
 
             gotTheMessage.WaitOrDie(TimeSpan.FromSeconds(5));
-            
+
             Console.WriteLine("Got it :)");
         }
 

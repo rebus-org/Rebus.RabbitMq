@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
-using Rebus.Tests;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
+// ReSharper disable ArgumentsStyleNamedExpression
 
 #pragma warning disable 1998
 
