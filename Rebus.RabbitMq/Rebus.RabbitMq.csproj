@@ -48,7 +48,6 @@
   <ItemGroup>
     <PackageReference Include="rebus" Version="4.0.0-b04" />
     <PackageReference Include="RabbitMq.Client" Version="4.1.1" />
-    <PackageReference Include="system.diagnostics.process" Version="4.3.0" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
     <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
