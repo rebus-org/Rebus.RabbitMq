@@ -1,41 +1,53 @@
 @echo off
 
-set reporoot=%~dp0\..
-set build=%reporoot%\scripts\build.cmd
+set scriptsdir=%~dp0
+set root=%scriptsdir%\..
+set deploydir=%root%\deploy
+set project=%1
+set version=%2
 
-if not exist "%build%" (
-  echo Could not find %build%
-  goto exit_fail
+if "%project%"=="" (
+	echo Please invoke the build script with a project name as its first argument.
+	echo.
+	goto exit_fail
 )
 
-set push=%reporoot%\scripts\push.cmd
-
-if not exist "%push%" (
-  echo Could not find %push%
-  goto exit_fail
+if "%version%"=="" (
+	echo Please invoke the build script with a version as its second argument.
+	echo.
+	goto exit_fail
 )
 
-call "%build%" %*
+set Version=%version%
+
+if exist "%deploydir%" (
+	rd "%deploydir%" /s/q
+)
+
+pushd %root%
+
+dotnet restore
 if %ERRORLEVEL% neq 0 (
-  echo Error executing build script.
-  goto exit_fail
+	popd
+ 	goto exit_fail
 )
 
-call "%push%" %2
+dotnet pack "%root%/%project%" -c Release -o "%deploydir%" /p:PackageVersion=%version%
 if %ERRORLEVEL% neq 0 (
-  echo Error executing push script.
-  goto exit_fail
+	popd
+ 	goto exit_fail
 )
 
-goto exit
+call scripts\push.cmd "%version%"
+
+popd
 
 
 
 
+
+
+goto exit_success
 :exit_fail
-
 exit /b 1
-
-
-
-:exit
+:exit_success

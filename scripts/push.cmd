@@ -34,15 +34,11 @@ if %ERRORLEVEL% neq 0 (
 )
 
 
-goto exit
 
 
 
+
+goto exit_success
 :exit_fail
-
-echo An error occurred.
 exit /b 1
-
-
-
-:exit
+:exit_success
