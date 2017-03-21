@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
+using Rebus.Exceptions;
 using Rebus.Logging;
 using Rebus.Retry.Simple;
 using Rebus.Tests.Contracts;
@@ -106,7 +107,7 @@ namespace Rebus.RabbitMq.Tests
             }
             catch (Exception exception)
             {
-                throw new ApplicationException($"Could not execute shell command '{shellCommand}'", exception);
+                throw new RebusApplicationException(exception, $"Could not execute shell command '{shellCommand}'");
             }
         }
     }

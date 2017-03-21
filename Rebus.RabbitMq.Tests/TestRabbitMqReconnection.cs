@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
+using Rebus.Exceptions;
 using Rebus.Logging;
 using Rebus.Routing.TypeBased;
 using Rebus.Tests.Contracts;
@@ -131,7 +132,7 @@ namespace Rebus.RabbitMq.Tests
 
             if (process == null)
             {
-                throw new ApplicationException($"Could not execute '{fileName} {arguments}'");
+                throw new RebusApplicationException($"Could not execute '{fileName} {arguments}'");
             }
 
             process.WaitForExit();
@@ -144,7 +145,7 @@ namespace Rebus.RabbitMq.Tests
 
             if (process.ExitCode != 0)
             {
-                throw new ApplicationException($"Exit code from application: {process.ExitCode}");
+                throw new RebusApplicationException($"Exit code from application: {process.ExitCode}");
             }
         }
     }

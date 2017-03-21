@@ -162,9 +162,21 @@ namespace Rebus.RabbitMq
                 {"Type", "Rebus/.NET"},
                 {"Machine", Environment.MachineName},
                 {"InputQueue", inputQueueAddress ?? "<one-way client>"},
-                {"Domain", Environment.UserDomainName},
-                {"User", Environment.UserName}
             };
+
+            var userDomainName = Environment.GetEnvironmentVariable("USERDOMAIN");
+
+            if (userDomainName != null)
+            {
+                properties["Domain"] = userDomainName;
+            }
+
+            var username = Environment.GetEnvironmentVariable("USERNAME");
+
+            if (username != null)
+            {
+                properties["User"] = userDomainName;
+            }
 
             var currentProcess = Process.GetCurrentProcess();
 

@@ -6,6 +6,7 @@ using NUnit.Framework;
 using RabbitMQ.Client;
 using Rebus.Activation;
 using Rebus.Config;
+using Rebus.Exceptions;
 using Rebus.Extensions;
 using Rebus.Logging;
 using Rebus.Messages;
@@ -48,7 +49,7 @@ namespace Rebus.RabbitMq.Tests
             {
                 if (str != "hej med dig min ven")
                 {
-                    throw new ApplicationException($"Unexpected message: {str}");
+                    throw new RebusApplicationException($"Unexpected message: {str}");
                 }
                 receivedCustomStringMessage.Set();
             });
