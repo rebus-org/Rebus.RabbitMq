@@ -46,7 +46,7 @@
     <None Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="rebus" Version="4.0.0-b04" />
+    <PackageReference Include="rebus" Version="4.0.0-b09" />
     <PackageReference Include="RabbitMq.Client" Version="4.1.1" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
