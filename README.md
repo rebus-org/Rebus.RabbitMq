@@ -29,6 +29,6 @@ password: guest
 ```
 In Visual Studio 2017, run All Tests form the menus: Tests -> Run -> All Tests. While test are running, switch back to the management console, and watch:
 
-![](https://raw.githubusercontent.com/jonmat/Rebus.RabbitMq/rabbit-mgmt-console.png)
+![](https://github.com/jonmat/Rebus.RabbitMq/blob/master/rabbit-mgmt-console.png)
 
 
