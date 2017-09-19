@@ -36,7 +36,7 @@
     <ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
     <PackageReference Include="nunit" Version="3.7.1" />
     <PackageReference Include="rabbitmq.client" Version="4.1.1" />
-    <PackageReference Include="rebus" Version="4.0.0" />
+    <PackageReference Include="rebus" Version="4.0.1" />
     <PackageReference Include="rebus.tests.contracts" Version="4.0.0" />
   </ItemGroup>
 </Project>
