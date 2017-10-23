@@ -8,15 +8,15 @@ using Rebus.Logging;
 
 namespace Rebus.RabbitMq
 {
-    class ConnectionManager : IDisposable
+    internal class ConnectionManager : IDisposable
     {
-        readonly object _activeConnectionLock = new object();
-        readonly ConnectionFactory[] _connectionFactories;
-        readonly ILog _log;
+        private readonly object _activeConnectionLock = new object();
+        private readonly ConnectionFactory _connectionFactory;
+        private readonly IList<AmqpTcpEndpoint> _amqpTcpEndpoints;
+        private readonly ILog _log;
 
-        IConnection _activeConnection;
-        int _activeConnectionIndex;
-        bool _disposed;
+        private IConnection _activeConnection;
+        private bool _disposed;
 
         public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory)
         {
@@ -34,25 +34,22 @@ namespace Rebus.RabbitMq
                 _log.Info("Initializing RabbitMQ connection manager for one-way transport");
             }
 
-            _connectionFactories = connectionString.Split(";,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
-                .Select(uri => new ConnectionFactory
-                {
-                    Uri = uri.Trim(),
-                    AutomaticRecoveryEnabled = true,
-                    NetworkRecoveryInterval = TimeSpan.FromSeconds(50),
-                    ClientProperties = CreateClientProperties(inputQueueAddress)
-                })
-                .ToArray();
-
-            if (_connectionFactories.Length == 0)
+            _connectionFactory = new ConnectionFactory
             {
+                AutomaticRecoveryEnabled = true,
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
+                ClientProperties = CreateClientProperties(inputQueueAddress)
+            };
+
+            var uriStrings = connectionString.Split(";,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+
+            if (uriStrings.Length == 0)
                 throw new ArgumentException("Please remember to specify at least one connection string for a RabbitMQ server somewhere. You can also add multiple connection strings separated by ; or , which Rebus will use in failover scenarios");
-            }
 
-            if (_connectionFactories.Length > 1)
-            {
-                _log.Info("RabbitMQ transport has {0} connection strings available", _connectionFactories.Length);
-            }
+            if (uriStrings.Length > 1)
+                _log.Info("RabbitMQ transport has {0} connection strings available", uriStrings.Length);
+
+            _amqpTcpEndpoints = uriStrings.Select(uriString => new AmqpTcpEndpoint(new Uri(uriString))).ToList();
         }
 
         public IConnection GetConnection()
@@ -89,26 +86,14 @@ namespace Rebus.RabbitMq
 
                 try
                 {
-                    var indexToUse = _activeConnectionIndex++;
-                    _activeConnectionIndex %= _connectionFactories.Length;
-
-                    if (_connectionFactories.Length > 1)
-                    {
-                        _log.Info("Creating new RabbitMQ connection (from connection with index {0})", indexToUse);
-                    }
-                    else
-                    {
-                        _log.Info("Creating new RabbitMQ connection");
-                    }
-
-                    _activeConnection = _connectionFactories[indexToUse].CreateConnection();
+                    _activeConnection = _connectionFactory.CreateConnection(_amqpTcpEndpoints);
 
                     return _activeConnection;
                 }
                 catch (Exception exception)
                 {
                     _log.Warn("Could not establish connection: {0}", exception.Message);
-                    Thread.Sleep(500);
+                    Thread.Sleep(500); //Is there a reason for this?
                     throw;
                 }
             }
@@ -146,16 +131,13 @@ namespace Rebus.RabbitMq
 
         public void AddClientProperties(Dictionary<string, string> additionalClientProperties)
         {
-            foreach (var connectionFactory in _connectionFactories)
+            foreach (var kvp in additionalClientProperties)
             {
-                foreach (var kvp in additionalClientProperties)
-                {
-                    connectionFactory.ClientProperties[kvp.Key] = kvp.Value;
-                }
+                _connectionFactory.ClientProperties[kvp.Key] = kvp.Value;
             }
         }
 
-        static IDictionary<string, object> CreateClientProperties(string inputQueueAddress)
+        private static IDictionary<string, object> CreateClientProperties(string inputQueueAddress)
         {
             var properties = new Dictionary<string, object>
             {
