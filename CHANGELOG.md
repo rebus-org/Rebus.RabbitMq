@@ -29,3 +29,11 @@
 
 * Update to Rebus 4
 * Add .NET Core support (netstandard1.5)
+
+## 4.1.0
+
+* Change node failover strategy to rely on built-in capabilities of the driver - thanks [samartzidis]
+
+---
+
+[samartzidis]: https://github.com/samartzidis

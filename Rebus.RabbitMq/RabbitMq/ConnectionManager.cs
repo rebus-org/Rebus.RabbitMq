@@ -8,15 +8,15 @@ using Rebus.Logging;
 
 namespace Rebus.RabbitMq
 {
-    internal class ConnectionManager : IDisposable
+    class ConnectionManager : IDisposable
     {
-        private readonly object _activeConnectionLock = new object();
-        private readonly ConnectionFactory _connectionFactory;
-        private readonly IList<AmqpTcpEndpoint> _amqpTcpEndpoints;
-        private readonly ILog _log;
+        readonly object _activeConnectionLock = new object();
+        readonly ConnectionFactory _connectionFactory;
+        readonly IList<AmqpTcpEndpoint> _amqpTcpEndpoints;
+        readonly ILog _log;
 
-        private IConnection _activeConnection;
-        private bool _disposed;
+        IConnection _activeConnection;
+        bool _disposed;
 
         public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory)
         {
@@ -44,12 +44,30 @@ namespace Rebus.RabbitMq
             var uriStrings = connectionString.Split(";,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 
             if (uriStrings.Length == 0)
+            {
                 throw new ArgumentException("Please remember to specify at least one connection string for a RabbitMQ server somewhere. You can also add multiple connection strings separated by ; or , which Rebus will use in failover scenarios");
+            }
 
             if (uriStrings.Length > 1)
+            {
                 _log.Info("RabbitMQ transport has {0} connection strings available", uriStrings.Length);
+            }
 
-            _amqpTcpEndpoints = uriStrings.Select(uriString => new AmqpTcpEndpoint(new Uri(uriString))).ToList();
+            _amqpTcpEndpoints = uriStrings
+                .Select(GetAmqpTcpEndpoint)
+                .ToList();
+        }
+
+        static AmqpTcpEndpoint GetAmqpTcpEndpoint(string uriString)
+        {
+            try
+            {
+                return new AmqpTcpEndpoint(new Uri(uriString));
+            }
+            catch (Exception exception)
+            {
+                throw new FormatException($"Could not turn the connection string '{uriString}' into an AMQP TCP endpoint", exception);
+            }
         }
 
         public IConnection GetConnection()
@@ -93,7 +111,7 @@ namespace Rebus.RabbitMq
                 catch (Exception exception)
                 {
                     _log.Warn("Could not establish connection: {0}", exception.Message);
-                    Thread.Sleep(500); //Is there a reason for this?
+                    Thread.Sleep(500); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
                     throw;
                 }
             }
@@ -117,9 +135,14 @@ namespace Rebus.RabbitMq
                         try
                         {
                             connection.Dispose();
+                        }
+                        catch
+                        {
+                        }
+                        finally
+                        {
                             _activeConnection = null;
                         }
-                        catch { }
                     }
                 }
             }
@@ -137,7 +160,7 @@ namespace Rebus.RabbitMq
             }
         }
 
-        private static IDictionary<string, object> CreateClientProperties(string inputQueueAddress)
+        static IDictionary<string, object> CreateClientProperties(string inputQueueAddress)
         {
             var properties = new Dictionary<string, object>
             {
