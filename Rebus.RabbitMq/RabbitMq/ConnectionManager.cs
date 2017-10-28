@@ -34,13 +34,6 @@ namespace Rebus.RabbitMq
                 _log.Info("Initializing RabbitMQ connection manager for one-way transport");
             }
 
-            _connectionFactory = new ConnectionFactory
-            {
-                AutomaticRecoveryEnabled = true,
-                NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
-                ClientProperties = CreateClientProperties(inputQueueAddress)
-            };
-
             var uriStrings = connectionString.Split(";,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 
             if (uriStrings.Length == 0)
@@ -52,6 +45,14 @@ namespace Rebus.RabbitMq
             {
                 _log.Info("RabbitMQ transport has {0} connection strings available", uriStrings.Length);
             }
+
+            _connectionFactory = new ConnectionFactory
+            {
+                Uri = uriStrings.First(), //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
+                AutomaticRecoveryEnabled = true,
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
+                ClientProperties = CreateClientProperties(inputQueueAddress)
+            };
 
             _amqpTcpEndpoints = uriStrings
                 .Select(GetAmqpTcpEndpoint)
