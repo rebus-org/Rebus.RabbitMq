@@ -34,6 +34,10 @@
 
 * Change node failover strategy to rely on built-in capabilities of the driver - thanks [samartzidis]
 
+## 4.1.1
+
+* Fix credentials issue - thanks [samartzidis]
+
 ---
 
 [samartzidis]: https://github.com/samartzidis
