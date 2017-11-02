@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using RabbitMQ.Client.Events;
 using Rebus.RabbitMq;
 
 namespace Rebus.Config
@@ -84,6 +85,57 @@ namespace Rebus.Config
             return this;
         }
 
+        /// <summary>
+        /// Configure input queue as a strict priority queue. 
+        /// This setting adds "x-max-priority" argument to the input queue parameters
+        /// And sets Prefetch(1) in order to strictly prioritize messages
+        /// </summary>
+        public RabbitMqOptionsBuilder StrictPriorityQueue(int maxPriority)
+        {
+            PriorityQueue(maxPriority);
+            Prefetch(1);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Configure input queue as a priority queue. 
+        /// </summary>
+        public RabbitMqOptionsBuilder PriorityQueue(int maxPriority)
+        {
+            QueueOptions.Arguments.Add("x-max-priority", maxPriority);
+
+            return this;
+        }
+
+        public RabbitMqOptionsBuilder Mandatory(Action<object, BasicReturnEventArgs> basicReturnCallback)
+        {
+            CallbackOptionsBuilder.BasicReturn(basicReturnCallback);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Configure input queue manually. Beaware that this will override default settings.
+        /// If used in conjunction with PriorityQueue and StrictPriorityQueue options it might have unexpected results. 
+        /// </summary>
+        public RabbitMqOptionsBuilder InputQueueOptions(Action<RabbitMqQueueOptionsBuilder> configurer)
+        {
+            configurer?.Invoke(QueueOptions);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Register RabbitMq callback events. Events are triggered dependening on the message headers.
+        /// </summary>
+        public RabbitMqOptionsBuilder RegisterEventCallbacks(Action<RabbitMqCallbackOptionsBuilder> configurer)
+        {
+            configurer?.Invoke(CallbackOptionsBuilder);
+
+            return this;
+        }
+
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
@@ -92,6 +144,10 @@ namespace Rebus.Config
         internal string TopicExchangeName { get; private set; }
 
         internal int? MaxNumberOfMessagesToPrefetch { get; private set; }
+
+        internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
+
+        internal RabbitMqQueueOptionsBuilder QueueOptions { get; } = new RabbitMqQueueOptionsBuilder();
 
         internal void Configure(RabbitMqTransport transport)
         {
@@ -126,6 +182,13 @@ namespace Rebus.Config
             {
                 transport.SetMaxMessagesToPrefetch(MaxNumberOfMessagesToPrefetch.Value);
             }
+
+            if (CallbackOptionsBuilder != null)
+            {
+                transport.SetCallbackOptions(CallbackOptionsBuilder);
+            }
+
+            transport.SetInputQueueOptions(QueueOptions);
         }
     }
 }
