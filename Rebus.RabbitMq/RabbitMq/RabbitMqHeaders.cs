@@ -2,6 +2,9 @@
 
 namespace Rebus.RabbitMq
 {
+    /// <summary>
+    /// Contains keys for RabbitMQ headers
+    /// </summary>
     public static class RabbitMqHeaders
     {
         /// <summary>
