@@ -108,6 +108,12 @@ namespace Rebus.Config
             return this;
         }
 
+        /// <summary>
+        /// Configure mandatory delivery. 
+        /// This configuration tells the server how to react if the message cannot be routed to a queue. 
+        /// If this configuration is set, the server will return an unroutable message with a Return method. 
+        /// If this configuration is not used, the server silently drops the message
+        /// </summary>
         public RabbitMqOptionsBuilder Mandatory(Action<object, BasicReturnEventArgs> basicReturnCallback)
         {
             CallbackOptionsBuilder.BasicReturn(basicReturnCallback);
