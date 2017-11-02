@@ -4,26 +4,41 @@ using RabbitMQ.Client.Events;
 
 namespace Rebus.Config
 {
+    /// <summary>
+    /// Allows for fluently configuring RabbitMQ callbacks
+    /// </summary>
     public class RabbitMqCallbackOptionsBuilder
     {
+        /// <summary>
+        /// Add callback function for BasicReturn event
+        /// </summary>
         public RabbitMqCallbackOptionsBuilder BasicReturn(Action<object, BasicReturnEventArgs> basicReturnCallback)
         {
             BasicReturnCallback = basicReturnCallback;
             return this;
         }
 
+        /// <summary>
+        /// Add callback function for exception event
+        /// </summary>
         public RabbitMqCallbackOptionsBuilder CallbackException(Action<object, CallbackExceptionEventArgs> callbackExceptionCallback)
         {
             CallbackExceptionCallback = callbackExceptionCallback;
             return this;
         }
 
+        /// <summary>
+        /// Add callback function for flow control event
+        /// </summary>
         public RabbitMqCallbackOptionsBuilder FlowControl(Action<object, FlowControlEventArgs> flowControlCallback)
         {
             FlowControlCallback = flowControlCallback;
             return this;
         }
 
+        /// <summary>
+        /// Add callback function for model shutdown event
+        /// </summary>
         public RabbitMqCallbackOptionsBuilder ModelShutdown(Action<object, ShutdownEventArgs> modelShutdownCallback)
         {
             ModelShutdownCallback = modelShutdownCallback;

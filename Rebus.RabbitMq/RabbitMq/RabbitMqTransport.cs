@@ -137,6 +137,9 @@ namespace Rebus.RabbitMq
             _callbackOptions = callbackOptions;
         }
 
+        /// <summary>
+        /// Configures input queue options
+        /// </summary>
         public void SetInputQueueOptions(RabbitMqQueueOptionsBuilder inputQueueOptions)
         {
             _inputQueueOptions = inputQueueOptions;
