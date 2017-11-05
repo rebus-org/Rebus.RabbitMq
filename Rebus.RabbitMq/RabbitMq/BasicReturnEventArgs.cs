@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using RabbitMQ.Client;
 using Rebus.Messages;
 
@@ -12,8 +13,7 @@ namespace Rebus.RabbitMq
         /// <summary>The transport message.</summary>
         public TransportMessage Message { get; set; }
 
-        /// <summary>The message body.</summary>
-        public byte[] Body { get; set; }
+        public Dictionary<string, string> Headers { get; set; }
 
         /// <summary>The exchange the returned message was originally
         /// published to.</summary>
