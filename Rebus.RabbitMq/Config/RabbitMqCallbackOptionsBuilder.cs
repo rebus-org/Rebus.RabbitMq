@@ -28,11 +28,14 @@ namespace Rebus.Config
             {
                 model.BasicReturn += (sender, args) =>
                 {
+                    var transportMessage = RabbitMqTransport.CreateTransportMessage(args.BasicProperties, args.Body);
+
                     var eventArgs = new BasicReturnEventArgs()
                     {
-                        Message = RabbitMqTransport.CreateTransportMessage(args.BasicProperties, args.Body),
+                        Message = transportMessage,
+                        Headers = transportMessage.Headers,
                         Exchange = args.Exchange,
-                        ReplyCode = (int)args.ReplyCode,
+                        ReplyCode = args.ReplyCode,
                         ReplyText = args.ReplyText,
                         RoutingKey = args.RoutingKey,
                     };
