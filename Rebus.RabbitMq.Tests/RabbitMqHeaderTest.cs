@@ -23,7 +23,7 @@ namespace Rebus.RabbitMq.Tests
         {
             RabbitMqTransportFactory.DeleteQueue(_noneExistingQueueName);
         }
-
+        /*
         [Test]
         public async Task Headers()
         {
@@ -75,7 +75,7 @@ namespace Rebus.RabbitMq.Tests
 
             Assert.AreEqual("custom", basicProperties.Headers["Custom-header"], "custom-header");
         }
-
+        */
         private IBus StartOneWayClient(Action<object, BasicReturnEventArgs> basicReturnCallback)
         {
             var client = Using(new BuiltinHandlerActivator());

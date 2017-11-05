@@ -25,7 +25,7 @@ namespace Rebus.RabbitMq.Tests
         }
 
         [Test]
-        public async Task MandatoryHeaderWithoutHandlerThrows()
+        public void MandatoryHeaderWithoutHandlerThrows()
         {
             Action<object, BasicReturnEventArgs> callback = null;
             var bus = StartOneWayClient(callback);
@@ -47,7 +47,7 @@ namespace Rebus.RabbitMq.Tests
 
             Action<object, BasicReturnEventArgs> callback = (sender, eventArgs) =>
             {
-                if (eventArgs.BasicProperties.MessageId.Equals(messageId.ToString()))
+                if (eventArgs.Message.GetMessageId().Equals(messageId.ToString()))
                 {
                     gotCallback.Set();
                 }

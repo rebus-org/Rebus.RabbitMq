@@ -313,7 +313,7 @@ namespace Rebus.RabbitMq
                     catch { }
                 });
 
-                return CreateTransportMessage(result);
+                return CreateTransportMessage(result.BasicProperties, result.Body);
             }
             catch (EndOfStreamException exception)
             {
@@ -376,12 +376,11 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Creates the transport message.
         /// </summary>
-        /// <param name="result">The <see cref="BasicDeliverEventArgs"/> instance containing the event data.</param>
+        /// <param name="basicProperties"></param>
+        /// <param name="body"></param>
         /// <returns>the TransportMessage</returns>
-        static TransportMessage CreateTransportMessage(BasicDeliverEventArgs result)
+        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, byte[] body)
         {
-            var basicProperties = result.BasicProperties;
-
             var headers = basicProperties.Headers?.ToDictionary(kvp => kvp.Key, kvp =>
                           {
                               var headerValue = kvp.Value;
@@ -398,23 +397,21 @@ namespace Rebus.RabbitMq
 
             if (!headers.ContainsKey(Headers.MessageId))
             {
-                AddMessageId(headers, result);
+                AddMessageId(headers, basicProperties, body);
             }
 
-            return new TransportMessage(headers, result.Body);
+            return new TransportMessage(headers, body);
         }
 
-        static void AddMessageId(Dictionary<string, string> headers, BasicDeliverEventArgs result)
+        static void AddMessageId(Dictionary<string, string> headers, IBasicProperties basicProperties, byte[] body)
         {
-            var basicProperties = result.BasicProperties;
-
             if (basicProperties.IsMessageIdPresent())
             {
                 headers[Headers.MessageId] = basicProperties.MessageId;
                 return;
             }
 
-            var pseudoMessageId = GenerateMessageIdFromBodyContents(result.Body);
+            var pseudoMessageId = GenerateMessageIdFromBodyContents(body);
 
             headers[Headers.MessageId] = pseudoMessageId;
         }
