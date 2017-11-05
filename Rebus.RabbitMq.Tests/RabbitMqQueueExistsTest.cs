@@ -25,7 +25,7 @@ namespace Rebus.RabbitMq.Tests
         }
 
         [Test]
-        public async Task ThrowExceptionWhenQueueDoesNotExist()
+        public void ThrowExceptionWhenQueueDoesNotExist()
         {
             var queueName = TestConfig.GetName("non-existing-queue");
             RabbitMqTransportFactory.DeleteQueue(queueName);

@@ -13,6 +13,8 @@ using Rebus.Logging;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 
+#pragma warning disable 1998
+
 namespace Rebus.RabbitMq.Tests
 {
     [TestFixture, Category("rabbitmq")]

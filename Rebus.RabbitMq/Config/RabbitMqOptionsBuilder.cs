@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using RabbitMQ.Client.Events;
 using Rebus.RabbitMq;
 
 namespace Rebus.Config
