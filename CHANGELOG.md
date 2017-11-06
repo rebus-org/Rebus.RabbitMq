@@ -38,6 +38,11 @@
 
 * Fix credentials issue - thanks [samartzidis]
 
+## 4.1.2
+
+* Fix weird dependency on NUnit test adapter - thanks [bzuu]
+
 ---
 
+[bzuu]: https://github.com/bzuu
 [samartzidis]: https://github.com/samartzidis
