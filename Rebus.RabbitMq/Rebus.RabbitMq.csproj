@@ -46,7 +46,6 @@
     <None Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="NUnit3TestAdapter" Version="3.8.0" />
     <PackageReference Include="rebus" Version="4.0.1" />
     <PackageReference Include="RabbitMq.Client" Version="4.1.1" />
   </ItemGroup>
