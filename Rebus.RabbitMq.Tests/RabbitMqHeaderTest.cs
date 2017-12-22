@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
 using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
+using Rebus.Extensions;
 using Rebus.Logging;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
@@ -23,17 +22,20 @@ namespace Rebus.RabbitMq.Tests
         {
             RabbitMqTransportFactory.DeleteQueue(_noneExistingQueueName);
         }
-        /*
+
         [Test]
         public async Task Headers()
         {
             var messageId = Guid.NewGuid();
             var gotCallback = new ManualResetEvent(false);
 
-            IBasicProperties basicProperties = null;
+            var headersFromCallback = new Dictionary<string, string>();
             Action<object, BasicReturnEventArgs> callback = (sender, eventArgs) =>
             {
-                basicProperties = eventArgs.BasicProperties;
+                foreach (var kvp in eventArgs.Headers)
+                {
+                    headersFromCallback[kvp.Key] = kvp.Value;
+                }
                 gotCallback.Set();
             };
 
@@ -45,7 +47,7 @@ namespace Rebus.RabbitMq.Tests
                 [RabbitMqHeaders.AppId] = Guid.NewGuid().ToString(),
                 [RabbitMqHeaders.CorrelationId] = Guid.NewGuid().ToString(),
                 [RabbitMqHeaders.UserId] = "guest",
-                //[RabbitMqHeaders.ContentType] = "text/plain", // NOTE: Gets overridden by JsonSerializer in Rebus
+                [RabbitMqHeaders.ContentType] = "text/plain", // NOTE: Gets overridden by JsonSerializer in Rebus
                 [RabbitMqHeaders.ContentEncoding] = "none",
                 [RabbitMqHeaders.DeliveryMode] = "1",
                 [RabbitMqHeaders.Type] = "string",
@@ -59,24 +61,45 @@ namespace Rebus.RabbitMq.Tests
 
             gotCallback.WaitOrDie(TimeSpan.FromSeconds(2));
 
-            Assert.NotNull(basicProperties);
+            var keys = new[]
+            {
+                RabbitMqHeaders.MessageId,
+                RabbitMqHeaders.AppId,
+                RabbitMqHeaders.CorrelationId,
+                RabbitMqHeaders.UserId,
+                //RabbitMqHeaders.ContentType, //< we do custom check for this one
+                RabbitMqHeaders.ContentEncoding,
+                RabbitMqHeaders.DeliveryMode,
+                RabbitMqHeaders.Type,
+                "Custom-header"
+            };
 
-            Assert.AreEqual(headers[RabbitMqHeaders.MessageId], basicProperties.MessageId, RabbitMqHeaders.MessageId);
-            Assert.AreEqual(headers[RabbitMqHeaders.AppId], basicProperties.AppId, RabbitMqHeaders.AppId);
-            Assert.AreEqual(headers[RabbitMqHeaders.CorrelationId], basicProperties.CorrelationId, RabbitMqHeaders.CorrelationId);
-            Assert.AreEqual(headers[RabbitMqHeaders.UserId], basicProperties.UserId, RabbitMqHeaders.UserId);
+            foreach (var key in keys)
+            {
+                Assert.That(headersFromCallback[key], Is.EqualTo(headers[key]), $"Values for key '{key}' did not match");
+            }
+
+            var contentType = headersFromCallback.GetValue(RabbitMqHeaders.ContentType);
+
+            Assert.That(contentType, Is.Not.Empty);
+
+
+            //Assert.AreEqual(headers[RabbitMqHeaders.MessageId], basicProperties.MessageId, RabbitMqHeaders.MessageId);
+            //Assert.AreEqual(headers[RabbitMqHeaders.AppId], basicProperties.AppId, RabbitMqHeaders.AppId);
+            //Assert.AreEqual(headers[RabbitMqHeaders.CorrelationId], basicProperties.CorrelationId, RabbitMqHeaders.CorrelationId);
+            //Assert.AreEqual(headers[RabbitMqHeaders.UserId], basicProperties.UserId, RabbitMqHeaders.UserId);
             //Assert.AreEqual(headers[RabbitMqHeaders.ContentType], basicProperties.ContentType);
-            Assert.AreEqual(headers[RabbitMqHeaders.ContentEncoding], basicProperties.ContentEncoding, RabbitMqHeaders.ContentEncoding);
-            Assert.AreEqual(headers[RabbitMqHeaders.DeliveryMode], basicProperties.DeliveryMode.ToString(), RabbitMqHeaders.DeliveryMode);
-            Assert.AreEqual(headers[RabbitMqHeaders.Type], basicProperties.Type, RabbitMqHeaders.Type);
+            //Assert.AreEqual(headers[RabbitMqHeaders.ContentEncoding], basicProperties.ContentEncoding, RabbitMqHeaders.ContentEncoding);
+            //Assert.AreEqual(headers[RabbitMqHeaders.DeliveryMode], basicProperties.DeliveryMode.ToString(), RabbitMqHeaders.DeliveryMode);
+            //Assert.AreEqual(headers[RabbitMqHeaders.Type], basicProperties.Type, RabbitMqHeaders.Type);
 
-            Assert.AreEqual(TimeSpan.FromMinutes(2).TotalMilliseconds.ToString(), basicProperties.Expiration, RabbitMqHeaders.Expiration);
-            Assert.AreEqual(headers[RabbitMqHeaders.Timestamp], ConvertUnixTimeStamp(basicProperties.Timestamp.UnixTime.ToString()).ToString("s"), RabbitMqHeaders.Timestamp);
+            //Assert.AreEqual(TimeSpan.FromMinutes(2).TotalMilliseconds.ToString(), basicProperties.Expiration, RabbitMqHeaders.Expiration);
+            //Assert.AreEqual(headers[RabbitMqHeaders.Timestamp], ConvertUnixTimeStamp(basicProperties.Timestamp.UnixTime.ToString()).ToString("s"), RabbitMqHeaders.Timestamp);
 
-            Assert.AreEqual("custom", basicProperties.Headers["Custom-header"], "custom-header");
+            //Assert.AreEqual("custom", basicProperties.Headers["Custom-header"], "custom-header");
         }
-        */
-        private IBus StartOneWayClient(Action<object, BasicReturnEventArgs> basicReturnCallback)
+
+        IBus StartOneWayClient(Action<object, BasicReturnEventArgs> basicReturnCallback)
         {
             var client = Using(new BuiltinHandlerActivator());
 

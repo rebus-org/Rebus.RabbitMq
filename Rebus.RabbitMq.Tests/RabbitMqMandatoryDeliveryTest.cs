@@ -27,8 +27,7 @@ namespace Rebus.RabbitMq.Tests
         [Test]
         public void MandatoryHeaderWithoutHandlerThrows()
         {
-            Action<object, BasicReturnEventArgs> callback = null;
-            var bus = StartOneWayClient(callback);
+            var bus = StartOneWayClient(null);
 
             Assert.ThrowsAsync<MandatoryDeliveryException>(async () =>
             {
@@ -45,15 +44,15 @@ namespace Rebus.RabbitMq.Tests
             var messageId = Guid.NewGuid();
             var gotCallback = new ManualResetEvent(false);
 
-            Action<object, BasicReturnEventArgs> callback = (sender, eventArgs) =>
+            void Callback(object sender, BasicReturnEventArgs eventArgs)
             {
                 if (eventArgs.Message.GetMessageId().Equals(messageId.ToString()))
                 {
                     gotCallback.Set();
                 }
-            };
+            }
 
-            var bus = StartOneWayClient(callback);
+            var bus = StartOneWayClient(Callback);
 
             await bus.Advanced.Routing.Send(_noneExistingQueueName, "I'm mandatory", new Dictionary<string, string>
             {
