@@ -20,7 +20,7 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture, Category("rabbitmq")]
     public class RabbitMqPriorityQueueTestcs : FixtureBase
     {
-        private readonly string _priorityQueueName = TestConfig.GetName("priority-queue");
+        readonly string _priorityQueueName = TestConfig.GetName("priority-queue");
 
         protected override void SetUp()
         {
@@ -31,7 +31,7 @@ namespace Rebus.RabbitMq.Tests
         public void PriorityInputQueueCreate()
         {
             // Start a server with priority
-            StartServer(_priorityQueueName, 10);
+            Using(StartServer(_priorityQueueName, 10));
 
             // Check if queues exists
             Assert.DoesNotThrow(() =>
@@ -58,7 +58,7 @@ namespace Rebus.RabbitMq.Tests
         public void PriorityInputQueueCreateThrowsOnDifferentPriority()
         {
             // Start a server with priority
-            StartServer(_priorityQueueName, 10);
+            Using(StartServer(_priorityQueueName, 10));
 
             Assert.Throws<OperationInterruptedException>(() =>
             {
@@ -82,13 +82,13 @@ namespace Rebus.RabbitMq.Tests
         [Test]
         public void MultipleServersThrowsOnDifferentPriority()
         {
-            StartServer(_priorityQueueName, 10);
+            Using(StartServer(_priorityQueueName, 10));
 
             // Rebus throws resolution exception
             // NOTE: Would be nice if this could be a specific RebusApplicationException
             Assert.Throws<ResolutionException>(() =>
             {
-                StartServer(_priorityQueueName, 1);
+                Using(StartServer(_priorityQueueName, 1));
             });
         }
 
@@ -114,6 +114,8 @@ namespace Rebus.RabbitMq.Tests
                     gotMessages.Set();
                 }
             });
+
+            Using(activator);
 
             var bus = StartOneWayClient();
 
@@ -185,7 +187,7 @@ namespace Rebus.RabbitMq.Tests
             Assert.False(error, "Sequence is out of order");
         }
 
-        private BuiltinHandlerActivator StartServer(string queueName, int maxPriority)
+        BuiltinHandlerActivator StartServer(string queueName, int maxPriority)
         {
             var activator = Using(new BuiltinHandlerActivator());
 

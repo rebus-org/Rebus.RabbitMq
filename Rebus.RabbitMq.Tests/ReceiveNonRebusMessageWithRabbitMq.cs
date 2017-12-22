@@ -29,9 +29,7 @@ namespace Rebus.RabbitMq.Tests
         {
             RabbitMqTransportFactory.DeleteQueue(_inputQueueName);
 
-            _activator = new BuiltinHandlerActivator();
-
-            Using(_activator);
+            _activator = Using(new BuiltinHandlerActivator());
 
             Configure.With(_activator)
                 .Logging(l => l.Console(LogLevel.Warn))

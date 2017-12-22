@@ -62,9 +62,7 @@ namespace Rebus.RabbitMq.Tests
 
         BuiltinHandlerActivator GetBus(string queueName, Func<string, Task> handlerMethod = null)
         {
-            var activator = new BuiltinHandlerActivator();
-
-            Using(activator);
+            var activator = Using(new BuiltinHandlerActivator());
 
             if (handlerMethod != null)
             {
