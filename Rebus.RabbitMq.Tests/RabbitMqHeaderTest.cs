@@ -30,14 +30,15 @@ namespace Rebus.RabbitMq.Tests
             var gotCallback = new ManualResetEvent(false);
 
             var headersFromCallback = new Dictionary<string, string>();
-            Action<object, BasicReturnEventArgs> callback = (sender, eventArgs) =>
+
+            void Callback(object sender, BasicReturnEventArgs eventArgs)
             {
                 foreach (var kvp in eventArgs.Headers)
                 {
                     headersFromCallback[kvp.Key] = kvp.Value;
                 }
                 gotCallback.Set();
-            };
+            }
 
             var timestamp = DateTime.Now;
             var headers = new Dictionary<string, string>
@@ -56,7 +57,7 @@ namespace Rebus.RabbitMq.Tests
                 ["Custom-header"] = "custom",
             };
 
-            var bus = StartOneWayClient(callback);
+            var bus = StartOneWayClient(Callback);
             await bus.Advanced.Routing.Send(_noneExistingQueueName, "I have headers", headers);
 
             gotCallback.WaitOrDie(TimeSpan.FromSeconds(2));

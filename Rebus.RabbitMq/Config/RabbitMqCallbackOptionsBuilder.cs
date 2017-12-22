@@ -30,15 +30,13 @@ namespace Rebus.Config
                 {
                     var transportMessage = RabbitMqTransport.CreateTransportMessage(args.BasicProperties, args.Body);
 
-                    var eventArgs = new BasicReturnEventArgs()
-                    {
-                        Message = transportMessage,
-                        Headers = transportMessage.Headers,
-                        Exchange = args.Exchange,
-                        ReplyCode = args.ReplyCode,
-                        ReplyText = args.ReplyText,
-                        RoutingKey = args.RoutingKey,
-                    };
+                    var eventArgs = new BasicReturnEventArgs(
+                        transportMessage,
+                        args.Exchange,
+                        args.ReplyCode,
+                        args.ReplyText,
+                        args.RoutingKey
+                    );
 
                     BasicReturnCallback(sender, eventArgs);
                 };
