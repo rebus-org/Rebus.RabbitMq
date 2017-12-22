@@ -34,7 +34,7 @@ namespace Rebus.RabbitMq
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
-        readonly ConcurrentDictionary<string, bool> _initializedQueues = new ConcurrentDictionary<string, bool>();
+        readonly ConcurrentDictionary<string, bool> _verifiedQueues = new ConcurrentDictionary<string, bool>();
         readonly ConnectionManager _connectionManager;
         readonly ILog _log;
 
@@ -49,6 +49,9 @@ namespace Rebus.RabbitMq
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
+
+        RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
+        RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
 
         /// <summary>
         /// Constructs the transport with a connection to the RabbitMQ instance specified by the given connection string
@@ -127,6 +130,22 @@ namespace Rebus.RabbitMq
         }
 
         /// <summary>
+        /// Configures BasicModel events
+        /// </summary>
+        public void SetCallbackOptions(RabbitMqCallbackOptionsBuilder callbackOptions)
+        {
+            _callbackOptions = callbackOptions;
+        }
+
+        /// <summary>
+        /// Configures input queue options
+        /// </summary>
+        public void SetInputQueueOptions(RabbitMqQueueOptionsBuilder inputQueueOptions)
+        {
+            _inputQueueOptions = inputQueueOptions;
+        }
+
+        /// <summary>
         /// Initializes the transport by creating the input queue
         /// </summary>
         public void Initialize()
@@ -155,7 +174,7 @@ namespace Rebus.RabbitMq
 
                 if (_declareInputQueue)
                 {
-                    DeclareQueue(address, model, durable);
+                    DeclareQueue(address, model);
                 }
 
                 if (_bindInputQueue)
@@ -170,18 +189,28 @@ namespace Rebus.RabbitMq
             model.QueueBind(address, _directExchangeName, address);
         }
 
-        static void DeclareQueue(string address, IModel model, bool durable)
+        void DeclareQueue(string address, IModel model)
         {
-            var arguments = new Dictionary<string, object>
+            if (Address != null && Address.Equals(address))
             {
-                {"x-ha-policy", "all"}
-            };
+                // This is the input queue => we use the queue setting to create the queue
+                model.QueueDeclare(address,
+                    exclusive: _inputQueueOptions.Exclusive,
+                    durable: _inputQueueOptions.Durable,
+                    autoDelete: _inputQueueOptions.AutoDelete,
+                    arguments: _inputQueueOptions.Arguments);
+            }
+            else
+            {
+                // This is another queue, properbly the error queue => we use the default queue options
+                var defaultQueueOptions = new RabbitMqQueueOptionsBuilder();
 
-            model.QueueDeclare(address,
-                exclusive: false,
-                durable: durable,
-                autoDelete: false,
-                arguments: arguments);
+                model.QueueDeclare(address,
+                    exclusive: defaultQueueOptions.Exclusive,
+                    durable: defaultQueueOptions.Durable,
+                    autoDelete: defaultQueueOptions.AutoDelete,
+                    arguments: defaultQueueOptions.Arguments);
+            }
         }
 
         /// <inheritdoc />
@@ -284,7 +313,7 @@ namespace Rebus.RabbitMq
                     catch { }
                 });
 
-                return CreateTransportMessage(result);
+                return CreateTransportMessage(result.BasicProperties, result.Body);
             }
             catch (EndOfStreamException exception)
             {
@@ -347,12 +376,11 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Creates the transport message.
         /// </summary>
-        /// <param name="result">The <see cref="BasicDeliverEventArgs"/> instance containing the event data.</param>
+        /// <param name="basicProperties"></param>
+        /// <param name="body"></param>
         /// <returns>the TransportMessage</returns>
-        static TransportMessage CreateTransportMessage(BasicDeliverEventArgs result)
+        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, byte[] body)
         {
-            var basicProperties = result.BasicProperties;
-
             var headers = basicProperties.Headers?.ToDictionary(kvp => kvp.Key, kvp =>
                           {
                               var headerValue = kvp.Value;
@@ -369,23 +397,21 @@ namespace Rebus.RabbitMq
 
             if (!headers.ContainsKey(Headers.MessageId))
             {
-                AddMessageId(headers, result);
+                AddMessageId(headers, basicProperties, body);
             }
 
-            return new TransportMessage(headers, result.Body);
+            return new TransportMessage(headers, body);
         }
 
-        static void AddMessageId(Dictionary<string, string> headers, BasicDeliverEventArgs result)
+        static void AddMessageId(Dictionary<string, string> headers, IBasicProperties basicProperties, byte[] body)
         {
-            var basicProperties = result.BasicProperties;
-
             if (basicProperties.IsMessageIdPresent())
             {
                 headers[Headers.MessageId] = basicProperties.MessageId;
                 return;
             }
 
-            var pseudoMessageId = GenerateMessageIdFromBodyContents(result.Body);
+            var pseudoMessageId = GenerateMessageIdFromBodyContents(body);
 
             headers[Headers.MessageId] = pseudoMessageId;
         }
@@ -447,49 +473,132 @@ namespace Rebus.RabbitMq
             {
                 var destinationAddress = outgoingMessage.DestinationAddress;
                 var message = outgoingMessage.TransportMessage;
-                var props = model.CreateBasicProperties();
-                var headers = message.Headers;
-                var timeToBeDelivered = GetTimeToBeReceivedOrNull(message);
+                var props = CreateBasicProperties(model, message.Headers);
 
-                props.Headers = headers
-                    .ToDictionary(kvp => kvp.Key, kvp => (object)HeaderValueEncoding.GetBytes(kvp.Value));
-
-                if (timeToBeDelivered.HasValue)
+                var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
+                if (mandatory && !_callbackOptions.HasMandatoryCallback)
                 {
-                    props.Expiration = timeToBeDelivered.Value.TotalMilliseconds.ToString("0");
+                    throw new MandatoryDeliveryException("Mandatory delivery is not allowed without registrering a handler for BasicReturn in RabbitMqOptions.");
                 }
-
-                var express = headers.ContainsKey(Headers.Express);
-
-                props.Persistent = !express;
 
                 var routingKey = new FullyQualifiedRoutingKey(destinationAddress);
                 var exchange = routingKey.ExchangeName ?? _directExchangeName;
 
                 // when we're sending point-to-point, we want to be sure that we are never sending the message out into nowhere
-                if (exchange == _directExchangeName)
+                if (exchange == _directExchangeName && !_callbackOptions.HasMandatoryCallback)
                 {
-                    EnsureQueueIsInitialized(destinationAddress, model);
+                    try
+                    {
+                        EnsureQueueExists(destinationAddress, model);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new RebusApplicationException(e, $"Queue '{destinationAddress}' does not exists.");
+                    }
                 }
 
-                model.BasicPublish(exchange, routingKey.RoutingKey, props, message.Body);
+                model.BasicPublish(exchange, routingKey.RoutingKey, mandatory, props, message.Body);
             }
         }
 
-        void EnsureQueueIsInitialized(string destinationAddress, IModel model)
+        private IBasicProperties CreateBasicProperties(IModel model, Dictionary<string, string> headers)
         {
-            _initializedQueues
+            var props = model.CreateBasicProperties();
+
+            if (headers.TryGetValue(RabbitMqHeaders.MessageId, out var messageId))
+            {
+                props.MessageId = messageId;
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.AppId, out var appId))
+            {
+                props.AppId = appId;
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.CorrelationId, out var correlationId))
+            {
+                props.CorrelationId = correlationId;
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.UserId, out var userId))
+            {
+                props.UserId = userId;
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.ContentType, out var contentType))
+            {
+                props.ContentType = contentType;
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.ContentEncoding, out var contentEncoding))
+            {
+                props.ContentEncoding = contentEncoding;
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.DeliveryMode, out var deliveryModeVal))
+            {
+                if (byte.TryParse(deliveryModeVal, out var deliveryMode) && deliveryMode > 0 && deliveryMode <= 2)
+                {
+                    props.DeliveryMode = deliveryMode;
+                }
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.Expiration, out var expiration))
+            {
+                if (TimeSpan.TryParse(expiration, out var timeToBeDelivered))
+                { 
+                    props.Expiration = timeToBeDelivered.TotalMilliseconds.ToString("0");
+                }
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.Priority, out var priorityVal))
+            {
+                if (byte.TryParse(priorityVal, out var priority))
+                {
+                    props.Priority = priority;
+                }
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.Timestamp, out var timestampVal))
+            {
+                if (DateTimeOffset.TryParse(timestampVal, out var timestamp))
+                {
+                    // Unix epoch
+                    var unixTime = (long)(timestamp.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds;
+                    props.Timestamp = new AmqpTimestamp(unixTime);
+                }
+            }
+
+            if (headers.TryGetValue(RabbitMqHeaders.Type, out var type))
+            {
+                props.Type = type;
+            }
+
+            // Alternative way of setting RabbitMqHeaders.DeliveryMode
+            if (!headers.ContainsKey(RabbitMqHeaders.DeliveryMode))
+            {
+                var express = headers.ContainsKey(Headers.Express);
+                props.Persistent = !express;
+            }
+
+            // must be last because the other functions on the headers might change them
+            props.Headers = headers
+                .ToDictionary(kvp => kvp.Key, kvp => (object) HeaderValueEncoding.GetBytes(kvp.Value));
+
+            return props;
+        }
+
+        void EnsureQueueExists(string destinationAddress, IModel model)
+        {
+            _verifiedQueues
                 .GetOrAdd(destinationAddress, _ =>
                 {
                     if (_declareInputQueue)
                     {
-                        DeclareQueue(destinationAddress, model, true);
+                        // Checks if queue exists, throws if the queue doesn't exist
+                        model.QueueDeclarePassive(destinationAddress);
                     }
-
-                    if (_bindInputQueue)
-                    {
-                        BindInputQueue(destinationAddress, model);
-                    }
+                    
                     return true;
                 });
         }
@@ -518,18 +627,6 @@ namespace Rebus.RabbitMq
             public string RoutingKey { get; }
         }
 
-        static TimeSpan? GetTimeToBeReceivedOrNull(TransportMessage message)
-        {
-            var headers = message.Headers;
-            TimeSpan? timeToBeReceived = null;
-            if (headers.ContainsKey(Headers.TimeToBeReceived))
-            {
-                var timeToBeReceivedStr = headers[Headers.TimeToBeReceived];
-                timeToBeReceived = TimeSpan.Parse(timeToBeReceivedStr);
-            }
-            return timeToBeReceived;
-        }
-
         IModel GetModel(ITransactionContext context)
         {
             var model = context.GetOrAdd(CurrentModelItemsKey, () =>
@@ -537,6 +634,9 @@ namespace Rebus.RabbitMq
                 var connection = _connectionManager.GetConnection();
                 var newModel = connection.CreateModel();
                 context.OnDisposed(() => newModel.Dispose());
+
+                // Configure registred events on model
+                _callbackOptions?.ConfigureEvents(newModel);
 
                 return newModel;
             });
