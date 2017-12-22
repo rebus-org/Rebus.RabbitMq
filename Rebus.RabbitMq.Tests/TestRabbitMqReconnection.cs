@@ -33,9 +33,7 @@ namespace Rebus.RabbitMq.Tests
                 transport.PurgeInputQueue();
             }
 
-            _receiver = new BuiltinHandlerActivator();
-
-            Using(_receiver);
+            _receiver = Using(new BuiltinHandlerActivator());
 
             Configure.With(_receiver)
                 .Logging(l => l.Console(LogLevel.Info))
@@ -47,13 +45,13 @@ namespace Rebus.RabbitMq.Tests
                 })
                 .Start();
 
-            _sender = Configure.With(new BuiltinHandlerActivator())
+            var senderActivator = Using(new BuiltinHandlerActivator());
+
+            _sender = Configure.With(senderActivator)
                 .Logging(l => l.Console(LogLevel.Info))
                 .Transport(t => t.UseRabbitMqAsOneWayClient(ConnectionString))
                 .Routing(r => r.TypeBased().MapFallback(_receiverQueueName))
                 .Start();
-
-            Using(_sender);
         }
 
         [Test]

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using RabbitMQ.Client.Events;
 using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
@@ -17,7 +16,7 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture, Category("rabbitmq")]
     public class RabbitMqMandatoryDeliveryTest : FixtureBase
     {
-        private readonly string _noneExistingQueueName = TestConfig.GetName("non-existing-queue");
+        readonly string _noneExistingQueueName = TestConfig.GetName("non-existing-queue");
 
         protected override void SetUp()
         {
@@ -63,7 +62,7 @@ namespace Rebus.RabbitMq.Tests
             gotCallback.WaitOrDie(TimeSpan.FromSeconds(2));
         }
 
-        private IBus StartOneWayClient(Action<object, BasicReturnEventArgs> basicReturnCallback)
+        IBus StartOneWayClient(Action<object, BasicReturnEventArgs> basicReturnCallback)
         {
             var client = Using(new BuiltinHandlerActivator());
 

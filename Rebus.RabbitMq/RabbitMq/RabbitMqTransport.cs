@@ -659,10 +659,11 @@ namespace Rebus.RabbitMq
         /// <inheritdoc />
         public void Dispose()
         {
-            if (_consumer?.Model != null && _consumer.Model.IsOpen)
+            try
             {
-                _consumer.Model.Dispose();
+                _consumer?.Model?.Dispose();
             }
+            catch { }
 
             _connectionManager.Dispose();
         }

@@ -16,7 +16,7 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture, Category("rabbitmq")]
     public class RabbitMqHeaderTest : FixtureBase
     {
-        private readonly string _noneExistingQueueName = TestConfig.GetName("non-existing-queue");
+        readonly string _noneExistingQueueName = TestConfig.GetName("non-existing-queue");
 
         protected override void SetUp()
         {
