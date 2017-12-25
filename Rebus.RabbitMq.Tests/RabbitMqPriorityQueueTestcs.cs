@@ -42,14 +42,14 @@ namespace Rebus.RabbitMq.Tests
                 using (var model = connection.CreateModel())
                 {
                     // Throws exception if queue paramters differ
-                   model.QueueDeclare(_priorityQueueName,
-                        exclusive: false,
-                        durable: true,
-                        autoDelete: false,
-                        arguments: new Dictionary<string, object>
-                        {
+                    model.QueueDeclare(_priorityQueueName,
+                         exclusive: false,
+                         durable: true,
+                         autoDelete: false,
+                         arguments: new Dictionary<string, object>
+                         {
                             {"x-max-priority", 10}
-                        });
+                         });
                 }
             });
         }
@@ -82,13 +82,13 @@ namespace Rebus.RabbitMq.Tests
         [Test]
         public void MultipleServersThrowsOnDifferentPriority()
         {
-            Using(StartServer(_priorityQueueName, 10));
+            StartServer(_priorityQueueName, 10);
 
             // Rebus throws resolution exception
             // NOTE: Would be nice if this could be a specific RebusApplicationException
             Assert.Throws<ResolutionException>(() =>
             {
-                Using(StartServer(_priorityQueueName, 1));
+                StartServer(_priorityQueueName, 1);
             });
         }
 
@@ -151,7 +151,7 @@ namespace Rebus.RabbitMq.Tests
             // High priority first
             for (var i = 0; i <= 9; i++)
             {
-                var priority = 9-i;
+                var priority = 9 - i;
                 var message = priority.ToString();
                 Console.WriteLine($"Sending '{message}' message to '{_priorityQueueName}'");
 

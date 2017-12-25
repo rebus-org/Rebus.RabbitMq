@@ -4,6 +4,7 @@ using Rebus.RabbitMq;
 using Rebus.Subscriptions;
 using Rebus.Transport;
 // ReSharper disable ExpressionIsAlwaysNull
+// ReSharper disable ArgumentsStyleNamedExpression
 
 namespace Rebus.Config
 {
