@@ -82,7 +82,6 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void SetSslOptions(SslOption ssl)
         {
-            if (ssl == null) throw new ArgumentNullException(nameof(ssl));
             _connectionManager.SetSslOptions(ssl);
         }
         /// <summary>
