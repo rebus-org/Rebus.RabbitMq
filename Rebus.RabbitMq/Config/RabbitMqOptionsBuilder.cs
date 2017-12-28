@@ -141,6 +141,15 @@ namespace Rebus.Config
             return this;
         }
 
+        /// <summary>
+        /// Sets max number of messages to prefetch
+        /// </summary>
+        public RabbitMqOptionsBuilder Ssl(SslSettings ssl)
+        {
+            SslOption = ssl;
+            return this;
+        }
+
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
@@ -149,6 +158,8 @@ namespace Rebus.Config
         internal string TopicExchangeName { get; private set; }
 
         internal int? MaxNumberOfMessagesToPrefetch { get; private set; }
+        
+        internal SslSettings SslOption { get; private set; }
 
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 
@@ -157,6 +168,11 @@ namespace Rebus.Config
         internal void Configure(RabbitMqTransport transport)
         {
             transport.AddClientProperties(_additionalClientProperties);
+
+            if (SslOption != null)
+            {
+                transport.SetSslOptions(SslOption);
+            }
 
             if (DeclareExchanges.HasValue)
             {

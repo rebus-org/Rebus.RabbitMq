@@ -17,7 +17,7 @@ namespace Rebus.RabbitMq
 
         IConnection _activeConnection;
         bool _disposed;
-
+        
         public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
@@ -59,7 +59,7 @@ namespace Rebus.RabbitMq
                 .ToList();
         }
 
-        static AmqpTcpEndpoint GetAmqpTcpEndpoint(string uriString)
+        AmqpTcpEndpoint GetAmqpTcpEndpoint(string uriString)
         {
             try
             {
@@ -158,6 +158,18 @@ namespace Rebus.RabbitMq
             foreach (var kvp in additionalClientProperties)
             {
                 _connectionFactory.ClientProperties[kvp.Key] = kvp.Value;
+            }
+        }
+
+        public void SetSslOptions(SslSettings ssl)
+        {
+            foreach (var endpoint in _amqpTcpEndpoints)
+            {
+                var sslOption = new SslOption(ssl.ServerName,ssl.CertPath,ssl.Enabled);
+                sslOption.CertPassphrase = ssl.CertPassphrase;
+                sslOption.Version = ssl.Version;
+                ssl.AcceptablePolicyErrors = ssl.AcceptablePolicyErrors;
+                endpoint.Ssl = sslOption;
             }
         }
 
