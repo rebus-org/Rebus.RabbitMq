@@ -15,7 +15,6 @@ namespace Rebus.RabbitMq
         readonly IList<AmqpTcpEndpoint> _amqpTcpEndpoints;
         readonly ILog _log;
 
-        SslOption _ssl = new SslOption();
         IConnection _activeConnection;
         bool _disposed;
         
@@ -64,7 +63,7 @@ namespace Rebus.RabbitMq
         {
             try
             {
-                return new AmqpTcpEndpoint(new Uri(uriString), _ssl);
+                return new AmqpTcpEndpoint(new Uri(uriString));
             }
             catch (Exception exception)
             {
@@ -162,9 +161,16 @@ namespace Rebus.RabbitMq
             }
         }
 
-        public void SetSslOptions(SslOption ssl)
+        public void SetSslOptions(SslSettings ssl)
         {
-            _ssl = ssl;
+            foreach (var endpoint in _amqpTcpEndpoints)
+            {
+                var sslOption = new SslOption(ssl.ServerName,ssl.CertPath,ssl.Enabled);
+                sslOption.CertPassphrase = ssl.CertPassphrase;
+                sslOption.Version = ssl.Version;
+                ssl.AcceptablePolicyErrors = ssl.AcceptablePolicyErrors;
+                endpoint.Ssl = sslOption;
+            }
         }
 
         static IDictionary<string, object> CreateClientProperties(string inputQueueAddress)

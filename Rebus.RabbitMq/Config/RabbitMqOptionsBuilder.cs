@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using Rebus.RabbitMq;
-using RabbitMQ.Client;
 
 namespace Rebus.Config
 {
@@ -145,7 +144,7 @@ namespace Rebus.Config
         /// <summary>
         /// Sets max number of messages to prefetch
         /// </summary>
-        public RabbitMqOptionsBuilder Ssl(SslOption ssl)
+        public RabbitMqOptionsBuilder Ssl(SslSettings ssl)
         {
             SslOption = ssl;
             return this;
@@ -159,7 +158,7 @@ namespace Rebus.Config
         internal string TopicExchangeName { get; private set; }
 
         internal int? MaxNumberOfMessagesToPrefetch { get; private set; }
-        internal SslOption SslOption { get; private set; }
+        internal SslSettings SslOption { get; private set; }
 
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 

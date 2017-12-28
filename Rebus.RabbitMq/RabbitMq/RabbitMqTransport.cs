@@ -80,7 +80,7 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Stores ssl options to be used when connection to RabbitMQ is established
         /// </summary>
-        public void SetSslOptions(SslOption ssl)
+        public void SetSslOptions(SslSettings ssl)
         {
             _connectionManager.SetSslOptions(ssl);
         }
