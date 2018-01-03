@@ -142,11 +142,11 @@ namespace Rebus.Config
         }
 
         /// <summary>
-        /// Sets max number of messages to prefetch
+        /// Sets SLL settings to use when connecting to the broker
         /// </summary>
-        public RabbitMqOptionsBuilder Ssl(SslSettings ssl)
+        public RabbitMqOptionsBuilder Ssl(SslSettings sslSettings)
         {
-            SslOption = ssl;
+            SslSettings = sslSettings;
             return this;
         }
 
@@ -159,7 +159,7 @@ namespace Rebus.Config
 
         internal int? MaxNumberOfMessagesToPrefetch { get; private set; }
         
-        internal SslSettings SslOption { get; private set; }
+        internal SslSettings SslSettings { get; private set; }
 
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 
@@ -169,9 +169,9 @@ namespace Rebus.Config
         {
             transport.AddClientProperties(_additionalClientProperties);
 
-            if (SslOption != null)
+            if (SslSettings != null)
             {
-                transport.SetSslOptions(SslOption);
+                transport.SetSslSettings(SslSettings);
             }
 
             if (DeclareExchanges.HasValue)

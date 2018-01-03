@@ -1,11 +1,8 @@
-using System;
-
 using System.Net.Security;
 using System.Security.Authentication;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Rebus.RabbitMq
-{   
+{
     /// <summary>
     /// Represents ssl settings to be used in rabbitmq SSL connection
     /// </summary>
@@ -14,15 +11,15 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Constructs an SslSettings 
         /// </summary>
-        public SslSettings(bool enabled, string serverName, string certificatePath = "", string certPassphrase ="", SslProtocols version = SslProtocols.Tls, SslPolicyErrors acceptablePolicyErrors = SslPolicyErrors.None)
+        public SslSettings(bool enabled, string serverName, string certificatePath = "", string certPassphrase = "", SslProtocols version = SslProtocols.Tls, SslPolicyErrors acceptablePolicyErrors = SslPolicyErrors.None)
         {
             Enabled = enabled;
             ServerName = serverName;
             CertPath = certificatePath;
             CertPassphrase = certPassphrase;
 
-            Version = SslProtocols.Tls;
-            AcceptablePolicyErrors = SslPolicyErrors.None;
+            Version = version;
+            AcceptablePolicyErrors = acceptablePolicyErrors;
         }
 
         /// <summary>
@@ -35,6 +32,7 @@ namespace Rebus.RabbitMq
         /// This MUST match the CN on the Server Certificate else the SSL connection will fail.
         /// </summary>
         public string ServerName { get; set; }
+
         /// <summary>
         /// Retrieve or set the set of ssl policy errors that are deemed acceptable.
         /// </summary>

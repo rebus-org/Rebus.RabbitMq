@@ -45,10 +45,11 @@
 ## 4.2.0
 
 * Add support for priority queues (requires RabbitMQ 3.5) - thanks [K3llr]
-
+* Ability to configure SSL settings - thanks [nebelx]
 
 ---
 
 [bzuu]: https://github.com/bzuu
-[samartzidis]: https://github.com/samartzidis
+[nebelx]: https://github.com/nebelx
 [K3llr]: https://github.com/K3llr
+[samartzidis]: https://github.com/samartzidis
