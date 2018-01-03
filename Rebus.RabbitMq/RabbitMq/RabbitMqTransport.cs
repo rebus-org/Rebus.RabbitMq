@@ -78,6 +78,13 @@ namespace Rebus.RabbitMq
         }
 
         /// <summary>
+        /// Stores ssl options to be used when connection to RabbitMQ is established
+        /// </summary>
+        public void SetSslOptions(SslSettings ssl)
+        {
+            _connectionManager.SetSslOptions(ssl);
+        }
+        /// <summary>
         /// Sets whether the exchange should be declared
         /// </summary>
         public void SetDeclareExchanges(bool value)
