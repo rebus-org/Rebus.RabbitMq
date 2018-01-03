@@ -42,7 +42,13 @@
 
 * Fix weird dependency on NUnit test adapter - thanks [bzuu]
 
+## 4.2.0
+
+* Add support for priority queues (requires RabbitMQ 3.5) - thanks [K3llr]
+
+
 ---
 
 [bzuu]: https://github.com/bzuu
 [samartzidis]: https://github.com/samartzidis
+[K3llr]: https://github.com/K3llr
