@@ -162,25 +162,32 @@ namespace Rebus.RabbitMq
         {
             var connection = _connectionManager.GetConnection();
 
-            using (var model = connection.CreateModel())
+            try
             {
-                const bool durable = true;
-
-                if (_declareExchanges)
+                using (var model = connection.CreateModel())
                 {
-                    model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable);
-                    model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable);
-                }
+                    const bool durable = true;
 
-                if (_declareInputQueue)
-                {
-                    DeclareQueue(address, model);
-                }
+                    if (_declareExchanges)
+                    {
+                        model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable);
+                        model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable);
+                    }
 
-                if (_bindInputQueue)
-                {
-                    BindInputQueue(address, model);
+                    if (_declareInputQueue)
+                    {
+                        DeclareQueue(address, model);
+                    }
+
+                    if (_bindInputQueue)
+                    {
+                        BindInputQueue(address, model);
+                    }
                 }
+            }
+            catch (Exception exception)
+            {
+                throw new RebusApplicationException(exception, $"Queue declaration for '{address}' failed");
             }
         }
 

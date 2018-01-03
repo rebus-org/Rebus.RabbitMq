@@ -80,16 +80,19 @@ namespace Rebus.RabbitMq.Tests
         }
 
         [Test]
+        [Description("TODO: mhg Fix it so that it disposes everything properly")]
         public void MultipleServersThrowsOnDifferentPriority()
         {
             StartServer(_priorityQueueName, 10);
 
             // Rebus throws resolution exception
             // NOTE: Would be nice if this could be a specific RebusApplicationException
-            Assert.Throws<ResolutionException>(() =>
+            var resolutionException = Assert.Throws<ResolutionException>(() =>
             {
                 StartServer(_priorityQueueName, 1);
             });
+
+            Console.WriteLine(resolutionException);
         }
 
         [Test]
