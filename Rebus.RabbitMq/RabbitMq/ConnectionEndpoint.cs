@@ -8,8 +8,8 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Will be mapped to RabbitMq URI
         /// </summary>
-        public string ConnectionString{ get; set; }
-        
+        public string ConnectionString { get; set; }
+
         /// <summary>
         /// Will be mapped to RabbitMq SslOptions. Could be null
         /// </summary>

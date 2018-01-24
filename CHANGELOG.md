@@ -47,6 +47,10 @@
 * Add support for priority queues (requires RabbitMQ 3.5) - thanks [K3llr]
 * Ability to configure SSL settings - thanks [nebelx]
 
+## 4.3.0
+
+* Additional configuration overloads to allow for passing custom connection information to the RabbitMQ connection factory - thanks [nebelx]
+
 ---
 
 [bzuu]: https://github.com/bzuu
