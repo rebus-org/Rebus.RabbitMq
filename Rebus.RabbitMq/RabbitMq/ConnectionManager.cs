@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using RabbitMQ.Client;
+using Rebus.Extensions;
 using Rebus.Logging;
 
 namespace Rebus.RabbitMq
@@ -18,6 +19,63 @@ namespace Rebus.RabbitMq
         IConnection _activeConnection;
         bool _disposed;
 
+        public ConnectionManager(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory)
+        {
+            if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
+            if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
+          
+            _log = rebusLoggerFactory.GetLogger<ConnectionManager>();
+
+            if (inputQueueAddress != null)
+            {
+                _log.Info("Initializing RabbitMQ connection manager for transport with input queue '{0}'", inputQueueAddress);
+            }
+            else
+            {
+                _log.Info("Initializing RabbitMQ connection manager for one-way transport");
+            }
+
+            if (endpoints.Count == 0)
+            {
+                throw new ArgumentException("Please remember to specify at least one endpoints for a RabbitMQ server. You can also add multiple connection strings separated by ; or , which RabbitMq will use in failover scenarios");
+            }
+
+            if (endpoints.Count > 1)
+            {
+                _log.Info("RabbitMQ transport has {0} endpoints available", endpoints.Count);
+            }
+
+            endpoints.ForEach(endpoint =>
+            {
+                if (endpoint == null)
+                    throw new ArgumentException("Provided endpoint collection should not contain null values");
+                
+                if (string.IsNullOrEmpty(endpoint.ConnectionString))
+                    throw new ArgumentException("null or empty value is not valid for ConnectionString");
+            });
+
+            _connectionFactory = new ConnectionFactory
+            {
+                Uri = endpoints.First().ConnectionString, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
+                AutomaticRecoveryEnabled = true,
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
+                ClientProperties = CreateClientProperties(inputQueueAddress)
+            };
+
+            _amqpTcpEndpoints = endpoints
+                .Select(endpoint => {
+                    try
+                    {
+                        return new AmqpTcpEndpoint(new Uri(endpoint.ConnectionString), ToSslOption(endpoint.SslSettings));
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new FormatException($"Could not turn the connection string '{endpoint.ConnectionString}' into an AMQP TCP endpoint", exception);
+                    }
+                })
+                .ToList();
+
+        }
         public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
@@ -55,22 +113,19 @@ namespace Rebus.RabbitMq
             };
 
             _amqpTcpEndpoints = uriStrings
-                .Select(GetAmqpTcpEndpoint)
+                .Select(uriString => {
+                    try
+                    {
+                        return new AmqpTcpEndpoint(new Uri(uriString));
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new FormatException($"Could not turn the connection string '{uriString}' into an AMQP TCP endpoint", exception);
+                    }
+                })
                 .ToList();
         }
-
-        AmqpTcpEndpoint GetAmqpTcpEndpoint(string uriString)
-        {
-            try
-            {
-                return new AmqpTcpEndpoint(new Uri(uriString));
-            }
-            catch (Exception exception)
-            {
-                throw new FormatException($"Could not turn the connection string '{uriString}' into an AMQP TCP endpoint", exception);
-            }
-        }
-
+   
         public IConnection GetConnection()
         {
             var connection = _activeConnection;
@@ -163,16 +218,22 @@ namespace Rebus.RabbitMq
 
         public void SetSslOptions(SslSettings ssl)
         {
-            foreach (var endpoint in _amqpTcpEndpoints)
+            _amqpTcpEndpoints.ForEach(endpoint => { endpoint.Ssl = ToSslOption(ssl); });
+        }
+
+        static SslOption ToSslOption(SslSettings ssl)
+        {
+            if (ssl == null)
+                return new SslOption();
+
+            var sslOption = new SslOption(ssl.ServerName, ssl.CertPath, ssl.Enabled)
             {
-                var sslOption = new SslOption(ssl.ServerName, ssl.CertPath, ssl.Enabled)
-                {
-                    CertPassphrase = ssl.CertPassphrase,
-                    Version = ssl.Version
-                };
-                ssl.AcceptablePolicyErrors = ssl.AcceptablePolicyErrors;
-                endpoint.Ssl = sslOption;
-            }
+                CertPassphrase = ssl.CertPassphrase,
+                Version = ssl.Version,
+                AcceptablePolicyErrors = ssl.AcceptablePolicyErrors
+            };
+
+            return sslOption;
         }
 
         static IDictionary<string, object> CreateClientProperties(string inputQueueAddress)

@@ -18,7 +18,7 @@ using Rebus.Tests.Contracts.Extensions;
 namespace Rebus.RabbitMq.Tests
 {
     [TestFixture, Category("rabbitmq")]
-    public class RabbitMqPriorityQueueTestcs : FixtureBase
+    public class RabbitMqPriorityQueueTest : FixtureBase
     {
         readonly string _priorityQueueName = TestConfig.GetName("priority-queue");
 

@@ -36,7 +36,7 @@ namespace Rebus.RabbitMq
 
         readonly ConcurrentDictionary<string, bool> _verifiedQueues = new ConcurrentDictionary<string, bool>();
         readonly ConnectionManager _connectionManager;
-        readonly ILog _log;
+        ILog _log;
 
         readonly object _consumerInitializationLock = new object();
 
@@ -54,19 +54,41 @@ namespace Rebus.RabbitMq
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
 
         /// <summary>
-        /// Constructs the transport with a connection to the RabbitMQ instance specified by the given connection string
+        /// Constructs the RabbitMQ transport with multiple connection endpoints. They will be tryed in random order until working one is found
+        ///  Credentials will be extracted from the connectionString of the first provided endpoint
+        /// </summary>
+        public RabbitMqTransport(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50)
+        {
+            BuildInternal(inputQueueAddress, rebusLoggerFactory, maxMessagesToPrefetch);
+
+            if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
+
+            _connectionManager = new ConnectionManager(endpoints, inputQueueAddress, rebusLoggerFactory);
+        }
+
+        /// <summary>
+        /// Constructs the transport with a connection to the RabbitMQ instance specified by the given connection string.
+        /// Multiple connectionstrings could be provided. They should be separates with , or ; 
         /// </summary>
         public RabbitMqTransport(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50)
         {
+            BuildInternal(inputQueueAddress, rebusLoggerFactory, maxMessagesToPrefetch);
+
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
+            
+            _connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory);
+        }
+
+        private void BuildInternal(string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch )
+        {
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
             if (maxMessagesToPrefetch <= 0) throw new ArgumentException($"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
 
-            _connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory);
             _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
             _log = rebusLoggerFactory.GetLogger<RabbitMqTransport>();
 
             Address = inputQueueAddress;
+      
         }
 
         /// <summary>
@@ -79,6 +101,7 @@ namespace Rebus.RabbitMq
 
         /// <summary>
         /// Stores ssl options to be used when connection to RabbitMQ is established
+        /// intended to use with single node Rabbitmq setup
         /// </summary>
         public void SetSslSettings(SslSettings sslSettings)
         {
@@ -243,7 +266,7 @@ namespace Rebus.RabbitMq
         }
 
         /// <inheritdoc />
-        public string Address { get; }
+        public string Address { get; private set; }
 
         /// <summary>
         /// Deletes all messages from the queue

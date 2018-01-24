@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using Rebus.Injection;
 using Rebus.Logging;
 using Rebus.RabbitMq;
 using Rebus.Subscriptions;
@@ -20,31 +22,19 @@ namespace Rebus.Config
         /// </summary>
         public static RabbitMqOptionsBuilder UseRabbitMqAsOneWayClient(this StandardConfigurer<ITransport> configurer, string connectionString)
         {
-            if (configurer == null) throw new ArgumentNullException(nameof(configurer));
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
 
-            var options = new RabbitMqOptionsBuilder();
+            return BuildInternal(configurer,true,c => new RabbitMqTransport(connectionString, null,  c.Get<IRebusLoggerFactory>()));
+        }
 
-            configurer
-                .OtherService<RabbitMqTransport>()
-                .Register(c =>
-                {
-                    string explicitlyOmittedQueueName = null;
-                    var rebusLoggerFactory = c.Get<IRebusLoggerFactory>();
-                    var transport = new RabbitMqTransport(connectionString, explicitlyOmittedQueueName, rebusLoggerFactory);
-                    options.Configure(transport);
-                    return transport;
-                });
+        /// <summary>
+        /// Configures Rebus to use RabbitMQ to transport messages as a one-way client (i.e. will not be able to receive any messages)
+        /// </summary>
+        public static RabbitMqOptionsBuilder UseRabbitMqAsOneWayClient(this StandardConfigurer<ITransport> configurer, IList<ConnectionEndpoint> endpoints)
+        {
+            if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
 
-            configurer
-                .OtherService<ISubscriptionStorage>()
-                .Register(c => c.Get<RabbitMqTransport>(), description: RabbitMqSubText);
-
-            configurer.Register(c => c.Get<RabbitMqTransport>());
-
-            OneWayClientBackdoor.ConfigureOneWayClient(configurer);
-
-            return options;
+            return BuildInternal(configurer,true,c => new RabbitMqTransport(endpoints, null,  c.Get<IRebusLoggerFactory>()));
         }
 
         /// <summary>
@@ -52,9 +42,26 @@ namespace Rebus.Config
         /// </summary>
         public static RabbitMqOptionsBuilder UseRabbitMq(this StandardConfigurer<ITransport> configurer, string connectionString, string inputQueueName)
         {
-            if (configurer == null) throw new ArgumentNullException(nameof(configurer));
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (inputQueueName == null) throw new ArgumentNullException(nameof(inputQueueName));
+
+            return BuildInternal(configurer,false, c => new RabbitMqTransport(connectionString, inputQueueName,  c.Get<IRebusLoggerFactory>()));
+        }
+
+        /// <summary>
+        /// Configures Rebus to use RabbitMQ to move messages around
+        /// </summary>
+        public static RabbitMqOptionsBuilder UseRabbitMq(this StandardConfigurer<ITransport> configurer, IList<ConnectionEndpoint> endpoints, string inputQueueName)
+        {
+            if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
+            if (inputQueueName == null) throw new ArgumentNullException(nameof(inputQueueName));
+
+            return BuildInternal(configurer,false, c => new RabbitMqTransport(endpoints, inputQueueName,  c.Get<IRebusLoggerFactory>()));
+        }
+
+        private static RabbitMqOptionsBuilder BuildInternal (StandardConfigurer<ITransport> configurer, bool oneway, Func<IResolutionContext, RabbitMqTransport> rabbitMqTransportBuilder)
+        {
+            if (configurer == null) throw new ArgumentNullException(nameof(configurer));
 
             var options = new RabbitMqOptionsBuilder();
 
@@ -62,8 +69,7 @@ namespace Rebus.Config
                 .OtherService<RabbitMqTransport>()
                 .Register(c =>
                 {
-                    var rebusLoggerFactory = c.Get<IRebusLoggerFactory>();
-                    var transport = new RabbitMqTransport(connectionString, inputQueueName, rebusLoggerFactory);
+                    var transport = rabbitMqTransportBuilder(c);
                     options.Configure(transport);
                     return transport;
                 });
@@ -74,7 +80,11 @@ namespace Rebus.Config
 
             configurer.Register(c => c.Get<RabbitMqTransport>());
 
-            return options;
+            if (oneway)
+            {
+                OneWayClientBackdoor.ConfigureOneWayClient(configurer);
+            }
+            return options;        
         }
     }
 }

@@ -143,6 +143,7 @@ namespace Rebus.Config
 
         /// <summary>
         /// Sets SLL settings to use when connecting to the broker
+        /// This method is intended to use only when constructing RabbitMq Transport with single node provided through string connectionString
         /// </summary>
         public RabbitMqOptionsBuilder Ssl(SslSettings sslSettings)
         {

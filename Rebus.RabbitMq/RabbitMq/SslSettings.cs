@@ -4,7 +4,7 @@ using System.Security.Authentication;
 namespace Rebus.RabbitMq
 {
     /// <summary>
-    /// Represents ssl settings to be used in rabbitmq SSL connection
+    /// Represents ssl settings to be used in rabbitmq SSL connection, will be mapped to rabbitmq SslOptions
     /// </summary>
     public class SslSettings
     {
