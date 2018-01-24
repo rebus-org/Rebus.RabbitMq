@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -17,7 +18,21 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture]
     public class TestRabbitMqAndExplicitRouting : FixtureBase
     {
-        const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
+        readonly List<ConnectionEndpoint>  _clientConnectionEndpoints = new List<ConnectionEndpoint>
+        {
+            new ConnectionEndpoint
+            {
+                ConnectionString =  RabbitMqTransportFactory.ConnectionString
+            }
+        };
+        readonly List<ConnectionEndpoint>  _serverConnectionEndpoints = new List<ConnectionEndpoint>
+        {
+            new ConnectionEndpoint
+            {
+                ConnectionString =  RabbitMqTransportFactory.ConnectionString,
+                SslSettings = new SslSettings(false, "localhost")
+            }
+        };
 
         IBus _bus;
 
@@ -27,7 +42,7 @@ namespace Rebus.RabbitMq.Tests
 
             _bus = Configure.With(client)
                 .Logging(l => l.Console(minLevel: LogLevel.Warn))
-                .Transport(t => t.UseRabbitMqAsOneWayClient(ConnectionString))
+                .Transport(t => t.UseRabbitMqAsOneWayClient(_clientConnectionEndpoints))
                 .Start();
         }
 
@@ -59,7 +74,7 @@ namespace Rebus.RabbitMq.Tests
 
             Configure.With(activator)
                 .Logging(l => l.Console(minLevel: LogLevel.Warn))
-                .Transport(t => t.UseRabbitMq(ConnectionString, queueName))
+                .Transport(t => t.UseRabbitMq(_serverConnectionEndpoints, queueName))
                 .Start();
 
             return activator;
