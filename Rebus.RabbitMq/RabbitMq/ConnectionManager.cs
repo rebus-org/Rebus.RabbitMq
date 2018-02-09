@@ -56,7 +56,7 @@ namespace Rebus.RabbitMq
 
             _connectionFactory = new ConnectionFactory
             {
-                Uri = endpoints.First().ConnectionString, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
+                Uri = endpoints.First().ConnectionUri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
                 ClientProperties = CreateClientProperties(inputQueueAddress)
@@ -106,7 +106,7 @@ namespace Rebus.RabbitMq
 
             _connectionFactory = new ConnectionFactory
             {
-                Uri = uriStrings.First(), //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
+                Uri = new Uri(uriStrings.First()), //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
                 ClientProperties = CreateClientProperties(inputQueueAddress)
