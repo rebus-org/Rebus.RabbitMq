@@ -52,7 +52,7 @@ namespace Rebus.RabbitMq.Tests
 
         public static void DeleteQueue(string queueName)
         {
-            var connectionFactory = new ConnectionFactory { Uri = ConnectionString };
+            var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
 
             using (var connection = connectionFactory.CreateConnection())
             using (var model = connection.CreateModel())
@@ -63,7 +63,7 @@ namespace Rebus.RabbitMq.Tests
 
         public static void DeleteExchange(string exchangeName)
         {
-            var connectionFactory = new ConnectionFactory { Uri = ConnectionString };
+            var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
 
             using (var connection = connectionFactory.CreateConnection())
             using (var model = connection.CreateModel())
@@ -79,7 +79,7 @@ namespace Rebus.RabbitMq.Tests
         /// </summary>
         public static bool ExchangeExists(string exchangeName)
         {
-            var connectionFactory = new ConnectionFactory { Uri = ConnectionString };
+            var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
 
             using (var connection = connectionFactory.CreateConnection())
             using (var model = connection.CreateModel())

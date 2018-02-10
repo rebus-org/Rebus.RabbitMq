@@ -52,7 +52,7 @@ namespace Rebus.RabbitMq.Tests
                 receivedCustomStringMessage.Set();
             });
 
-            using (var connection = new ConnectionFactory { Uri = ConnectionString }.CreateConnection())
+            using (var connection = new ConnectionFactory { Uri = new Uri(ConnectionString) }.CreateConnection())
             {
                 using (var model = connection.CreateModel())
                 {

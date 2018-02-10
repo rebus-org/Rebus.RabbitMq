@@ -36,7 +36,7 @@ namespace Rebus.RabbitMq.Tests
             // Check if queues exists
             Assert.DoesNotThrow(() =>
             {
-                var connectionFactory = new ConnectionFactory { Uri = RabbitMqTransportFactory.ConnectionString };
+                var connectionFactory = new ConnectionFactory { Uri = new Uri(RabbitMqTransportFactory.ConnectionString) };
 
                 using (var connection = connectionFactory.CreateConnection())
                 using (var model = connection.CreateModel())
@@ -62,7 +62,7 @@ namespace Rebus.RabbitMq.Tests
 
             Assert.Throws<OperationInterruptedException>(() =>
             {
-                var connectionFactory = new ConnectionFactory { Uri = RabbitMqTransportFactory.ConnectionString };
+                var connectionFactory = new ConnectionFactory { Uri = new Uri(RabbitMqTransportFactory.ConnectionString) };
 
                 using (var connection = connectionFactory.CreateConnection())
                 using (var model = connection.CreateModel())
