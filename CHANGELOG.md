@@ -51,9 +51,14 @@
 
 * Additional configuration overloads to allow for passing custom connection information to the RabbitMQ connection factory - thanks [nebelx]
 
+## 4.4.0
+
+* Update RabbitMQ client dependency to v. 5.0.1 - thanks [dougkwilson]
+
 ---
 
 [bzuu]: https://github.com/bzuu
+[dougkwilson]: https://github.com/dougkwilson
 [nebelx]: https://github.com/nebelx
 [K3llr]: https://github.com/K3llr
 [samartzidis]: https://github.com/samartzidis
