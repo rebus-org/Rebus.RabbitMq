@@ -236,7 +236,7 @@ namespace Rebus.RabbitMq
             return sslOption;
         }
 
-        static IDictionary<string, object> CreateClientProperties(string inputQueueAddress)
+        private IDictionary<string, object> CreateClientProperties(string inputQueueAddress)
         {
             var properties = new Dictionary<string, object>
             {
@@ -259,10 +259,18 @@ namespace Rebus.RabbitMq
                 properties["User"] = userDomainName;
             }
 
-            var currentProcess = Process.GetCurrentProcess();
+            //TODO: Ideally this should be ported to retrieve AppDomain.CurrentDomain info for netframework and System.Reflection.Assembly information for netstandard
+            try
+            {
+                var currentProcess = Process.GetCurrentProcess(); //This may throw a SecurityException if running from an IIS app. pool process
 
-            properties.Add("ProcessName", currentProcess.ProcessName);
-            properties.Add("FileName", currentProcess.MainModule.FileName);
+                properties.Add("ProcessName", currentProcess.ProcessName);
+                properties.Add("FileName", currentProcess.MainModule.FileName);
+            }
+            catch (System.Security.SecurityException)
+            {
+                // Insufficient permissions to get process information
+            }
 
             return properties;
         }
