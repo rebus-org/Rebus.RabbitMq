@@ -260,18 +260,18 @@ namespace Rebus.RabbitMq
             }
 
             //TODO: Ideally this should be ported to retrieve AppDomain.CurrentDomain info for netframework and System.Reflection.Assembly information for netstandard            
+            var processName = "n/a";
+            var fileName = "n/a";
             try
             {
                 var currentProcess = Process.GetCurrentProcess();
+                processName = currentProcess.ProcessName;
+                fileName = currentProcess.MainModule.FileName;
+            }
+            catch { } //In case of potentially insufficient permissions to get process information
 
-                properties.Add("ProcessName", currentProcess.ProcessName);
-                properties.Add("FileName", currentProcess.MainModule.FileName);
-            }
-            catch //In case of potentially insufficient permissions to get process information
-            {
-                properties.Add("ProcessName", "n/a");
-                properties.Add("FileName", "n/a");
-            }
+            properties.Add("ProcessName", processName);
+            properties.Add("FileName", fileName);
 
             return properties;
         }
