@@ -55,6 +55,10 @@
 
 * Update RabbitMQ client dependency to v. 5.0.1 - thanks [dougkwilson]
 
+## 4.4.1
+
+* Handle `SecurityException` when trying to figure out which machine we're running on - thanks [samartzidis]
+
 ---
 
 [bzuu]: https://github.com/bzuu
