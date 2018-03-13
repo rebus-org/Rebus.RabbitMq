@@ -259,17 +259,18 @@ namespace Rebus.RabbitMq
                 properties["User"] = userDomainName;
             }
 
-            //TODO: Ideally this should be ported to retrieve AppDomain.CurrentDomain info for netframework and System.Reflection.Assembly information for netstandard
+            //TODO: Ideally this should be ported to retrieve AppDomain.CurrentDomain info for netframework and System.Reflection.Assembly information for netstandard            
             try
             {
-                var currentProcess = Process.GetCurrentProcess(); //This may throw a SecurityException if running from an IIS app. pool process
+                var currentProcess = Process.GetCurrentProcess();
 
                 properties.Add("ProcessName", currentProcess.ProcessName);
                 properties.Add("FileName", currentProcess.MainModule.FileName);
             }
-            catch (System.Security.SecurityException)
+            catch //In case of potentially insufficient permissions to get process information
             {
-                // Insufficient permissions to get process information
+                properties.Add("ProcessName", "n/a");
+                properties.Add("FileName", "n/a");
             }
 
             return properties;
