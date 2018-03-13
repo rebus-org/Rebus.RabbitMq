@@ -59,6 +59,11 @@
 
 * Handle `SecurityException` when trying to figure out which machine we're running on - thanks [samartzidis]
 
+## 4.4.2
+
+* Minor tweak to avoid potential dictionary trouble with double-adding - thanks [samartzidis]
+
+
 ---
 
 [bzuu]: https://github.com/bzuu
