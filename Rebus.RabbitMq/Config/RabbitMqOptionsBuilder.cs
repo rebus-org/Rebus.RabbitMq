@@ -8,7 +8,6 @@ namespace Rebus.Config
     /// <summary>
     /// Allows for fluently configuring RabbitMQ options
     /// </summary>
-    [CLSCompliant(false)]
     public class RabbitMqOptionsBuilder
     {
         readonly Dictionary<string, string> _additionalClientProperties = new Dictionary<string, string>();

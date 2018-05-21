@@ -63,10 +63,10 @@
 
 * Minor tweak to avoid potential dictionary trouble with double-adding - thanks [samartzidis]
 
-## 4.5.0-b1
+## 5.0.0-b01
 
 * Add callback to allow for customizing the `IConnectionFactory` instance used by the transport
-* Make `RabbitMqOptionsBuilder` non-CLS compliant (necessary to be able to customize RabbitMQ's connection factory)
+* Make assembly non-CLS compliant (necessary to be able to customize RabbitMQ's connection factory)
 
 
 ---
