@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using RabbitMQ.Client;
 using Rebus.RabbitMq;
 
 namespace Rebus.Config
@@ -7,6 +8,7 @@ namespace Rebus.Config
     /// <summary>
     /// Allows for fluently configuring RabbitMQ options
     /// </summary>
+    [CLSCompliant(false)]
     public class RabbitMqOptionsBuilder
     {
         readonly Dictionary<string, string> _additionalClientProperties = new Dictionary<string, string>();
@@ -34,6 +36,22 @@ namespace Rebus.Config
             DeclareExchanges = declareExchanges;
             DeclareInputQueue = declareInputQueue;
             BindInputQueue = bindInputQueue;
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a callback, which may be used to customize - or completely replace - the connection factory
+        /// used by Rebus' RabbitMQ transport
+        /// </summary>
+        public RabbitMqOptionsBuilder CustomizeConnectionFactory(Func<IConnectionFactory, IConnectionFactory> customizer)
+        {
+            if (ConnectionFactoryCustomizer != null)
+            {
+                throw new InvalidOperationException("Attempted to register a connection factory customization function, but one has already been registered");
+            }
+
+            ConnectionFactoryCustomizer = customizer ?? throw new ArgumentNullException(nameof(customizer));
+
             return this;
         }
 
@@ -165,6 +183,8 @@ namespace Rebus.Config
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 
         internal RabbitMqQueueOptionsBuilder QueueOptions { get; } = new RabbitMqQueueOptionsBuilder();
+
+        internal Func<IConnectionFactory, IConnectionFactory> ConnectionFactoryCustomizer;
 
         internal void Configure(RabbitMqTransport transport)
         {

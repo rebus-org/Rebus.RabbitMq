@@ -24,7 +24,7 @@ namespace Rebus.Config
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
 
-            return BuildInternal(configurer,true,c => new RabbitMqTransport(connectionString, null,  c.Get<IRebusLoggerFactory>()));
+            return BuildInternal(configurer, true, (context, options) => new RabbitMqTransport(connectionString, null, context.Get<IRebusLoggerFactory>(), customizer: options.ConnectionFactoryCustomizer));
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Rebus.Config
         {
             if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
 
-            return BuildInternal(configurer,true,c => new RabbitMqTransport(endpoints, null,  c.Get<IRebusLoggerFactory>()));
+            return BuildInternal(configurer, true, (context, options) => new RabbitMqTransport(endpoints, null, context.Get<IRebusLoggerFactory>(), customizer: options.ConnectionFactoryCustomizer));
         }
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace Rebus.Config
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (inputQueueName == null) throw new ArgumentNullException(nameof(inputQueueName));
 
-            return BuildInternal(configurer,false, c => new RabbitMqTransport(connectionString, inputQueueName,  c.Get<IRebusLoggerFactory>()));
+            return BuildInternal(configurer, false, (context, options) => new RabbitMqTransport(connectionString, inputQueueName, context.Get<IRebusLoggerFactory>(), customizer: options.ConnectionFactoryCustomizer));
         }
 
         /// <summary>
@@ -56,10 +56,10 @@ namespace Rebus.Config
             if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
             if (inputQueueName == null) throw new ArgumentNullException(nameof(inputQueueName));
 
-            return BuildInternal(configurer,false, c => new RabbitMqTransport(endpoints, inputQueueName,  c.Get<IRebusLoggerFactory>()));
+            return BuildInternal(configurer, false, (context, options) => new RabbitMqTransport(endpoints, inputQueueName, context.Get<IRebusLoggerFactory>(), customizer: options.ConnectionFactoryCustomizer));
         }
 
-        private static RabbitMqOptionsBuilder BuildInternal (StandardConfigurer<ITransport> configurer, bool oneway, Func<IResolutionContext, RabbitMqTransport> rabbitMqTransportBuilder)
+        private static RabbitMqOptionsBuilder BuildInternal(StandardConfigurer<ITransport> configurer, bool oneway, Func<IResolutionContext, RabbitMqOptionsBuilder, RabbitMqTransport> rabbitMqTransportBuilder)
         {
             if (configurer == null) throw new ArgumentNullException(nameof(configurer));
 
@@ -69,7 +69,7 @@ namespace Rebus.Config
                 .OtherService<RabbitMqTransport>()
                 .Register(c =>
                 {
-                    var transport = rabbitMqTransportBuilder(c);
+                    var transport = rabbitMqTransportBuilder(c, options);
                     options.Configure(transport);
                     return transport;
                 });
@@ -84,7 +84,7 @@ namespace Rebus.Config
             {
                 OneWayClientBackdoor.ConfigureOneWayClient(configurer);
             }
-            return options;        
+            return options;
         }
     }
 }

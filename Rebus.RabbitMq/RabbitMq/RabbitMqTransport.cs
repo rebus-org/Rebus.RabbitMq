@@ -57,29 +57,29 @@ namespace Rebus.RabbitMq
         /// Constructs the RabbitMQ transport with multiple connection endpoints. They will be tryed in random order until working one is found
         ///  Credentials will be extracted from the connectionString of the first provided endpoint
         /// </summary>
-        public RabbitMqTransport(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50)
+        public RabbitMqTransport(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50, Func<IConnectionFactory, IConnectionFactory> customizer = null)
         {
             BuildInternal(inputQueueAddress, rebusLoggerFactory, maxMessagesToPrefetch);
 
             if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
 
-            _connectionManager = new ConnectionManager(endpoints, inputQueueAddress, rebusLoggerFactory);
+            _connectionManager = new ConnectionManager(endpoints, inputQueueAddress, rebusLoggerFactory, customizer);
         }
 
         /// <summary>
         /// Constructs the transport with a connection to the RabbitMQ instance specified by the given connection string.
         /// Multiple connectionstrings could be provided. They should be separates with , or ; 
         /// </summary>
-        public RabbitMqTransport(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50)
+        public RabbitMqTransport(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50, Func<IConnectionFactory, IConnectionFactory> customizer = null)
         {
             BuildInternal(inputQueueAddress, rebusLoggerFactory, maxMessagesToPrefetch);
 
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
-            
-            _connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory);
+
+            _connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory, customizer);
         }
 
-        private void BuildInternal(string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch )
+        private void BuildInternal(string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch)
         {
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
             if (maxMessagesToPrefetch <= 0) throw new ArgumentException($"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
@@ -88,7 +88,7 @@ namespace Rebus.RabbitMq
             _log = rebusLoggerFactory.GetLogger<RabbitMqTransport>();
 
             Address = inputQueueAddress;
-      
+
         }
 
         /// <summary>
@@ -583,7 +583,7 @@ namespace Rebus.RabbitMq
             if (headers.TryGetValue(RabbitMqHeaders.Expiration, out var expiration))
             {
                 if (TimeSpan.TryParse(expiration, out var timeToBeDelivered))
-                { 
+                {
                     props.Expiration = timeToBeDelivered.TotalMilliseconds.ToString("0");
                 }
             }
@@ -620,7 +620,7 @@ namespace Rebus.RabbitMq
 
             // must be last because the other functions on the headers might change them
             props.Headers = headers
-                .ToDictionary(kvp => kvp.Key, kvp => (object) HeaderValueEncoding.GetBytes(kvp.Value));
+                .ToDictionary(kvp => kvp.Key, kvp => (object)HeaderValueEncoding.GetBytes(kvp.Value));
 
             return props;
         }
@@ -635,7 +635,7 @@ namespace Rebus.RabbitMq
                         // Checks if queue exists, throws if the queue doesn't exist
                         model.QueueDeclarePassive(destinationAddress);
                     }
-                    
+
                     return true;
                 });
         }

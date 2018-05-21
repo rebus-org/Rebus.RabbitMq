@@ -12,18 +12,18 @@ namespace Rebus.RabbitMq
     class ConnectionManager : IDisposable
     {
         readonly object _activeConnectionLock = new object();
-        readonly ConnectionFactory _connectionFactory;
+        readonly IConnectionFactory _connectionFactory;
         readonly IList<AmqpTcpEndpoint> _amqpTcpEndpoints;
         readonly ILog _log;
 
         IConnection _activeConnection;
         bool _disposed;
 
-        public ConnectionManager(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory)
+        public ConnectionManager(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, Func<IConnectionFactory, IConnectionFactory> customizer)
         {
             if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
-          
+
             _log = rebusLoggerFactory.GetLogger<ConnectionManager>();
 
             if (inputQueueAddress != null)
@@ -49,7 +49,7 @@ namespace Rebus.RabbitMq
             {
                 if (endpoint == null)
                     throw new ArgumentException("Provided endpoint collection should not contain null values");
-                
+
                 if (string.IsNullOrEmpty(endpoint.ConnectionString))
                     throw new ArgumentException("null or empty value is not valid for ConnectionString");
             });
@@ -62,8 +62,14 @@ namespace Rebus.RabbitMq
                 ClientProperties = CreateClientProperties(inputQueueAddress)
             };
 
+            if (customizer != null)
+            {
+                _connectionFactory = customizer(_connectionFactory);
+            }
+
             _amqpTcpEndpoints = endpoints
-                .Select(endpoint => {
+                .Select(endpoint =>
+                {
                     try
                     {
                         return new AmqpTcpEndpoint(new Uri(endpoint.ConnectionString), ToSslOption(endpoint.SslSettings));
@@ -76,7 +82,7 @@ namespace Rebus.RabbitMq
                 .ToList();
 
         }
-        public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory)
+        public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, Func<IConnectionFactory, IConnectionFactory> customizer)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
@@ -112,8 +118,14 @@ namespace Rebus.RabbitMq
                 ClientProperties = CreateClientProperties(inputQueueAddress)
             };
 
+            if (customizer != null)
+            {
+                _connectionFactory = customizer(_connectionFactory);
+            }
+
             _amqpTcpEndpoints = uriStrings
-                .Select(uriString => {
+                .Select(uriString =>
+                {
                     try
                     {
                         return new AmqpTcpEndpoint(new Uri(uriString));
@@ -125,7 +137,7 @@ namespace Rebus.RabbitMq
                 })
                 .ToList();
         }
-   
+
         public IConnection GetConnection()
         {
             var connection = _activeConnection;
