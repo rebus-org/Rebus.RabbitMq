@@ -384,6 +384,11 @@ namespace Rebus.RabbitMq
                         {
                             _consumer = InitializeConsumer();
                         }
+                        catch (OperationInterruptedException objectInterruptedException) when (objectInterruptedException.Message.Contains("code=404, text=\"NOT_FOUND - no queue"))
+                        {
+                            CreateQueue(Address);
+                            _consumer = InitializeConsumer();
+                        }
                         catch (Exception exception)
                         {
                             _log.Warn("Could not initialize consumer: {0} - waiting 2 seconds", exception);
