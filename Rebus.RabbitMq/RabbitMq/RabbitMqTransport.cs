@@ -36,9 +36,11 @@ namespace Rebus.RabbitMq
 
         readonly ConcurrentDictionary<string, bool> _verifiedQueues = new ConcurrentDictionary<string, bool>();
         readonly ConnectionManager _connectionManager;
+        readonly List<Subscription> _registeredSubscriptions = new List<Subscription>();
         ILog _log;
 
         readonly object _consumerInitializationLock = new object();
+        readonly SemaphoreSlim _subscriptionSemaphore = new SemaphoreSlim(1, 1);
 
         CustomQueueingConsumer _consumer;
         ushort _maxMessagesToPrefetch;
@@ -54,7 +56,7 @@ namespace Rebus.RabbitMq
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
 
         /// <summary>
-        /// Constructs the RabbitMQ transport with multiple connection endpoints. They will be tryed in random order until working one is found
+        /// Constructs the RabbitMQ transport with multiple connection endpoints. They will be tried in random order until working one is found
         ///  Credentials will be extracted from the connectionString of the first provided endpoint
         /// </summary>
         public RabbitMqTransport(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50, Func<IConnectionFactory, IConnectionFactory> customizer = null)
@@ -68,7 +70,7 @@ namespace Rebus.RabbitMq
 
         /// <summary>
         /// Constructs the transport with a connection to the RabbitMQ instance specified by the given connection string.
-        /// Multiple connectionstrings could be provided. They should be separates with , or ; 
+        /// Multiple connection strings could be provided. They should be separates with , or ; 
         /// </summary>
         public RabbitMqTransport(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50, Func<IConnectionFactory, IConnectionFactory> customizer = null)
         {
@@ -92,7 +94,7 @@ namespace Rebus.RabbitMq
         }
 
         /// <summary>
-        /// Stores the client properties to be haded to RabbitMQ when the connection is established
+        /// Stores the client properties to be handed to RabbitMQ when the connection is established
         /// </summary>
         public void AddClientProperties(Dictionary<string, string> additionalClientProperties)
         {
@@ -239,7 +241,7 @@ namespace Rebus.RabbitMq
             }
             else
             {
-                // This is another queue, properbly the error queue => we use the default queue options
+                // This is another queue, probably the error queue => we use the default queue options
                 var defaultQueueOptions = new RabbitMqQueueOptionsBuilder();
 
                 model.QueueDeclare(address,
@@ -303,7 +305,7 @@ namespace Rebus.RabbitMq
         {
             if (Address == null)
             {
-                throw new InvalidOperationException("This RabbitMQ transport does not have an input queue - therefore, it is not possible to reveive anything");
+                throw new InvalidOperationException("This RabbitMQ transport does not have an input queue - therefore, it is not possible to receive anything");
             }
 
             try
@@ -386,7 +388,8 @@ namespace Rebus.RabbitMq
                         }
                         catch (OperationInterruptedException objectInterruptedException) when (objectInterruptedException.Message.Contains("code=404, text=\"NOT_FOUND - no queue"))
                         {
-                            CreateQueue(Address);
+                            _log.Warn("Queue not found - attempting to recreate queue and restore subscriptions.");
+                            ReconnectQueue();
                             _consumer = InitializeConsumer();
                         }
                         catch (Exception exception)
@@ -398,6 +401,13 @@ namespace Rebus.RabbitMq
                     }
                 }
             }
+        }
+
+        private void ReconnectQueue()
+        {
+            CreateQueue(Address);
+            var subscriptionTasks = _registeredSubscriptions.Select(x => RegisterSubscriber(x.Topic, x.SubscriberAddress)).ToArray();
+            Task.WaitAll(subscriptionTasks);
         }
 
         void ClearConsumer()
@@ -506,7 +516,6 @@ namespace Rebus.RabbitMq
             }
         }
 
-
         async Task SendOutgoingMessages(ITransactionContext context, ConcurrentQueue<OutgoingMessage> outgoingMessages)
         {
             var model = GetModel(context);
@@ -520,7 +529,7 @@ namespace Rebus.RabbitMq
                 var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
                 if (mandatory && !_callbackOptions.HasMandatoryCallback)
                 {
-                    throw new MandatoryDeliveryException("Mandatory delivery is not allowed without registrering a handler for BasicReturn in RabbitMqOptions.");
+                    throw new MandatoryDeliveryException("Mandatory delivery is not allowed without registering a handler for BasicReturn in RabbitMqOptions.");
                 }
 
                 var routingKey = new FullyQualifiedRoutingKey(destinationAddress);
@@ -677,7 +686,7 @@ namespace Rebus.RabbitMq
                 var newModel = connection.CreateModel();
                 context.OnDisposed(() => newModel.Dispose());
 
-                // Configure registred events on model
+                // Configure registered events on model
                 _callbackOptions?.ConfigureEvents(newModel);
 
                 return newModel;
@@ -730,6 +739,18 @@ namespace Rebus.RabbitMq
             {
                 model.QueueBind(Address, _topicExchangeName, topic);
             }
+
+            var subscription = new Subscription(topic, subscriberAddress);
+            await _subscriptionSemaphore.WaitAsync();
+            try
+            {
+                if (!_registeredSubscriptions.Contains(subscription))
+                    _registeredSubscriptions.Add(subscription);
+            }
+            finally
+            {
+                _subscriptionSemaphore.Release();
+            }
         }
 
         /// <summary>
@@ -743,11 +764,71 @@ namespace Rebus.RabbitMq
             {
                 model.QueueUnbind(Address, _topicExchangeName, topic, new Dictionary<string, object>());
             }
+
+            var subscription = new Subscription(topic, subscriberAddress);
+
+            await _subscriptionSemaphore.WaitAsync();
+            try
+            {
+                if (_registeredSubscriptions.Contains(subscription))
+                    _registeredSubscriptions.Remove(subscription);
+            }
+            finally
+            {
+                _subscriptionSemaphore.Release();
+            }
         }
 
         /// <summary>
         /// Gets whether this transport is centralized (it always is, as RabbitMQ's bindings are used to do proper pub/sub messaging)
         /// </summary>
         public bool IsCentralized => true;
+
+        /// <summary>
+        /// Represents a subscription of a queue address to a topic.
+        /// </summary>
+        private class Subscription
+        {
+            /// <summary>
+            /// Initializes a new <see cref="Subscriber"/> instance.
+            /// </summary>
+            /// <param name="topic">The topic for the subscription.</param>
+            /// <param name="subscriberAddress">The queue address of the subscriber.</param>
+            public Subscription(string topic, string subscriberAddress)
+            {
+                Topic = topic;
+                SubscriberAddress = subscriberAddress;
+            }
+
+            /// <summary>
+            /// Gets the topic for the subscription.
+            /// </summary>
+            public string Topic { get; }
+
+            /// <summary>
+            /// Gets the subscriber address for the subscription.
+            /// </summary>
+            public string SubscriberAddress { get; }
+
+            public override bool Equals(object obj)
+            {
+                if (obj == null)
+                    return false;
+
+                if (GetType() != obj.GetType())
+                    return false;
+
+                var otherSubscription = (Subscription)obj;
+                return (otherSubscription.Topic == Topic && otherSubscription.SubscriberAddress == SubscriberAddress);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (Topic?.GetHashCode() ?? 0) * 23 + (SubscriberAddress?.GetHashCode() ?? 0);
+                }
+            }
+        }
     }
 }
