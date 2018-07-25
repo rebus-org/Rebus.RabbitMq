@@ -790,7 +790,7 @@ namespace Rebus.RabbitMq
         private class Subscription
         {
             /// <summary>
-            /// Initializes a new <see cref="Subscriber"/> instance.
+            /// Initializes a new <see cref="Subscription"/> instance.
             /// </summary>
             /// <param name="topic">The topic for the subscription.</param>
             /// <param name="subscriberAddress">The queue address of the subscriber.</param>
