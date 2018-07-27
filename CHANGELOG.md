@@ -67,7 +67,7 @@
 
 * Add callback to allow for customizing the `IConnectionFactory` instance used by the transport
 * Make assembly non-CLS compliant (necessary to be able to customize RabbitMQ's connection factory)
-
+* Automatically create input queue if it suddenly disappears while the app is running - thanks [pjh1974]
 
 ---
 
@@ -76,3 +76,4 @@
 [nebelx]: https://github.com/nebelx
 [K3llr]: https://github.com/K3llr
 [samartzidis]: https://github.com/samartzidis
+[pjh1974]: https://github.com/pjh1974
