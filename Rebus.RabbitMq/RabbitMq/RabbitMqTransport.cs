@@ -13,7 +13,6 @@ using Rebus.Logging;
 using Rebus.Messages;
 using Rebus.Subscriptions;
 using Rebus.Transport;
-using RabbitMQ.Client.Events;
 using Rebus.Config;
 using Rebus.Exceptions;
 using Headers = Rebus.Messages.Headers;
@@ -356,9 +355,9 @@ namespace Rebus.RabbitMq
 
                 return CreateTransportMessage(result.BasicProperties, result.Body);
             }
-            catch (EndOfStreamException exception)
+            catch (EndOfStreamException)
             {
-                throw new RebusApplicationException(exception, "Queue threw EndOfStreamException (meaning it was canceled by rabbitmq)");
+                return null;
             }
             catch (Exception exception)
             {

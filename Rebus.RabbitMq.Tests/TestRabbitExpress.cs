@@ -24,7 +24,7 @@ namespace Rebus.RabbitMq.Tests
         {
             var queueName = TestConfig.GetName("expressperf");
 
-            RabbitMqTransportFactory.DeleteQueue(queueName);
+            Using(new QueueDeleter(queueName));
 
             _activator = Using(new BuiltinHandlerActivator());
 

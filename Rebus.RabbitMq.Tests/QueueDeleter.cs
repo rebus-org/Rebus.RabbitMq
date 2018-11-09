@@ -1,0 +1,25 @@
+﻿using System;
+
+namespace Rebus.RabbitMq.Tests
+{
+    class QueueDeleter : IDisposable
+    {
+        readonly string _queueName;
+
+        public QueueDeleter(string queueName)
+        {
+            _queueName = queueName;
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                RabbitMqTransportFactory.DeleteQueue(_queueName);
+
+                Console.WriteLine($"Queue '{_queueName}' deleted");
+            }
+            catch { }
+        }
+    }
+}
