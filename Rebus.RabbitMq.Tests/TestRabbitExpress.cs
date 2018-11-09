@@ -35,6 +35,8 @@ namespace Rebus.RabbitMq.Tests
                 .Start();
         }
 
+        [TestCase(10, true)]
+        [TestCase(10, false)]
         [TestCase(10000, true)]
         [TestCase(10000, false)]
         public async Task TestPerformance(int messageCount, bool express)
@@ -55,7 +57,7 @@ namespace Rebus.RabbitMq.Tests
             while (Interlocked.Read(ref receivedMessages) < messageCount)
             {
                 Thread.Sleep(1000);
-                Console.WriteLine("Got {0} messages...", Interlocked.Read(ref receivedMessages));
+                Console.WriteLine($"Got {Interlocked.Read(ref receivedMessages)} messages...");
             }
 
             var totalSeconds = stopwatch.Elapsed.TotalSeconds;

@@ -28,7 +28,7 @@ namespace Rebus.RabbitMq
 
             if (inputQueueAddress != null)
             {
-                _log.Info("Initializing RabbitMQ connection manager for transport with input queue '{0}'", inputQueueAddress);
+                _log.Info("Initializing RabbitMQ connection manager for transport with input queue {queueName}", inputQueueAddress);
             }
             else
             {
@@ -42,16 +42,20 @@ namespace Rebus.RabbitMq
 
             if (endpoints.Count > 1)
             {
-                _log.Info("RabbitMQ transport has {0} endpoints available", endpoints.Count);
+                _log.Info("RabbitMQ transport has {count} endpoints available", endpoints.Count);
             }
 
             endpoints.ForEach(endpoint =>
             {
                 if (endpoint == null)
+                {
                     throw new ArgumentException("Provided endpoint collection should not contain null values");
+                }
 
                 if (string.IsNullOrEmpty(endpoint.ConnectionString))
+                {
                     throw new ArgumentException("null or empty value is not valid for ConnectionString");
+                }
             });
 
             _connectionFactory = new ConnectionFactory
@@ -82,6 +86,7 @@ namespace Rebus.RabbitMq
                 .ToList();
 
         }
+        
         public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, Func<IConnectionFactory, IConnectionFactory> customizer)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
@@ -91,7 +96,7 @@ namespace Rebus.RabbitMq
 
             if (inputQueueAddress != null)
             {
-                _log.Info("Initializing RabbitMQ connection manager for transport with input queue '{0}'", inputQueueAddress);
+                _log.Info("Initializing RabbitMQ connection manager for transport with input queue {queueName}", inputQueueAddress);
             }
             else
             {
@@ -107,7 +112,7 @@ namespace Rebus.RabbitMq
 
             if (uriStrings.Length > 1)
             {
-                _log.Info("RabbitMQ transport has {0} connection strings available", uriStrings.Length);
+                _log.Info("RabbitMQ transport has {count} connection strings available", uriStrings.Length);
             }
 
             _connectionFactory = new ConnectionFactory
@@ -178,7 +183,7 @@ namespace Rebus.RabbitMq
                 }
                 catch (Exception exception)
                 {
-                    _log.Warn("Could not establish connection: {0}", exception.Message);
+                    _log.Warn("Could not establish connection: {message}", exception.Message);
                     Thread.Sleep(500); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
                     throw;
                 }
@@ -202,6 +207,7 @@ namespace Rebus.RabbitMq
                         // WTF?!?!? RabbitMQ client disposal can THROW!
                         try
                         {
+                            connection.Close();
                             connection.Dispose();
                         }
                         catch

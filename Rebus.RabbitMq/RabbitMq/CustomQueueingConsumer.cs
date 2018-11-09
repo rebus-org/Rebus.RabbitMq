@@ -8,7 +8,7 @@ namespace Rebus.RabbitMq
     {
         public SharedQueue<BasicDeliverEventArgs> Queue { get; } = new SharedQueue<BasicDeliverEventArgs>();
 
-        public CustomQueueingConsumer(IModel model) :base(model)
+        public CustomQueueingConsumer(IModel model) : base(model)
         {
         }
 
@@ -30,6 +30,19 @@ namespace Rebus.RabbitMq
         {
             base.OnCancel();
             Queue.Close();
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                // it's so fucked up that these can throw exceptions
+                Model?.Close();
+                Model?.Dispose();
+            }
+            catch
+            {
+            }
         }
     }
 }

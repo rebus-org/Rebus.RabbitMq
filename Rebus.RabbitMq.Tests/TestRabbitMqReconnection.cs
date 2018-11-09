@@ -17,12 +17,14 @@ using Rebus.Tests.Contracts;
 
 namespace Rebus.RabbitMq.Tests
 {
-    [TestFixture, Ignore("Must be run as Administrator")]
+    [TestFixture]
+    [Ignore("Must be run as Administrator")]
     [Description("Simulates a lost connection by restarting RabbitMQ while an endpoint is receiving messages")]
     public class TestRabbitMqReconnection : FixtureBase
     {
         const string ConnectionString = "amqp://localhost";
         readonly string _receiverQueueName = TestConfig.GetName("receiver");
+
         IBus _sender;
         BuiltinHandlerActivator _receiver;
 
