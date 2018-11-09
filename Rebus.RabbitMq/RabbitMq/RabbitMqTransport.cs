@@ -345,10 +345,9 @@ namespace Rebus.RabbitMq
 
                 var deliveryTag = result.DeliveryTag;
 
-                context.OnCommitted(async () =>
+                context.OnCompleted(async () =>
                 {
                     var model = GetModel(context);
-
                     model.BasicAck(deliveryTag, false);
                 });
 
@@ -358,7 +357,6 @@ namespace Rebus.RabbitMq
                     try
                     {
                         var model = GetModel(context);
-
                         model.BasicNack(deliveryTag, false, true);
                     }
                     catch { }
@@ -381,7 +379,7 @@ namespace Rebus.RabbitMq
         void ReconnectQueue()
         {
             CreateQueue(Address);
-            
+
             var subscriptionTasks = _registeredSubscriptions
                 .Select(x => RegisterSubscriber(x.Topic, x.SubscriberAddress))
                 .ToArray();
@@ -454,8 +452,10 @@ namespace Rebus.RabbitMq
             {
                 // receive must be done with separate model
                 connection = _connectionManager.GetConnection();
+
                 model = connection.CreateModel();
                 model.BasicQos(0, _maxMessagesToPrefetch, false);
+
                 var consumer = new CustomQueueingConsumer(model);
 
                 model.BasicConsume(Address, false, consumer);
