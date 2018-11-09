@@ -102,7 +102,7 @@ namespace Rebus.RabbitMq.Tests
             var stopwatch = Stopwatch.StartNew();
             while (true)
             {
-                Thread.Sleep(100);
+                Thread.Sleep(1000);
 
                 if (messages.All(kvp => kvp.Value))
                 {
@@ -110,7 +110,11 @@ namespace Rebus.RabbitMq.Tests
                     break;
                 }
 
-                if (stopwatch.Elapsed < TimeSpan.FromSeconds(40)) continue;
+                var received = messages.Count(v => v.Value);
+                
+                Console.WriteLine($"Messages correctly received at this point: {received}");
+
+                if (stopwatch.Elapsed < TimeSpan.FromMinutes(2)) continue;
 
                 throw new TimeoutException("Waited too long!");
             }

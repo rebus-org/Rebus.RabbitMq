@@ -296,8 +296,6 @@ namespace Rebus.RabbitMq
             }
         }
 
-        readonly ConcurrentQueue<BasicDeliverEventArgs> _buffer = new ConcurrentQueue<BasicDeliverEventArgs>();
-
         /// <inheritdoc />
         public async Task<TransportMessage> Receive(ITransactionContext context, CancellationToken cancellationToken)
         {
@@ -321,20 +319,11 @@ namespace Rebus.RabbitMq
 
                 if (!consumer.Model.IsOpen)
                 {
-                    // move already received messages into in-mem queue
-                    while (consumer.Queue.Dequeue(0, out var message))
-                    {
-                        _buffer.Enqueue(message);
-                    }
-
                     consumer.Dispose();
                     return null;
                 }
 
                 context.OnDisposed(() => _consumers.Enqueue(consumer));
-
-                // ensure we use the consumer's model throughtout the handling of this message
-                context.Items[CurrentModelItemsKey] = consumer.Model;
 
                 if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
                 {
@@ -342,6 +331,9 @@ namespace Rebus.RabbitMq
                 }
 
                 if (result == null) return null;
+
+                // ensure we use the consumer's model throughtout the handling of this message
+                context.Items[CurrentModelItemsKey] = consumer.Model;
 
                 var deliveryTag = result.DeliveryTag;
 

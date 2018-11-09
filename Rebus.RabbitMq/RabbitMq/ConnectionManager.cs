@@ -170,6 +170,7 @@ namespace Rebus.RabbitMq
 
                     try
                     {
+                        connection.Close();
                         connection.Dispose();
                     }
                     catch { }
@@ -184,7 +185,7 @@ namespace Rebus.RabbitMq
                 catch (Exception exception)
                 {
                     _log.Warn("Could not establish connection: {message}", exception.Message);
-                    Thread.Sleep(500); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
+                    Thread.Sleep(1000); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
                     throw;
                 }
             }
