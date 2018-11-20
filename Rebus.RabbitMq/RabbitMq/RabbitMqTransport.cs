@@ -130,7 +130,7 @@ namespace Rebus.RabbitMq
         }
         
         /// <summary>
-        /// Sets whether a binding for the input queue should be declared
+        /// Sets whether to use the publisher confirms protocol
         /// </summary>
         public void EnablePublisherConfirms(bool value = true)
         {
