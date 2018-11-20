@@ -45,6 +45,7 @@ namespace Rebus.RabbitMq
         bool _declareExchanges = true;
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
+        bool _publisherConfirms = false;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
@@ -126,6 +127,14 @@ namespace Rebus.RabbitMq
         public void SetBindInputQueue(bool value)
         {
             _bindInputQueue = value;
+        }
+        
+        /// <summary>
+        /// Sets whether a binding for the input queue should be declared
+        /// </summary>
+        public void EnablePublisherConfirms(bool value = true)
+        {
+            _publisherConfirms = value;
         }
 
         /// <summary>
@@ -510,6 +519,11 @@ namespace Rebus.RabbitMq
                         throw new RebusApplicationException(e, $"Queue '{destinationAddress}' does not exists.");
                     }
                 }
+                
+                if (_publisherConfirms)
+                {
+                    model.ConfirmSelect();
+                }
 
                 model.BasicPublish(
                     exchange: exchange,
@@ -518,6 +532,11 @@ namespace Rebus.RabbitMq
                     basicProperties: props,
                     body: message.Body
                 );
+                
+                if (_publisherConfirms)
+                {
+                    model.WaitForConfirmsOrDie();
+                }
             }
         }
 

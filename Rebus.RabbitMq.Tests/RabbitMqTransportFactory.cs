@@ -22,7 +22,7 @@ namespace Rebus.RabbitMq.Tests
 
         public ITransport Create(string inputQueueAddress)
         {
-            var transport = new RabbitMqTransport(ConnectionString, inputQueueAddress, new ConsoleLoggerFactory(false));
+            var transport = CreateRabbitMqTransport(inputQueueAddress);
 
             _disposables.Add(transport);
 
@@ -108,6 +108,11 @@ namespace Rebus.RabbitMq.Tests
                     return false;
                 }
             }
+        }
+        
+        protected virtual RabbitMqTransport CreateRabbitMqTransport(string inputQueueAddress)
+        {   
+            return new RabbitMqTransport(ConnectionString, inputQueueAddress, new ConsoleLoggerFactory(false));
         }
     }
 }

@@ -167,10 +167,21 @@ namespace Rebus.Config
             SslSettings = sslSettings;
             return this;
         }
+        
+        /// <summary>
+        /// Enable the publisher confirms protocol.
+        /// This method is intended to use when publishers cannot afford message loss.
+        /// </summary>
+        public RabbitMqOptionsBuilder EnablePublisherConfirms(bool value = true)
+        {
+            PublisherConfirms = value;
+            return this;
+        }
 
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
+        internal bool? PublisherConfirms { get; private set; }
 
         internal string DirectExchangeName { get; private set; }
         internal string TopicExchangeName { get; private set; }
@@ -227,6 +238,11 @@ namespace Rebus.Config
             if (CallbackOptionsBuilder != null)
             {
                 transport.SetCallbackOptions(CallbackOptionsBuilder);
+            }
+            
+            if (PublisherConfirms.HasValue)
+            {
+                transport.EnablePublisherConfirms(PublisherConfirms.Value);
             }
 
             transport.SetInputQueueOptions(QueueOptions);
