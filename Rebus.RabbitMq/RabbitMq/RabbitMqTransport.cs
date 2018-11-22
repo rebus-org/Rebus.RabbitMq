@@ -52,6 +52,7 @@ namespace Rebus.RabbitMq
 
         RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
+        RabbitMqExchangeOptionsBuilder _inputExchangeOptions = new RabbitMqExchangeOptionsBuilder();
 
         RabbitMqTransport(IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch, string inputQueueAddress)
         {
@@ -180,6 +181,14 @@ namespace Rebus.RabbitMq
         {
             _inputQueueOptions = inputQueueOptions;
         }
+        
+        /// <summary>
+        /// Configures input exchange options
+        /// </summary>
+        public void SetExchangeOptions(RabbitMqExchangeOptionsBuilder inputExchangeOptions)
+        {
+            _inputExchangeOptions = inputExchangeOptions;
+        }
 
         /// <summary>
         /// Initializes the transport by creating the input queue
@@ -206,8 +215,8 @@ namespace Rebus.RabbitMq
 
                     if (_declareExchanges)
                     {
-                        model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable);
-                        model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable);
+                        model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable, arguments: _inputExchangeOptions.DirectExchangeArguments);
+                        model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable, arguments: _inputExchangeOptions.TopicExchangeArguments);
                     }
 
                     if (_declareInputQueue)

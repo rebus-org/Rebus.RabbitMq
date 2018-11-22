@@ -147,6 +147,16 @@ namespace Rebus.Config
 
             return this;
         }
+        
+        /// <summary>
+        /// Configure input exchanges manually. 
+        /// </summary>
+        public RabbitMqOptionsBuilder InputExchangeOptions(Action<RabbitMqExchangeOptionsBuilder> configurer)
+        {
+            configurer?.Invoke(ExchangeOptions);
+
+            return this;
+        }
 
         /// <summary>
         /// Register RabbitMq callback events. Events are triggered dependening on the message headers.
@@ -193,6 +203,8 @@ namespace Rebus.Config
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 
         internal RabbitMqQueueOptionsBuilder QueueOptions { get; } = new RabbitMqQueueOptionsBuilder();
+
+        internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new RabbitMqExchangeOptionsBuilder();
 
         internal Func<IConnectionFactory, IConnectionFactory> ConnectionFactoryCustomizer;
 
@@ -246,6 +258,7 @@ namespace Rebus.Config
             }
 
             transport.SetInputQueueOptions(QueueOptions);
+            transport.SetExchangeOptions(ExchangeOptions);
         }
     }
 }
