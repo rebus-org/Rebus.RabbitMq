@@ -398,7 +398,7 @@ namespace Rebus.RabbitMq
                                       return stringHeaderValue;
                                   }
 
-                                  return headerValue.ToString();
+                                  return headerValue?.ToString();
                               })
                           ?? new Dictionary<string, string>();
 
@@ -521,7 +521,7 @@ namespace Rebus.RabbitMq
             }
         }
 
-        IBasicProperties CreateBasicProperties(IModel model, Dictionary<string, string> headers)
+        static IBasicProperties CreateBasicProperties(IModel model, Dictionary<string, string> headers)
         {
             var props = model.CreateBasicProperties();
 
@@ -603,7 +603,7 @@ namespace Rebus.RabbitMq
 
             // must be last because the other functions on the headers might change them
             props.Headers = headers
-                .ToDictionary(kvp => kvp.Key, kvp => (object)HeaderValueEncoding.GetBytes(kvp.Value));
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value != null ? (object)HeaderValueEncoding.GetBytes(kvp.Value) : null);
 
             return props;
         }
