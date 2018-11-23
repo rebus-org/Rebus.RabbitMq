@@ -5,7 +5,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Rebus.RabbitMq.Tests</RootNamespace>
     <AssemblyName>Rebus.RabbitMq.Tests</AssemblyName>
-    <TargetFrameworks>net452;netstandard1.5</TargetFrameworks>
+    <TargetFrameworks>net452;netcoreapp2.1</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -25,14 +25,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'net45' ">
-    <DefineConstants>NET45</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.5' ">
-    <DefineConstants>NETSTANDARD1_5</DefineConstants>
-  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Rebus.RabbitMq\Internals\FullyQualifiedRoutingKey.cs" Link="Links\FullyQualifiedRoutingKey.cs" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
+    <PackageReference Include="microsoft.net.test.sdk" Version="15.9.0" />
     <PackageReference Include="nunit" Version="3.7.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.9.0" />
     <PackageReference Include="rabbitmq.client" Version="5.0.1" />
@@ -41,5 +39,8 @@
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Links\" />
   </ItemGroup>
 </Project>

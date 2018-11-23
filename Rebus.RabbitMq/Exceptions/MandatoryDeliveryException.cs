@@ -6,9 +6,7 @@ namespace Rebus.Exceptions
     /// <summary>
     /// Exceptions that is thrown when something goes wrong while working with mandatory delivery
     /// </summary>
-#if NET45
     [Serializable]
-#endif
     public class MandatoryDeliveryException : Exception
     {
         /// <summary>
@@ -27,7 +25,6 @@ namespace Rebus.Exceptions
         {
         }
 
-#if NET45
         /// <summary>
         /// Constructs the exception
         /// </summary>
@@ -35,6 +32,5 @@ namespace Rebus.Exceptions
             : base(info, context)
         {
         }
-#endif
     }
 }

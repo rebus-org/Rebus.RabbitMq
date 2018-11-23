@@ -1,5 +1,5 @@
 ﻿// ReSharper disable ForCanBeConvertedToForeach
-namespace Rebus.RabbitMq
+namespace Rebus.Internals
 {
     static class Knuth
     {
