@@ -70,14 +70,14 @@ namespace Rebus.RabbitMq.Tests
             var topicWithAlternateExchange = $"{topic}@{alternateExchange}";
 
             var subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithAlternateExchange);
-            Assert.IsTrue(subscriberAddresses[0] == topicWithAlternateExchange);
+            Assert.That(subscriberAddresses[0], Is.EqualTo(topicWithAlternateExchange));
 
             var topicWithMultipleAlternateExchanges = $"{topic}@{alternateExchange}@{alternateExchange}@{alternateExchange}";
             
             subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithMultipleAlternateExchanges);
             foreach (var subscriberAddress in subscriberAddresses)
             {
-                Assert.IsTrue(subscriberAddress == topicWithAlternateExchange);
+                Assert.That(subscriberAddress, Is.EqualTo(topicWithAlternateExchange));
             }
         }
     }
