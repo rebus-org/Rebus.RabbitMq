@@ -46,12 +46,14 @@ namespace Rebus.RabbitMq
         bool _declareExchanges = true;
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
+        bool _publisherConfirms = false;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
 
         RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
+        RabbitMqExchangeOptionsBuilder _inputExchangeOptions = new RabbitMqExchangeOptionsBuilder();
 
         RabbitMqTransport(IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch, string inputQueueAddress)
         {
@@ -128,6 +130,14 @@ namespace Rebus.RabbitMq
         {
             _bindInputQueue = value;
         }
+        
+        /// <summary>
+        /// Sets whether to use the publisher confirms protocol
+        /// </summary>
+        public void EnablePublisherConfirms(bool value = true)
+        {
+            _publisherConfirms = value;
+        }
 
         /// <summary>
         /// Sets the name of the exchange used to send point-to-point messages
@@ -172,6 +182,14 @@ namespace Rebus.RabbitMq
         {
             _inputQueueOptions = inputQueueOptions;
         }
+        
+        /// <summary>
+        /// Configures input exchange options
+        /// </summary>
+        public void SetExchangeOptions(RabbitMqExchangeOptionsBuilder inputExchangeOptions)
+        {
+            _inputExchangeOptions = inputExchangeOptions;
+        }
 
         /// <summary>
         /// Initializes the transport by creating the input queue
@@ -198,8 +216,8 @@ namespace Rebus.RabbitMq
 
                     if (_declareExchanges)
                     {
-                        model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable);
-                        model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable);
+                        model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable, arguments: _inputExchangeOptions.DirectExchangeArguments);
+                        model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable, arguments: _inputExchangeOptions.TopicExchangeArguments);
                     }
 
                     if (_declareInputQueue)
@@ -507,6 +525,11 @@ namespace Rebus.RabbitMq
                 {
                     EnsureQueueExists(routingKey, model);
                 }
+                
+                if (_publisherConfirms)
+                {
+                    model.ConfirmSelect();
+                }
 
                 model.BasicPublish(
                     exchange: exchange,
@@ -515,6 +538,11 @@ namespace Rebus.RabbitMq
                     basicProperties: props,
                     body: message.Body
                 );
+                
+                if (_publisherConfirms)
+                {
+                    model.WaitForConfirmsOrDie();
+                }
             }
         }
 

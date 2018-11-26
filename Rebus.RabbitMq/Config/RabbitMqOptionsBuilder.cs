@@ -147,6 +147,16 @@ namespace Rebus.Config
 
             return this;
         }
+        
+        /// <summary>
+        /// Configure input exchanges manually. 
+        /// </summary>
+        public RabbitMqOptionsBuilder InputExchangeOptions(Action<RabbitMqExchangeOptionsBuilder> configurer)
+        {
+            configurer?.Invoke(ExchangeOptions);
+
+            return this;
+        }
 
         /// <summary>
         /// Register RabbitMq callback events. Events are triggered dependening on the message headers.
@@ -167,10 +177,21 @@ namespace Rebus.Config
             SslSettings = sslSettings;
             return this;
         }
+        
+        /// <summary>
+        /// Enable the publisher confirms protocol.
+        /// This method is intended to use when publishers cannot afford message loss.
+        /// </summary>
+        public RabbitMqOptionsBuilder EnablePublisherConfirms(bool value = true)
+        {
+            PublisherConfirms = value;
+            return this;
+        }
 
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
+        internal bool? PublisherConfirms { get; private set; }
 
         internal string DirectExchangeName { get; private set; }
         internal string TopicExchangeName { get; private set; }
@@ -182,6 +203,8 @@ namespace Rebus.Config
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 
         internal RabbitMqQueueOptionsBuilder QueueOptions { get; } = new RabbitMqQueueOptionsBuilder();
+
+        internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new RabbitMqExchangeOptionsBuilder();
 
         internal Func<IConnectionFactory, IConnectionFactory> ConnectionFactoryCustomizer;
 
@@ -228,8 +251,14 @@ namespace Rebus.Config
             {
                 transport.SetCallbackOptions(CallbackOptionsBuilder);
             }
+            
+            if (PublisherConfirms.HasValue)
+            {
+                transport.EnablePublisherConfirms(PublisherConfirms.Value);
+            }
 
             transport.SetInputQueueOptions(QueueOptions);
+            transport.SetExchangeOptions(ExchangeOptions);
         }
     }
 }
