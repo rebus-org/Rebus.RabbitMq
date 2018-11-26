@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
@@ -71,14 +70,14 @@ namespace Rebus.RabbitMq.Tests
             var topicWithAlternateExchange = $"{topic}@{alternateExchange}";
 
             var subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithAlternateExchange);
-            subscriberAddresses[0].Should().Be(topicWithAlternateExchange);
+            Assert.IsTrue(subscriberAddresses[0] == topicWithAlternateExchange);
 
             var topicWithMultipleAlternateExchanges = $"{topic}@{alternateExchange}@{alternateExchange}@{alternateExchange}";
             
             subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithMultipleAlternateExchanges);
             foreach (var subscriberAddress in subscriberAddresses)
             {
-                subscriberAddress.Should().Be(topicWithAlternateExchange);
+                Assert.IsTrue(subscriberAddress == topicWithAlternateExchange);
             }
         }
     }
