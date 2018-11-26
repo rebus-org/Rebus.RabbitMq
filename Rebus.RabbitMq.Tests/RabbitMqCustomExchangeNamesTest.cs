@@ -61,8 +61,10 @@ namespace Rebus.RabbitMq.Tests
             const string connectionString = RabbitMqTransportFactory.ConnectionString;
             
             var rabbitMqTransport = new RabbitMqTransport(connectionString, "inputQueue", new ConsoleLoggerFactory(false));
-            
+
+            var defaultTopicExchange = "defaultTopicExchange";
             rabbitMqTransport.AllowPublishOnAlternateExchanges();
+            rabbitMqTransport.SetTopicExchangeName(defaultTopicExchange);
 
             var topic = "myTopic";
             var alternateExchange = "alternateExchange";
@@ -71,14 +73,12 @@ namespace Rebus.RabbitMq.Tests
 
             var subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithAlternateExchange);
             Assert.That(subscriberAddresses[0], Is.EqualTo(topicWithAlternateExchange));
-
-            var topicWithMultipleAlternateExchanges = $"{topic}@{alternateExchange}@{alternateExchange}@{alternateExchange}";
             
-            subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithMultipleAlternateExchanges);
-            foreach (var subscriberAddress in subscriberAddresses)
-            {
-                Assert.That(subscriberAddress, Is.EqualTo(topicWithAlternateExchange));
-            }
+            subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topic);
+            Assert.That(subscriberAddresses[0], Is.EqualTo($"{topic}@{defaultTopicExchange}"));
+            
+            subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topic + '@');
+            Assert.That(subscriberAddresses[0], Is.EqualTo($"{topic}@@{defaultTopicExchange}"));
         }
     }
 }

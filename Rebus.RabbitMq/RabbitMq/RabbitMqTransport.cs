@@ -140,10 +140,9 @@ namespace Rebus.RabbitMq
         }
         
         /// <summary>
-        /// Publish a topic on a single or multiple alternate exchanges.
+        /// Publish a topic on an alternate exchange.
         /// Use the following syntax to publish a topic on an alternate exchange called "alternateExchange":
         ///     "topic@alternateExchange"
-        /// Publish on multiple exchanges by appending more exchanges separated with '@'.
         /// </summary>
         public void AllowPublishOnAlternateExchanges(bool value = true)
         {
@@ -766,17 +765,11 @@ namespace Rebus.RabbitMq
         {
             if (topic.Contains('@') && _allowPublishOnAlternateExchanges)
             {
-                var subscriberAddresses = new List<string>();
                 var tokens = topic.Split('@');
-                topic = tokens[0];
-                for (var i = 1; i < tokens.Length; i++)
+                if (tokens.Last() != string.Empty)
                 {
-                    subscriberAddresses.Add(tokens[i] == string.Empty
-                        ? $"{topic}@{_topicExchangeName}"
-                        : $"{topic}@{tokens[i]}");
+                    return new[] {topic};
                 }
-
-                return subscriberAddresses.ToArray();
             }
             return new[] { $"{topic}@{_topicExchangeName}" };
         }

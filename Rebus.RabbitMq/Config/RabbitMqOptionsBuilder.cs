@@ -189,10 +189,9 @@ namespace Rebus.Config
         }
         
         /// <summary>
-        /// Publish a topic on a single or multiple alternate exchanges.
+        /// Publish a topic on an alternate exchange.
         /// Use the following syntax to publish a topic on an alternate exchange called "alternateExchange":
         ///     "topic@alternateExchange"
-        /// Publish on multiple exchanges by appending more exchanges separated with '@'.
         /// </summary>
         public RabbitMqOptionsBuilder AllowPublishOnAlternateExchanges(bool value = true)
         {
