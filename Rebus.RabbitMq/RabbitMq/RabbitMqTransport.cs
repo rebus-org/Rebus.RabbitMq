@@ -46,7 +46,7 @@ namespace Rebus.RabbitMq
         bool _declareExchanges = true;
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
-        bool _publisherConfirms = false;
+        bool _publisherConfirmsEnabled;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
@@ -136,7 +136,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void EnablePublisherConfirms(bool value = true)
         {
-            _publisherConfirms = value;
+            _publisherConfirmsEnabled = value;
         }
 
         /// <summary>
@@ -526,11 +526,6 @@ namespace Rebus.RabbitMq
                     EnsureQueueExists(routingKey, model);
                 }
                 
-                if (_publisherConfirms)
-                {
-                    model.ConfirmSelect();
-                }
-
                 model.BasicPublish(
                     exchange: exchange,
                     routingKey: routingKey.RoutingKey,
@@ -539,7 +534,7 @@ namespace Rebus.RabbitMq
                     body: message.Body
                 );
                 
-                if (_publisherConfirms)
+                if (_publisherConfirmsEnabled)
                 {
                     model.WaitForConfirmsOrDie();
                 }
@@ -698,10 +693,17 @@ namespace Rebus.RabbitMq
                 _log.Debug("Initializing new model");
                 var connection = _connectionManager.GetConnection();
                 var newModel = connection.CreateModel();
+
                 context.OnDisposed(() => _models.Enqueue(newModel));
+
+                if (_publisherConfirmsEnabled)
+                {
+                    newModel.ConfirmSelect();
+                }
 
                 // Configure registered events on model
                 _callbackOptions?.ConfigureEvents(newModel);
+
                 return newModel;
             });
 
