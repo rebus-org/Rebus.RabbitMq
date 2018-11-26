@@ -47,6 +47,7 @@ namespace Rebus.RabbitMq
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
         bool _publisherConfirmsEnabled;
+        bool _allowPublishOnAlternateExchanges;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
