@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentAssertions;
 using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
+using Rebus.Logging;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 // ReSharper disable ArgumentsStyleNamedExpression
@@ -58,26 +60,25 @@ namespace Rebus.RabbitMq.Tests
         public async Task CanUseAlternateCustomExchangeName()
         {
             const string connectionString = RabbitMqTransportFactory.ConnectionString;
+            
+            var rabbitMqTransport = new RabbitMqTransport(connectionString, "inputQueue", new ConsoleLoggerFactory(false));
+            
+            rabbitMqTransport.AllowPublishOnAlternateExchanges();
 
-            const string customTopicExchangeName = "AlternateTopico";
+            var topic = "myTopic";
+            var alternateExchange = "alternateExchange";
 
-            using (var activator = new BuiltinHandlerActivator())
+            var topicWithAlternateExchange = $"{topic}@{alternateExchange}";
+
+            var subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithAlternateExchange);
+            subscriberAddresses[0].Should().Be(topicWithAlternateExchange);
+
+            var topicWithMultipleAlternateExchanges = $"{topic}@{alternateExchange}@{alternateExchange}@{alternateExchange}";
+            
+            subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithMultipleAlternateExchanges);
+            foreach (var subscriberAddress in subscriberAddresses)
             {
-                var gotString = new ManualResetEvent(false);
-                activator.Handle<string>(async str => gotString.Set());
-
-                Configure.With(activator)
-                    .Transport(t =>
-                    {
-                        var queueName = TestConfig.GetName("custom-exchange");
-
-                        t.UseRabbitMq(connectionString, queueName)
-                            .AllowPublishOnAlternateExchanges();
-                    })
-                    .Start();
-
-                var topicWithAlternateExchanges = $"topic@{customTopicExchangeName}";
-                var subcriberAddresses = 
+                subscriberAddress.Should().Be(topicWithAlternateExchange);
             }
         }
     }
