@@ -8,7 +8,7 @@ using Rebus.Tests.Contracts;
 
 namespace Rebus.RabbitMq.Tests
 {
-    [TestFixture, Category("rabbitmq")]
+    [TestFixture]
     public class RabbitMqQueueExistsTest : FixtureBase
     {
         IBus _bus;

@@ -3,6 +3,6 @@ using Rebus.Tests.Contracts.Transports;
 
 namespace Rebus.RabbitMq.Tests
 {
-    [TestFixture, Category("rabbitmq")]
+    [TestFixture]
     public class RabbitMqTransportMessageExpiration : MessageExpiration<RabbitMqTransportFactory> { }
 }
