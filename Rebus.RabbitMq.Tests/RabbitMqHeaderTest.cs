@@ -13,7 +13,7 @@ using Rebus.Tests.Contracts.Extensions;
 
 namespace Rebus.RabbitMq.Tests
 {
-    [TestFixture, Category("rabbitmq")]
+    [TestFixture]
     public class RabbitMqHeaderTest : FixtureBase
     {
         readonly string _noneExistingQueueName = TestConfig.GetName("non-existing-queue");

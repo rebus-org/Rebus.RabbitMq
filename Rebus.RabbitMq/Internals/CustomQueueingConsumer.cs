@@ -2,7 +2,7 @@
 using RabbitMQ.Client.Events;
 using RabbitMQ.Util;
 
-namespace Rebus.RabbitMq
+namespace Rebus.Internals
 {
     class CustomQueueingConsumer : DefaultBasicConsumer, IQueueingBasicConsumer
     {

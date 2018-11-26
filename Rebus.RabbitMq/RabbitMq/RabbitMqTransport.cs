@@ -15,6 +15,7 @@ using Rebus.Subscriptions;
 using Rebus.Transport;
 using Rebus.Config;
 using Rebus.Exceptions;
+using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
 // ReSharper disable EmptyGeneralCatchClause
 
@@ -34,7 +35,7 @@ namespace Rebus.RabbitMq
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
         readonly ConcurrentQueue<CustomQueueingConsumer> _consumers = new ConcurrentQueue<CustomQueueingConsumer>();
-        readonly ConcurrentDictionary<string, bool> _verifiedQueues = new ConcurrentDictionary<string, bool>();
+        readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new ConcurrentDictionary<FullyQualifiedRoutingKey, bool>();
         readonly List<Subscription> _registeredSubscriptions = new List<Subscription>();
         readonly SemaphoreSlim _subscriptionSemaphore = new SemaphoreSlim(1, 1);
         readonly ConnectionManager _connectionManager;
@@ -45,7 +46,7 @@ namespace Rebus.RabbitMq
         bool _declareExchanges = true;
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
-        bool _publisherConfirms = false;
+        bool _publisherConfirmsEnabled;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
@@ -135,7 +136,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void EnablePublisherConfirms(bool value = true)
         {
-            _publisherConfirms = value;
+            _publisherConfirmsEnabled = value;
         }
 
         /// <summary>
@@ -416,7 +417,7 @@ namespace Rebus.RabbitMq
                                       return stringHeaderValue;
                                   }
 
-                                  return headerValue.ToString();
+                                  return headerValue?.ToString();
                               })
                           ?? new Dictionary<string, string>();
 
@@ -516,24 +517,15 @@ namespace Rebus.RabbitMq
                 var routingKey = new FullyQualifiedRoutingKey(destinationAddress);
                 var exchange = routingKey.ExchangeName ?? _directExchangeName;
 
+                var isPointToPoint = message.Headers.TryGetValue(Headers.Intent, out var intent)
+                                     && intent == Headers.IntentOptions.PointToPoint;
+
                 // when we're sending point-to-point, we want to be sure that we are never sending the message out into nowhere
-                if (exchange == _directExchangeName && !_callbackOptions.HasMandatoryCallback)
+                if (isPointToPoint && !_callbackOptions.HasMandatoryCallback)
                 {
-                    try
-                    {
-                        EnsureQueueExists(destinationAddress, model);
-                    }
-                    catch (Exception e)
-                    {
-                        throw new RebusApplicationException(e, $"Queue '{destinationAddress}' does not exists.");
-                    }
+                    EnsureQueueExists(routingKey, model);
                 }
                 
-                if (_publisherConfirms)
-                {
-                    model.ConfirmSelect();
-                }
-
                 model.BasicPublish(
                     exchange: exchange,
                     routingKey: routingKey.RoutingKey,
@@ -542,14 +534,14 @@ namespace Rebus.RabbitMq
                     body: message.Body
                 );
                 
-                if (_publisherConfirms)
+                if (_publisherConfirmsEnabled)
                 {
                     model.WaitForConfirmsOrDie();
                 }
             }
         }
 
-        IBasicProperties CreateBasicProperties(IModel model, Dictionary<string, string> headers)
+        static IBasicProperties CreateBasicProperties(IModel model, Dictionary<string, string> headers)
         {
             var props = model.CreateBasicProperties();
 
@@ -631,44 +623,48 @@ namespace Rebus.RabbitMq
 
             // must be last because the other functions on the headers might change them
             props.Headers = headers
-                .ToDictionary(kvp => kvp.Key, kvp => (object)HeaderValueEncoding.GetBytes(kvp.Value));
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value != null ? (object)HeaderValueEncoding.GetBytes(kvp.Value) : null);
 
             return props;
         }
 
-        void EnsureQueueExists(string destinationAddress, IModel model)
+        void EnsureQueueExists(FullyQualifiedRoutingKey routingKey, IModel model)
         {
             _verifiedQueues
-                .GetOrAdd(destinationAddress, _ =>
-                {
-                    // Checks if queue exists, throws if the queue doesn't exist
-                    model.QueueDeclarePassive(destinationAddress);
-                    return true;
-                });
+                .GetOrAdd(routingKey, _ => CheckQueueExistence(routingKey, model));
         }
 
-        class FullyQualifiedRoutingKey
+        bool CheckQueueExistence(FullyQualifiedRoutingKey routingKey, IModel model)
         {
-            public FullyQualifiedRoutingKey(string destinationAddress)
+            var queueName = routingKey.RoutingKey;
+
+            try
             {
-                if (destinationAddress == null) throw new ArgumentNullException(nameof(destinationAddress));
-
-                var tokens = destinationAddress.Split('@');
-
-                if (tokens.Length > 1)
-                {
-                    ExchangeName = tokens.Last();
-                    RoutingKey = string.Join("@", tokens.Take(tokens.Length - 1));
-                }
-                else
-                {
-                    ExchangeName = null;
-                    RoutingKey = destinationAddress;
-                }
+                // Checks if queue exists, throws if the queue doesn't exist
+                model.QueueDeclarePassive(queueName);
+            }
+            catch (Exception e)
+            {
+                throw new RebusApplicationException(e, $"Queue '{queueName}' does not exist");
             }
 
-            public string ExchangeName { get; }
-            public string RoutingKey { get; }
+            var exchange = routingKey.ExchangeName ?? _directExchangeName;
+
+            try
+            {
+                model.ExchangeDeclarePassive(exchange);
+            }
+            catch (Exception e)
+            {
+                throw new RebusApplicationException(e, $"Exchange '{exchange}' does not exist");
+            }
+
+            // since we can't check whether a binding exists, we need
+            // to proactively declare it, so we don't risk sending a message
+            // "into the void":
+            model.QueueBind(queueName, exchange, routingKey.RoutingKey);
+
+            return true;
         }
 
         readonly ConcurrentQueue<IModel> _models = new ConcurrentQueue<IModel>();
@@ -697,10 +693,17 @@ namespace Rebus.RabbitMq
                 _log.Debug("Initializing new model");
                 var connection = _connectionManager.GetConnection();
                 var newModel = connection.CreateModel();
+
                 context.OnDisposed(() => _models.Enqueue(newModel));
+
+                if (_publisherConfirmsEnabled)
+                {
+                    newModel.ConfirmSelect();
+                }
 
                 // Configure registered events on model
                 _callbackOptions?.ConfigureEvents(newModel);
+
                 return newModel;
             });
 

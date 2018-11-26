@@ -6,8 +6,9 @@ using System.Threading;
 using RabbitMQ.Client;
 using Rebus.Extensions;
 using Rebus.Logging;
+using Rebus.RabbitMq;
 
-namespace Rebus.RabbitMq
+namespace Rebus.Internals
 {
     class ConnectionManager : IDisposable
     {

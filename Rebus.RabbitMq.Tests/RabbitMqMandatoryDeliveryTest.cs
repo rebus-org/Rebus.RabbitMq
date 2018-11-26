@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using RabbitMQ.Client;
 using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
@@ -16,7 +14,7 @@ using Rebus.Tests.Contracts.Extensions;
 
 namespace Rebus.RabbitMq.Tests
 {
-    [TestFixture, Category("rabbitmq")]
+    [TestFixture]
     public class RabbitMqMandatoryDeliveryTest : FixtureBase
     {
         readonly string _noneExistingQueueName = TestConfig.GetName("non-existing-queue");

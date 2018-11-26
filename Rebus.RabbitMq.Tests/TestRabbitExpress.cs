@@ -14,7 +14,7 @@ using Rebus.Tests.Contracts;
 
 namespace Rebus.RabbitMq.Tests
 {
-    [TestFixture, Category("rabbitmq")]
+    [TestFixture]
     public class TestRabbitExpress : FixtureBase
     {
         BuiltinHandlerActivator _activator;
