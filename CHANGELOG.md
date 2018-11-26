@@ -63,19 +63,21 @@
 
 * Minor tweak to avoid potential dictionary trouble with double-adding - thanks [samartzidis]
 
-## 5.0.0-b06
+## 5.0.0-b07
 
 * Add callback to allow for customizing the `IConnectionFactory` instance used by the transport
 * Make assembly non-CLS compliant (necessary to be able to customize RabbitMQ's connection factory)
 * Automatically create input queue if it suddenly disappears while the app is running - thanks [pjh1974]
 * Change how models are managed to maximise reuse and improve performance
 * Don't log that silly `EndOfStreamException`, because that's apparently how the RabbitMQ driver rolls...
+* Add support for enabling publisher confirms - thanks [hansehe]
 
 ---
 
 [bzuu]: https://github.com/bzuu
 [dougkwilson]: https://github.com/dougkwilson
-[nebelx]: https://github.com/nebelx
+[hansehe]: https://github.com/hansehe
 [K3llr]: https://github.com/K3llr
-[samartzidis]: https://github.com/samartzidis
+[nebelx]: https://github.com/nebelx
 [pjh1974]: https://github.com/pjh1974
+[samartzidis]: https://github.com/samartzidis
