@@ -53,5 +53,32 @@ namespace Rebus.RabbitMq.Tests
             Assert.That(RabbitMqTransportFactory.ExchangeExists(customDirectExchangeName), Is.True);
             Assert.That(RabbitMqTransportFactory.ExchangeExists(customTopicExchangeName), Is.True);
         }
+        
+        [Test]
+        public async Task CanUseAlternateCustomExchangeName()
+        {
+            const string connectionString = RabbitMqTransportFactory.ConnectionString;
+
+            const string customTopicExchangeName = "AlternateTopico";
+
+            using (var activator = new BuiltinHandlerActivator())
+            {
+                var gotString = new ManualResetEvent(false);
+                activator.Handle<string>(async str => gotString.Set());
+
+                Configure.With(activator)
+                    .Transport(t =>
+                    {
+                        var queueName = TestConfig.GetName("custom-exchange");
+
+                        t.UseRabbitMq(connectionString, queueName)
+                            .AllowPublishOnAlternateExchanges();
+                    })
+                    .Start();
+
+                var topicWithAlternateExchanges = $"topic@{customTopicExchangeName}";
+                var subcriberAddresses = 
+            }
+        }
     }
 }
