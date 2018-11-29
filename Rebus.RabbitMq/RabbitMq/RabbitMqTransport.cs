@@ -537,6 +537,11 @@ namespace Rebus.RabbitMq
                     EnsureQueueExists(routingKey, model);
                 }
                 
+                if (_publisherConfirmsEnabled)
+                {
+                    model.ConfirmSelect();
+                }
+                
                 model.BasicPublish(
                     exchange: exchange,
                     routingKey: routingKey.RoutingKey,
@@ -706,11 +711,6 @@ namespace Rebus.RabbitMq
                 var newModel = connection.CreateModel();
 
                 context.OnDisposed(() => _models.Enqueue(newModel));
-
-                if (_publisherConfirmsEnabled)
-                {
-                    newModel.ConfirmSelect();
-                }
 
                 // Configure registered events on model
                 _callbackOptions?.ConfigureEvents(newModel);
