@@ -63,7 +63,6 @@ namespace Rebus.RabbitMq.Tests
             var rabbitMqTransport = new RabbitMqTransport(connectionString, "inputQueue", new ConsoleLoggerFactory(false));
 
             var defaultTopicExchange = "defaultTopicExchange";
-            rabbitMqTransport.AllowPublishOnAlternateExchanges();
             rabbitMqTransport.SetTopicExchangeName(defaultTopicExchange);
 
             var topic = "myTopic";

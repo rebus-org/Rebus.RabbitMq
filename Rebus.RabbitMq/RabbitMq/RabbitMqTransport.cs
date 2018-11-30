@@ -47,7 +47,6 @@ namespace Rebus.RabbitMq
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
         bool _publisherConfirmsEnabled;
-        bool _allowPublishOnAlternateExchanges;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
@@ -131,23 +130,13 @@ namespace Rebus.RabbitMq
         {
             _bindInputQueue = value;
         }
-        
+
         /// <summary>
         /// Sets whether to use the publisher confirms protocol
         /// </summary>
         public void EnablePublisherConfirms(bool value = true)
         {
             _publisherConfirmsEnabled = value;
-        }
-        
-        /// <summary>
-        /// Publish a topic on an alternate exchange.
-        /// Use the following syntax to publish a topic on an alternate exchange called "alternateExchange":
-        ///     "topic@alternateExchange"
-        /// </summary>
-        public void AllowPublishOnAlternateExchanges(bool value = true)
-        {
-            _allowPublishOnAlternateExchanges = value;
         }
 
         /// <summary>
@@ -193,7 +182,7 @@ namespace Rebus.RabbitMq
         {
             _inputQueueOptions = inputQueueOptions;
         }
-        
+
         /// <summary>
         /// Configures input exchange options
         /// </summary>
@@ -536,12 +525,12 @@ namespace Rebus.RabbitMq
                 {
                     EnsureQueueExists(routingKey, model);
                 }
-                
+
                 if (_publisherConfirmsEnabled)
                 {
                     model.ConfirmSelect();
                 }
-                
+
                 model.BasicPublish(
                     exchange: exchange,
                     routingKey: routingKey.RoutingKey,
@@ -549,7 +538,7 @@ namespace Rebus.RabbitMq
                     basicProperties: props,
                     body: message.Body
                 );
-                
+
                 if (_publisherConfirmsEnabled)
                 {
                     model.WaitForConfirmsOrDie();
@@ -764,15 +753,9 @@ namespace Rebus.RabbitMq
         /// </summary>
         public async Task<string[]> GetSubscriberAddresses(string topic)
         {
-            if (topic.Contains('@') && _allowPublishOnAlternateExchanges)
-            {
-                var tokens = topic.Split('@');
-                if (tokens.Last() != string.Empty)
-                {
-                    return new[] {topic};
-                }
-            }
-            return new[] { $"{topic}@{_topicExchangeName}" };
+            return topic.Contains('@')
+                ? new[] { topic }
+                : new[] { $"{topic}@{_topicExchangeName}" };
         }
 
         /// <summary>
