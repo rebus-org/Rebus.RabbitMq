@@ -47,6 +47,7 @@ namespace Rebus.RabbitMq
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
         bool _publisherConfirmsEnabled;
+        bool _allowPublishOnAlternateExchanges;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
@@ -137,6 +138,16 @@ namespace Rebus.RabbitMq
         public void EnablePublisherConfirms(bool value = true)
         {
             _publisherConfirmsEnabled = value;
+        }
+        
+        /// <summary>
+        /// Publish a topic on an alternate exchange.
+        /// Use the following syntax to publish a topic on an alternate exchange called "alternateExchange":
+        ///     "topic@alternateExchange"
+        /// </summary>
+        public void AllowPublishOnAlternateExchanges(bool value = true)
+        {
+            _allowPublishOnAlternateExchanges = value;
         }
 
         /// <summary>
@@ -526,6 +537,11 @@ namespace Rebus.RabbitMq
                     EnsureQueueExists(routingKey, model);
                 }
                 
+                if (_publisherConfirmsEnabled)
+                {
+                    model.ConfirmSelect();
+                }
+                
                 model.BasicPublish(
                     exchange: exchange,
                     routingKey: routingKey.RoutingKey,
@@ -696,11 +712,6 @@ namespace Rebus.RabbitMq
 
                 context.OnDisposed(() => _models.Enqueue(newModel));
 
-                if (_publisherConfirmsEnabled)
-                {
-                    newModel.ConfirmSelect();
-                }
-
                 // Configure registered events on model
                 _callbackOptions?.ConfigureEvents(newModel);
 
@@ -753,6 +764,14 @@ namespace Rebus.RabbitMq
         /// </summary>
         public async Task<string[]> GetSubscriberAddresses(string topic)
         {
+            if (topic.Contains('@') && _allowPublishOnAlternateExchanges)
+            {
+                var tokens = topic.Split('@');
+                if (tokens.Last() != string.Empty)
+                {
+                    return new[] {topic};
+                }
+            }
             return new[] { $"{topic}@{_topicExchangeName}" };
         }
 

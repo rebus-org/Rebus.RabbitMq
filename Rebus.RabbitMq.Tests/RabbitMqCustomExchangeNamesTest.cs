@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
+using Rebus.Logging;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 // ReSharper disable ArgumentsStyleNamedExpression
@@ -52,6 +53,32 @@ namespace Rebus.RabbitMq.Tests
             Assert.That(RabbitMqTransportFactory.ExchangeExists(RabbitMqOptionsBuilder.DefaultTopicExchangeName), Is.False);
             Assert.That(RabbitMqTransportFactory.ExchangeExists(customDirectExchangeName), Is.True);
             Assert.That(RabbitMqTransportFactory.ExchangeExists(customTopicExchangeName), Is.True);
+        }
+        
+        [Test]
+        public async Task CanUseAlternateCustomExchangeName()
+        {
+            const string connectionString = RabbitMqTransportFactory.ConnectionString;
+            
+            var rabbitMqTransport = new RabbitMqTransport(connectionString, "inputQueue", new ConsoleLoggerFactory(false));
+
+            var defaultTopicExchange = "defaultTopicExchange";
+            rabbitMqTransport.AllowPublishOnAlternateExchanges();
+            rabbitMqTransport.SetTopicExchangeName(defaultTopicExchange);
+
+            var topic = "myTopic";
+            var alternateExchange = "alternateExchange";
+
+            var topicWithAlternateExchange = $"{topic}@{alternateExchange}";
+
+            var subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topicWithAlternateExchange);
+            Assert.That(subscriberAddresses[0], Is.EqualTo(topicWithAlternateExchange));
+            
+            subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topic);
+            Assert.That(subscriberAddresses[0], Is.EqualTo($"{topic}@{defaultTopicExchange}"));
+            
+            subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topic + '@');
+            Assert.That(subscriberAddresses[0], Is.EqualTo($"{topic}@@{defaultTopicExchange}"));
         }
     }
 }

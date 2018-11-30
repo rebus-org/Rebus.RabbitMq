@@ -187,11 +187,23 @@ namespace Rebus.Config
             PublisherConfirms = value;
             return this;
         }
+        
+        /// <summary>
+        /// Publish a topic on an alternate exchange.
+        /// Use the following syntax to publish a topic on an alternate exchange called "alternateExchange":
+        ///     "topic@alternateExchange"
+        /// </summary>
+        public RabbitMqOptionsBuilder AllowPublishOnAlternateExchanges(bool value = true)
+        {
+            PublishOnAlternateExchanges = value;
+            return this;
+        }
 
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
         internal bool? PublisherConfirms { get; private set; }
+        internal bool? PublishOnAlternateExchanges { get; private set; }
 
         internal string DirectExchangeName { get; private set; }
         internal string TopicExchangeName { get; private set; }
@@ -255,6 +267,11 @@ namespace Rebus.Config
             if (PublisherConfirms.HasValue)
             {
                 transport.EnablePublisherConfirms(PublisherConfirms.Value);
+            }
+            
+            if (PublishOnAlternateExchanges.HasValue)
+            {
+                transport.AllowPublishOnAlternateExchanges(PublishOnAlternateExchanges.Value);
             }
 
             transport.SetInputQueueOptions(QueueOptions);
