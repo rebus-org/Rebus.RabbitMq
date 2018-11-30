@@ -77,7 +77,7 @@ namespace Rebus.RabbitMq.Tests
             Assert.That(subscriberAddresses[0], Is.EqualTo($"{topic}@{defaultTopicExchange}"));
             
             subscriberAddresses = await rabbitMqTransport.GetSubscriberAddresses(topic + '@');
-            Assert.That(subscriberAddresses[0], Is.EqualTo($"{topic}@@{defaultTopicExchange}"));
+            Assert.That(subscriberAddresses[0], Is.EqualTo($"{topic}@"));
         }
     }
 }
