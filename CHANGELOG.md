@@ -71,6 +71,7 @@
 * Change how models are managed to maximise reuse and improve performance
 * Don't log that silly `EndOfStreamException`, because that's apparently how the RabbitMQ driver rolls...
 * Add support for enabling publisher confirms - thanks [hansehe]
+* Complete support for publishing on alternate exchanges via the `@` syntax (topics like `<topic-name>@<exchange-name>`) - thanks [hansehe]
 
 ---
 
