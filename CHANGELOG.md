@@ -73,12 +73,17 @@
 * Add support for enabling publisher confirms - thanks [hansehe]
 * Complete support for publishing on alternate exchanges via the `@` syntax (topics like `<topic-name>@<exchange-name>`) - thanks [hansehe]
 
+## 5.0.1
+
+* Improve publisher confirms performance when sending batches (i.e. multiple outgoing messages from Rebus handlers, or when using `RebusTransactionScope`) - thanks [kyrrem]
+
 ---
 
 [bzuu]: https://github.com/bzuu
 [dougkwilson]: https://github.com/dougkwilson
 [hansehe]: https://github.com/hansehe
 [K3llr]: https://github.com/K3llr
+[kyrrem]: https://github.com/kyrrem
 [nebelx]: https://github.com/nebelx
 [pjh1974]: https://github.com/pjh1974
 [samartzidis]: https://github.com/samartzidis
