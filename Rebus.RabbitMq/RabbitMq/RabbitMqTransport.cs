@@ -502,6 +502,11 @@ namespace Rebus.RabbitMq
         {
             var model = GetModel(context);
 
+            if (_publisherConfirmsEnabled)
+            {
+                model.ConfirmSelect();
+            }
+
             foreach (var outgoingMessage in outgoingMessages)
             {
                 var destinationAddress = outgoingMessage.DestinationAddress;
@@ -526,11 +531,6 @@ namespace Rebus.RabbitMq
                     EnsureQueueExists(routingKey, model);
                 }
 
-                if (_publisherConfirmsEnabled)
-                {
-                    model.ConfirmSelect();
-                }
-
                 model.BasicPublish(
                     exchange: exchange,
                     routingKey: routingKey.RoutingKey,
@@ -538,11 +538,11 @@ namespace Rebus.RabbitMq
                     basicProperties: props,
                     body: message.Body
                 );
+            }
 
-                if (_publisherConfirmsEnabled)
-                {
-                    model.WaitForConfirmsOrDie();
-                }
+            if (_publisherConfirmsEnabled)
+            {
+                model.WaitForConfirmsOrDie();
             }
         }
 
