@@ -426,6 +426,9 @@ namespace Rebus.RabbitMq
                 AddMessageId(headers, basicProperties, body);
             }
 
+            if (basicProperties.IsUserIdPresent())
+                headers[RabbitMqHeaders.UserId] = basicProperties.UserId;
+
             return new TransportMessage(headers, body);
         }
 
