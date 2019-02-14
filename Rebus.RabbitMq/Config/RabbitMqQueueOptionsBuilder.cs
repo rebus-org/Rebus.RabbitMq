@@ -41,7 +41,7 @@ namespace Rebus.Config
         /// </summary>
         /// <param name="ttlInMs">Time to live in milliseconds</param>
         /// <returns></returns>
-        public RabbitMqQueueOptionsBuilder SetTtl(int ttlInMs)
+        public RabbitMqQueueOptionsBuilder SetTtl(long ttlInMs)
         {
             if (ttlInMs < 1)
             {
