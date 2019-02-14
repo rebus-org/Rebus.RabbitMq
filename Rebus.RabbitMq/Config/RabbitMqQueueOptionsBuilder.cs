@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rebus.Config
 {
@@ -26,11 +27,27 @@ namespace Rebus.Config
         }
 
         /// <summary>
-        /// Set auto delete
+        /// Set auto delete, when last consumer disconnects
         /// </summary>
         public RabbitMqQueueOptionsBuilder SetAutoDelete(bool autoDelete)
         {
             AutoDelete = autoDelete;
+            return this;
+        }
+
+        /// <summary>
+        /// Set queue time-to-live, the time before queue expires after last consumer disconnects, and is auto deleted
+        /// <see cref="https://www.rabbitmq.com/ttl.html#queue-ttl"/>
+        /// </summary>
+        /// <param name="ttlInMs">Time to live in milliseconds</param>
+        /// <returns></returns>
+        public RabbitMqQueueOptionsBuilder SetTtl(int ttlInMs)
+        {
+            if (ttlInMs < 1)
+            {
+                throw new ArgumentException("Time must be in milliseconds and greater than 0", nameof(ttlInMs));
+            }
+            Arguments.Add("x-expires", ttlInMs);
             return this;
         }
 
@@ -46,7 +63,7 @@ namespace Rebus.Config
         /// <summary>
         /// Add input queue arguments to the default settings
         /// </summary>
-        public RabbitMqQueueOptionsBuilder AddArgument(string key, string val)
+        public RabbitMqQueueOptionsBuilder AddArgument(string key, object val)
         {
             Arguments.Add(key, val);
             return this;
