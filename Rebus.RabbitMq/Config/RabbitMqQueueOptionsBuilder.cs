@@ -37,7 +37,7 @@ namespace Rebus.Config
 
         /// <summary>
         /// Set queue time-to-live, the time before queue expires after last consumer disconnects, and is auto deleted
-        /// <see cref="https://www.rabbitmq.com/ttl.html#queue-ttl"/>
+        /// https://www.rabbitmq.com/ttl.html
         /// </summary>
         /// <param name="ttlInMs">Time to live in milliseconds</param>
         /// <returns></returns>
