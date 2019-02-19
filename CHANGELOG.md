@@ -77,6 +77,10 @@
 
 * Improve publisher confirms performance when sending batches (i.e. multiple outgoing messages from Rebus handlers, or when using `RebusTransactionScope`) - thanks [kyrrem]
 
+## 5.0.2
+
+* Add user ID header to incoming message if set on RabbitMQ transport message - thanks [michalsteyn]
+
 ---
 
 [bzuu]: https://github.com/bzuu
@@ -84,6 +88,7 @@
 [hansehe]: https://github.com/hansehe
 [K3llr]: https://github.com/K3llr
 [kyrrem]: https://github.com/kyrrem
+[michalsteyn]: https://github.com/michalsteyn
 [nebelx]: https://github.com/nebelx
 [pjh1974]: https://github.com/pjh1974
 [samartzidis]: https://github.com/samartzidis
