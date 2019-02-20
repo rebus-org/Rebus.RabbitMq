@@ -81,6 +81,10 @@
 
 * Add user ID header to incoming message if set on RabbitMQ transport message - thanks [michalsteyn]
 
+## 5.1.0
+
+* Add ability to set auto-delete TLL when enabling it - thanks [ronnyek]
+
 ---
 
 [bzuu]: https://github.com/bzuu
@@ -91,4 +95,5 @@
 [michalsteyn]: https://github.com/michalsteyn
 [nebelx]: https://github.com/nebelx
 [pjh1974]: https://github.com/pjh1974
+[ronnyek]: https://github.com/ronnyek
 [samartzidis]: https://github.com/samartzidis
