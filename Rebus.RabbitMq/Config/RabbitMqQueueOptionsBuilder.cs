@@ -28,26 +28,20 @@ namespace Rebus.Config
 
         /// <summary>
         /// Set auto delete, when last consumer disconnects
+        /// <param name="autoDelete">Whether queue should be deleted</param>
+        /// <param name="ttlInMs">Time to live (in milliseconds) after last subscriber disconnects</param>
         /// </summary>
-        public RabbitMqQueueOptionsBuilder SetAutoDelete(bool autoDelete)
+        public RabbitMqQueueOptionsBuilder SetAutoDelete(bool autoDelete, long ttlInMs = 0)
         {
-            AutoDelete = autoDelete;
-            return this;
-        }
-
-        /// <summary>
-        /// Set queue time-to-live, the time before queue expires after last consumer disconnects, and is auto deleted
-        /// https://www.rabbitmq.com/ttl.html
-        /// </summary>
-        /// <param name="ttlInMs">Time to live in milliseconds</param>
-        /// <returns></returns>
-        public RabbitMqQueueOptionsBuilder SetTtl(long ttlInMs)
-        {
-            if (ttlInMs < 1)
+            if (ttlInMs < 0)
             {
                 throw new ArgumentException("Time must be in milliseconds and greater than 0", nameof(ttlInMs));
             }
-            Arguments.Add("x-expires", ttlInMs);
+            else
+            {
+                Arguments.Add("x-expires", ttlInMs);
+            }
+            AutoDelete = autoDelete;
             return this;
         }
 
