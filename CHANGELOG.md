@@ -85,11 +85,16 @@
 
 * Add ability to set auto-delete TLL when enabling it - thanks [ronnyek]
 
+## 5.1.1
+
+* Fix "invalid arg 'x-expires' for queue" error - thanks [jarikp]
+
 ---
 
 [bzuu]: https://github.com/bzuu
 [dougkwilson]: https://github.com/dougkwilson
 [hansehe]: https://github.com/hansehe
+[jarikp]: https://github.com/jarikp
 [K3llr]: https://github.com/K3llr
 [kyrrem]: https://github.com/kyrrem
 [michalsteyn]: https://github.com/michalsteyn
