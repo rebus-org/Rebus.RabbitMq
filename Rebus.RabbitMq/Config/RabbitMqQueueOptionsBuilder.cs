@@ -33,15 +33,14 @@ namespace Rebus.Config
         /// </summary>
         public RabbitMqQueueOptionsBuilder SetAutoDelete(bool autoDelete, long ttlInMs = 0)
         {
-            if (ttlInMs < 0)
-            {
-                throw new ArgumentException("Time must be in milliseconds and greater than 0", nameof(ttlInMs));
-            }
-            else
-            {
-                Arguments.Add("x-expires", ttlInMs);
-            }
             AutoDelete = autoDelete;
+
+            if (AutoDelete && ttlInMs <= 0)
+                throw new ArgumentException("Time must be in milliseconds and greater than 0", nameof(ttlInMs));
+
+            if (AutoDelete)
+                Arguments.Add("x-expires", ttlInMs);
+
             return this;
         }
 
