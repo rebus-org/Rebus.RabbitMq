@@ -15,17 +15,23 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture]
     public class RabbitMqReceiveSubscriptionTests : FixtureBase
     {
-        readonly string _publisherQueueName = TestConfig.GetName("publisher");
-        readonly string _subscriberQueueName = TestConfig.GetName("subscriber");
+        readonly string _publisherQueueName = TestConfig.GetName("publisher-RabbitMqReceiveSubscriptionTests");
+        readonly string _subscriberQueueName = TestConfig.GetName("subscriber-RabbitMqReceiveSubscriptionTests");
+
+        protected override void SetUp()
+        {
+            RabbitMqTransportFactory.DeleteQueue(_publisherQueueName);
+            RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+        }
 
         [Test]
         public async Task Test_ReceieveOnSubscribe_WHEN_SubscriberQueueDeleted_THEN_ItRecreates_SubscirberQuere_AND_ReceivesPublishedData()
         {
             var message = "Test-Message-123";
             var receivedEvent = new ManualResetEvent(false);
-            var publisher = GetBus("publisher");
+            var publisher = GetBus(_publisherQueueName);
 
-            var subscriber = GetBus("subscriber", async data =>
+            var subscriber = GetBus(_subscriberQueueName, async data =>
             {
                 if (string.Equals(data, message))
                     receivedEvent.Set();
