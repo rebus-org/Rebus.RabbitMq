@@ -328,6 +328,19 @@ namespace Rebus.RabbitMq
                 {
                     consumer = InitializeConsumer();
                 }
+                else
+                {
+                    try
+                    {
+                        // When a consumer is dequeued from the the "consumers" pool, it might be bound to a queue, which does not exist anymore,
+                        // eg. expired and deleted by RabittMQ server policy). In this case this calling QueueDeclarePassive will result in 
+                        // an OperationInterruptedException and "consumer.Model.IsOpen" will be set to false (this is handled later in the code by 
+                        // disposing this consumer). There is no need to handle this exception. The logic of InitializeConsumer() will make sure 
+                        // that the queue is recreated later based on assumption about how ReBus is handling null-result of ITransport.Receive().
+                        consumer?.Model.QueueDeclarePassive(Address);
+                    }
+                    catch { }
+                }
 
                 if (consumer == null)
                 {
