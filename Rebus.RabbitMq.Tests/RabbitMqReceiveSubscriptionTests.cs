@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using Rebus.Activation;
+using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
@@ -18,8 +19,9 @@ namespace Rebus.RabbitMq.Tests
         readonly string _publisherQueueName = TestConfig.GetName("publisher-RabbitMqReceiveSubscriptionTests");
         readonly string _subscriberQueueName = TestConfig.GetName("subscriber-RabbitMqReceiveSubscriptionTests");
 
-        protected override void SetUp()
+        protected override void TearDown()
         {
+            base.TearDown();
             RabbitMqTransportFactory.DeleteQueue(_publisherQueueName);
             RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
         }
@@ -27,27 +29,34 @@ namespace Rebus.RabbitMq.Tests
         [Test]
         public async Task Test_ReceieveOnSubscribe_WHEN_SubscriberQueueDeleted_THEN_ItRecreates_SubscirberQuere_AND_ReceivesPublishedData()
         {
-            var message = "Test-Message-123";
-            var receivedEvent = new ManualResetEvent(false);
-            var publisher = GetBus(_publisherQueueName);
+            string message = "Test-Message-123";
 
-            var subscriber = GetBus(_subscriberQueueName, async data =>
+            using (var receivedEvent = new ManualResetEvent(false))
             {
-                if (string.Equals(data, message))
-                    receivedEvent.Set();
-            });
+                using (var publisher = StartBus(_publisherQueueName))
+                {
+                    using (var subscriber = StartBus(_subscriberQueueName, data => Task.Run(() =>
+                       {
+                           if (string.Equals(data, message))
+                               receivedEvent.Set();
+                       })))
+                    {
 
-            await subscriber.Bus.Subscribe<string>();
+                        await subscriber.Subscribe<string>();
 
-            RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+                        RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+                        await Task.Delay(1000);
 
-            await publisher.Bus.Publish(message);
+                        await publisher.Publish(message);
 
-            receivedEvent.WaitOrDie(TimeSpan.FromSeconds(5));
+                        receivedEvent.WaitOrDie(TimeSpan.FromSeconds(2), "The event has not been receved by the subscriber within the expected time");
+                    }
+                }
+            }
         }
 
 
-        BuiltinHandlerActivator GetBus(string queueName, Func<string, Task> handlerMethod = null)
+        private IBus StartBus(string queueName, Func<string, Task> handlerMethod = null)
         {
             var activator = Using(new BuiltinHandlerActivator());
             activator?.Handle(handlerMethod);
@@ -58,7 +67,7 @@ namespace Rebus.RabbitMq.Tests
                     .AddClientProperties(new Dictionary<string, string> { { "description", "Created for RabbitMqReceiveTests" } });
             }).Start();
 
-            return activator;
+            return activator.Bus;
         }
     }
 }
