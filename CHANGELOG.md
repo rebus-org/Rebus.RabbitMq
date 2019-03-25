@@ -89,6 +89,10 @@
 
 * Fix "invalid arg 'x-expires' for queue" error - thanks [jarikp]
 
+## 5.1.2
+
+* Little fix that enables graceful handling of disappearing input queue - thanks [jarikp]
+
 ---
 
 [bzuu]: https://github.com/bzuu

@@ -6,10 +6,10 @@ using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+// ReSharper disable AccessToDisposedClosure
+#pragma warning disable 1998
 
 namespace Rebus.RabbitMq.Tests
 {
@@ -27,45 +27,63 @@ namespace Rebus.RabbitMq.Tests
         }
 
         [Test]
-        public async Task Test_ReceieveOnSubscribe_WHEN_SubscriberQueueDeleted_THEN_ItRecreates_SubscirberQuere_AND_ReceivesPublishedData()
+        public async Task ReceiveOnSubscribe_WHEN_SubscriberQueueDeleted_THEN_ItRecreates_SubscriberQueue_AND_ReceivesPublishedData()
         {
-            string message = "Test-Message-123";
+            const string message = "Test-Message-123";
 
             using (var receivedEvent = new ManualResetEvent(false))
             {
                 using (var publisher = StartBus(_publisherQueueName))
                 {
-                    using (var subscriber = StartBus(_subscriberQueueName, data => Task.Run(() =>
-                       {
-                           if (string.Equals(data, message))
-                               receivedEvent.Set();
-                       })))
+                    async Task HandlerMethod(string data)
                     {
+                        if (string.Equals(data, message))
+                        {
+                            receivedEvent.Set();
+                        }
+                    }
 
+                    using (var subscriber = StartBus(_subscriberQueueName, HandlerMethod))
+                    {
                         await subscriber.Subscribe<string>();
 
+                        // remove the input queue
                         RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+
+                        // wait a short while
                         await Task.Delay(1000);
 
+                        // check that published message is received without problems
                         await publisher.Publish(message);
 
-                        receivedEvent.WaitOrDie(TimeSpan.FromSeconds(2), "The event has not been receved by the subscriber within the expected time");
+                        receivedEvent.WaitOrDie(TimeSpan.FromSeconds(2),
+                            "The event has not been receved by the subscriber within the expected time");
                     }
                 }
             }
         }
 
 
-        private IBus StartBus(string queueName, Func<string, Task> handlerMethod = null)
+        IBus StartBus(string queueName, Func<string, Task> handlerMethod = null)
         {
-            var activator = Using(new BuiltinHandlerActivator());
-            activator?.Handle(handlerMethod);
+            var activator = new BuiltinHandlerActivator();
 
-            Configure.With(activator).Transport(t =>
-            {
-                t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName)
-                    .AddClientProperties(new Dictionary<string, string> { { "description", "Created for RabbitMqReceiveTests" } });
-            }).Start();
+            Using(activator);
+
+            activator.Handle(handlerMethod);
+
+            Configure.With(activator)
+                .Transport(t =>
+                {
+                    var properties = new Dictionary<string, string>
+                    {
+                        { "description", "Created for RabbitMqReceiveTests" }
+                    };
+
+                    t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName)
+                        .AddClientProperties(properties);
+                })
+                .Start();
 
             return activator.Bus;
         }
