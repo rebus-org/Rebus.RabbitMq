@@ -31,7 +31,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
     <PackageReference Include="microsoft.net.test.sdk" Version="16.0.1" />
-    <PackageReference Include="nunit" Version="3.11.0" />
+    <PackageReference Include="nunit" Version="3.7.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.13.0" />
     <PackageReference Include="rabbitmq.client" Version="5.1.0" />
     <PackageReference Include="rebus" Version="5.1.0" />
