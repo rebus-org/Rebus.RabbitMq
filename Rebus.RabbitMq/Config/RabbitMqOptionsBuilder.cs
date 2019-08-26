@@ -272,13 +272,9 @@ namespace Rebus.Config
             transport.SetExchangeOptions(ExchangeOptions);
         }
 
-        /// <summary>
         /// This is temporary decorator-fix, until Rebus is upgraded to a version 6+ of RabbitMQ.Client wich has new signature:
-        /// 
-        ///       IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints, string clientProvidedName) 
-        /// 
+        /// IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints, string clientProvidedName) 
         /// so it is more correct to provide the name of client connection in ConnectionManager.GetConnection() method, when connections are created.
-        /// </summary>
         class ConnectionFactoryClientNameDecorator : IConnectionFactory
         {
             private readonly IConnectionFactory _decoratedFactory;
