@@ -61,6 +61,24 @@ namespace Rebus.RabbitMq.Tests
             }
         }
 
+        public static bool QueueExists(string queueName)
+        {
+            var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
+            using (var connection = connectionFactory.CreateConnection())
+            using (var model = connection.CreateModel())
+            {
+                try
+                {
+                    model.QueueDeclarePassive(queueName);
+                    return true;
+                }
+                catch (RabbitMQ.Client.Exceptions.OperationInterruptedException)
+                {
+                    return false;
+                }
+            }
+        }
+
         public static void DeleteExchange(string exchangeName)
         {
             var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
@@ -109,9 +127,9 @@ namespace Rebus.RabbitMq.Tests
                 }
             }
         }
-        
+
         protected virtual RabbitMqTransport CreateRabbitMqTransport(string inputQueueAddress)
-        {   
+        {
             return new RabbitMqTransport(ConnectionString, inputQueueAddress, new ConsoleLoggerFactory(false));
         }
     }
