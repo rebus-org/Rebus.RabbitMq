@@ -24,7 +24,6 @@ namespace Rebus.RabbitMq.Tests
                       {
                           t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
                             .InputQueueOptions(o => o.SetAutoDelete(false))
-                            .ClientConnectionName("Test Client Connection Name")
                             .AddClientProperties(new Dictionary<string, string> {
                             { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
                             });
@@ -32,7 +31,7 @@ namespace Rebus.RabbitMq.Tests
 
                 using (var bus = configurer.Start())
                 {
-                    Assert.IsTrue(bus.Advanced.Workers.Count > 0); Thread.Sleep(500000);
+                    Assert.IsTrue(bus.Advanced.Workers.Count > 0);
                 }
 
                 Thread.Sleep(5000);
