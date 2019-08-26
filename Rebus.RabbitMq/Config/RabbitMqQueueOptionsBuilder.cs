@@ -27,19 +27,43 @@ namespace Rebus.Config
         }
 
         /// <summary>
-        /// Set auto delete, when last consumer disconnects
+        /// Set auto-delete propery when declaring the queue
+        /// <param name="autoDelete">Whether queue should be deleted when the last consumer unsubscribes</param>
+        /// </summary>
+        public RabbitMqQueueOptionsBuilder SetAutoDelete(bool autoDelete)
+        {
+            AutoDelete = autoDelete;
+            return this;
+        }
+
+        /// <summary>
+        /// Configure for how long a queue can be unused before it is automatically deleted by setting x-expires argument
+        /// </summary>
+        /// <param name="ttlInMs">expiration period in milliseconds, </param>
+        /// <exception cref="ArgumentException">if the argumnet value is 0 or less</exception>
+        public RabbitMqQueueOptionsBuilder SetQueueTTL(long ttlInMs)
+        {
+            if (ttlInMs <= 0)
+                throw new ArgumentException("Time must be in milliseconds and greater than 0", nameof(ttlInMs));
+
+            Arguments.Add("x-expires", ttlInMs);
+
+            return this;
+        }
+
+
+        /// <summary>
+        /// Set auto delete, when last consumer disconnects and/or how long queue can stay unused until it is deleted as expired.
+        /// Zero or negative values of ttlInMs are ignored (no queue expiration).
         /// <param name="autoDelete">Whether queue should be deleted</param>
         /// <param name="ttlInMs">Time to live (in milliseconds) after last subscriber disconnects</param>
         /// </summary>
         public RabbitMqQueueOptionsBuilder SetAutoDelete(bool autoDelete, long ttlInMs = 0)
         {
-            AutoDelete = autoDelete;
+            SetAutoDelete(autoDelete);
 
-            if (AutoDelete && ttlInMs <= 0)
-                throw new ArgumentException("Time must be in milliseconds and greater than 0", nameof(ttlInMs));
-
-            if (AutoDelete)
-                Arguments.Add("x-expires", ttlInMs);
+            if (ttlInMs > 0)
+                SetQueueTTL(ttlInMs);
 
             return this;
         }
