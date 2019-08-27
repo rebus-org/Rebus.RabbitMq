@@ -93,6 +93,11 @@
 
 * Little fix that enables graceful handling of disappearing input queue - thanks [jarikp]
 
+## 5.1.3
+
+* Fix auto-delete support, which would make it impossible to configure queue TTL unless auto-delete was ON (but these things are not dependent) - thanks [jarikp]
+* Fix connection name feature - thanks [jarikp]
+
 ---
 
 [bzuu]: https://github.com/bzuu
