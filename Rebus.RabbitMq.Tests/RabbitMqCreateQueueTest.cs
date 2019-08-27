@@ -7,76 +7,125 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Rebus.RabbitMq.Tests
 {
     [TestFixture]
     public class RabbitMqCreateQueueTest : FixtureBase
     {
-        readonly string _testQueue1 = TestConfig.GetName("test_queue_1");
-
-        protected override void SetUp()
-        {
-            RabbitMqTransportFactory.DeleteQueue(_testQueue1);
-        }
-
         [Test]
-        public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_False_AND_TTL0_THEN_BusCanStart()
+        public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_False_AND_TTL0_THEN_BusCanStart_()
         {
-            var activator = Using(new BuiltinHandlerActivator());
-            var configurer = Configure.With(activator)
-                  .Transport(t =>
-                  {
-                      t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _testQueue1)
-                        .InputQueueOptions(o => o.SetAutoDelete(false))
-                        .AddClientProperties(new Dictionary<string, string> {
-                            { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
-                        });
-                  });
-            var bus = configurer.Start();
-
-            Assert.IsTrue(bus.Advanced.Workers.Count > 0);
-        }
-
-
-        [Test]
-        public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_True_AND_TTL_Positive_THEN_BusCanStart()
-        {
-            var activator = Using(new BuiltinHandlerActivator());
-            var configurer = Configure.With(activator)
-                  .Transport(t =>
-                  {
-                      t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _testQueue1)
-                        .InputQueueOptions(o => o.SetAutoDelete(true, 1))
-                        .AddClientProperties(new Dictionary<string, string> {
-                            { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
-                        });
-                  });
-
-            var bus = configurer.Start();
-
-            Assert.IsTrue(bus.Advanced.Workers.Count > 0);
-        }
-
-        [Test]
-        public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_True_AND_TTL_0_THEN_ArgumentExceptionThrown()
-        {
-            var activator = Using(new BuiltinHandlerActivator());
-
-            Assert.Throws<ArgumentException>(() =>
+            using (var testScope = new QeueuNameTestScope())
             {
+                var activator = Using(new BuiltinHandlerActivator());
+                var configurer = Configure.With(activator)
+                      .Transport(t =>
+                      {
+                          t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                            .InputQueueOptions(o => o.SetAutoDelete(false))
+                            .AddClientProperties(new Dictionary<string, string> {
+                            { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
+                            });
+                      });
+
+                using (var bus = configurer.Start())
+                {
+                    Assert.IsTrue(bus.Advanced.Workers.Count > 0);
+                }
+
+                Thread.Sleep(5000);
+                Assert.IsTrue(RabbitMqTransportFactory.QueueExists(testScope.QeueuName));
+            }
+        }
+
+        [Test]
+        public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_True_THEN_BusCanStart()
+        {
+            using (var testScope = new QeueuNameTestScope())
+            {
+                var activator = Using(new BuiltinHandlerActivator());
+                var configurer = Configure.With(activator)
+                      .Transport(t =>
+                      {
+                          t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                            .InputQueueOptions(o => o.SetAutoDelete(true))
+                            .AddClientProperties(new Dictionary<string, string> {
+                            { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
+                            });
+                      });
+
+                using (var bus = configurer.Start())
+                {
+                    Assert.IsTrue(bus.Advanced.Workers.Count > 0);
+                }
+            }
+        }
+
+        [Test]
+        public void Test_CreateQueue_WHEN_InputQueueOptions_SetQueueTTL_0_THEN_ArgumentException()
+        {
+            using (var testScope = new QeueuNameTestScope())
+            {
+                var activator = Using(new BuiltinHandlerActivator());
+
+                Assert.Throws<ArgumentException>(() =>
+                {
+                    var configurer = Configure.With(activator)
+                        .Transport(t =>
+                        {
+                            t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                            .InputQueueOptions(o => o.SetQueueTTL(0).SetDurable(false))
+                            .AddClientProperties(new Dictionary<string, string> {
+                            { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
+                            });
+                        });
+                }
+                , "Time must be in milliseconds and greater than 0");
+            }
+        }
+
+        [Test]
+        public void Test_CreateQueue_WHEN_InputQueueOptions_SetQueueTTL_5000_THEN_QueueIsDeleted_WHEN_5000msAfterConnectionClosed()
+        {
+            using (var testScope = new QeueuNameTestScope())
+            {
+                var activator = Using(new BuiltinHandlerActivator());
+
                 var configurer = Configure.With(activator)
                     .Transport(t =>
                     {
-                        t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _testQueue1)
-                        .InputQueueOptions(o => o.SetAutoDelete(true, 0))
+                        t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                        .InputQueueOptions(o => o.SetQueueTTL(100))
                         .AddClientProperties(new Dictionary<string, string> {
                             { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
                         });
                     });
+
+                using (var bus = configurer.Start())
+                {
+                    Assert.IsTrue(bus.Advanced.Workers.Count > 0);
+                }
+
+                Thread.Sleep(5000);
+                Assert.IsFalse(RabbitMqTransportFactory.QueueExists(testScope.QeueuName));
             }
-            , "Time must be in milliseconds and greater than 0");
         }
+
+        class QeueuNameTestScope : IDisposable
+        {
+            public string QeueuName { get; }
+
+            public QeueuNameTestScope()
+            {
+                QeueuName = Guid.NewGuid().ToString();
+            }
+
+            public void Dispose()
+            {
+                RabbitMqTransportFactory.DeleteQueue(QeueuName);
+            }
+        }
+
     }
 }
