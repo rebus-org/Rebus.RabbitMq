@@ -588,7 +588,26 @@ namespace Rebus.RabbitMq
 
             if (headers.TryGetValue(RabbitMqHeaders.ContentType, out var contentType))
             {
-                props.ContentType = contentType;
+                var parts = contentType.Split(';');
+
+                props.ContentType = parts[0];
+
+                // if the MIME type has parameters, then we see if there's a charset in there...
+                if (parts.Length > 1)
+                {
+                    try
+                    {
+                        var parameters = parts.Skip(1)
+                            .Select(p => p.Split('='))
+                            .ToDictionary(p => p.First(), p => p.LastOrDefault());
+
+                        if (parameters.TryGetValue("charset", out var charset))
+                        {
+                            props.ContentEncoding = charset;
+                        }
+                    }
+                    catch { }
+                }
             }
 
             if (headers.TryGetValue(RabbitMqHeaders.ContentEncoding, out var contentEncoding))

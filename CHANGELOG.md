@@ -98,6 +98,10 @@
 * Fix auto-delete support, which would make it impossible to configure queue TTL unless auto-delete was ON (but these things are not dependent) - thanks [jarikp]
 * Fix connection name feature - thanks [jarikp]
 
+## 5.2.0
+
+* Decode MIME type of Rebus' `rbs2-content-type` header and pass as separate content type/encoding headers in RabbitMQ props
+
 ---
 
 [bzuu]: https://github.com/bzuu
