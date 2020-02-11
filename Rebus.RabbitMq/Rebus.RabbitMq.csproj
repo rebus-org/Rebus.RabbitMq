@@ -42,7 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="rebus" Version="6.0.0" />
-    <PackageReference Include="RabbitMq.Client" Version="5.1.2" />
+    <PackageReference Include="RabbitMq.Client" Version="5.1.0" />
   </ItemGroup>
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="$(ProjectDir)..\scripts\patch_assemblyinfo.cmd $(ProjectDir)" />
