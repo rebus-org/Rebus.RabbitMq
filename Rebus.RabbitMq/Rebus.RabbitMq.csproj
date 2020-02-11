@@ -41,7 +41,7 @@
     <None Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="rebus" Version="5.1.0" />
+    <PackageReference Include="rebus" Version="6.0.0" />
     <PackageReference Include="RabbitMq.Client" Version="5.1.0" />
   </ItemGroup>
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">

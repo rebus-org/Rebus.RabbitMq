@@ -30,12 +30,15 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
-    <PackageReference Include="microsoft.net.test.sdk" Version="16.0.1" />
-    <PackageReference Include="nunit" Version="3.7.1" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.13.0" />
+    <PackageReference Include="microsoft.net.test.sdk" Version="16.5.0" />
+    <PackageReference Include="nunit" Version="3.12.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.16.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="rabbitmq.client" Version="5.1.0" />
-    <PackageReference Include="rebus" Version="5.1.0" />
-    <PackageReference Include="rebus.tests.contracts" Version="5.0.0" />
+    <PackageReference Include="rebus" Version="6.0.0" />
+    <PackageReference Include="rebus.tests.contracts" Version="6.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />

@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using RabbitMQ.Client;
-using Rebus.Extensions;
 using Rebus.Logging;
 using Rebus.RabbitMq;
 
@@ -46,7 +45,7 @@ namespace Rebus.Internals
                 _log.Info("RabbitMQ transport has {count} endpoints available", endpoints.Count);
             }
 
-            endpoints.ForEach(endpoint =>
+            foreach (var endpoint in endpoints)
             {
                 if (endpoint == null)
                 {
@@ -57,7 +56,7 @@ namespace Rebus.Internals
                 {
                     throw new ArgumentException("null or empty value is not valid for ConnectionString");
                 }
-            });
+            }
 
             _connectionFactory = new ConnectionFactory
             {
@@ -238,7 +237,10 @@ namespace Rebus.Internals
 
         public void SetSslOptions(SslSettings ssl)
         {
-            _amqpTcpEndpoints.ForEach(endpoint => { endpoint.Ssl = ToSslOption(ssl); });
+            foreach (var endpoint in _amqpTcpEndpoints)
+            {
+                endpoint.Ssl = ToSslOption(ssl);
+            }
         }
 
         static SslOption ToSslOption(SslSettings ssl)

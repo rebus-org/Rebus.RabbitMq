@@ -273,7 +273,7 @@ namespace Rebus.RabbitMq
             {
                 var messages = new ConcurrentQueue<OutgoingMessage>();
 
-                context.OnCommitted(() => SendOutgoingMessages(context, messages));
+                context.OnCommitted((tc) => SendOutgoingMessages(context, messages));
 
                 return messages;
             });
@@ -354,7 +354,7 @@ namespace Rebus.RabbitMq
                     return null;
                 }
 
-                context.OnDisposed(() => _consumers.Enqueue(consumer));
+                context.OnDisposed((tc) => _consumers.Enqueue(consumer));
 
                 if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
                 {
@@ -368,13 +368,13 @@ namespace Rebus.RabbitMq
 
                 var deliveryTag = result.DeliveryTag;
 
-                context.OnCompleted(async () =>
+                context.OnCompleted(async (tc) =>
                 {
                     var model = GetModel(context);
                     model.BasicAck(deliveryTag, false);
                 });
 
-                context.OnAborted(() =>
+                context.OnAborted((tc) =>
                 {
                     // we might not be able to do this, but it doesn't matter that much if it succeeds
                     try
@@ -717,7 +717,7 @@ namespace Rebus.RabbitMq
                 {
                     if (modelFromPool.IsOpen)
                     {
-                        context.OnDisposed(() => _models.Enqueue(modelFromPool));
+                        context.OnDisposed((tc) => _models.Enqueue(modelFromPool));
                         return modelFromPool;
                     }
 
@@ -734,7 +734,7 @@ namespace Rebus.RabbitMq
                 var connection = _connectionManager.GetConnection();
                 var newModel = connection.CreateModel();
 
-                context.OnDisposed(() => _models.Enqueue(newModel));
+                context.OnDisposed((tc) => _models.Enqueue(newModel));
 
                 // Configure registered events on model
                 _callbackOptions?.ConfigureEvents(newModel);
