@@ -43,10 +43,16 @@ namespace Rebus.RabbitMq.Tests
 
         public void CleanUp()
         {
-            _disposables.ForEach(d => d.Dispose());
+            foreach (var disposable in _disposables)
+            {
+                disposable.Dispose();
+            }
             _disposables.Clear();
 
-            _queuesToDelete.ForEach(DeleteQueue);
+            foreach (var queue in _queuesToDelete)
+            {
+                DeleteQueue(queue);
+            }
             _queuesToDelete.Clear();
         }
 
