@@ -13,6 +13,11 @@ using Rebus.Tests.Contracts.Extensions;
 namespace Rebus.RabbitMq.Tests
 {
     [TestFixture]
+    [Explicit(@"Requires that the 'quorum_queue' feature flag has been enabled
+
+    rabbitmqctl.bat enable_feature_flag quorum_queue
+
+")]
     public class WorksWithQuorumQueue : FixtureBase
     {
         [Test]
@@ -21,6 +26,9 @@ namespace Rebus.RabbitMq.Tests
             const string connectionString = RabbitMqTransportFactory.ConnectionString;
 
             var queueName = TestConfig.GetName("quorum-test");
+
+            Using(new QueueDeleter(queueName));
+
             var activator = Using(new BuiltinHandlerActivator());
             var gotTheString = new ManualResetEvent(initialState: false);
 
