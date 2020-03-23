@@ -82,6 +82,9 @@
 ## 6.0.0
 * Update to Rebus 6 - thanks [rsivanov]
 
+## 6.1.0
+* Add support for subscribing to exchange-qualified topics via the `topic@exchange` syntax, so you can e.g. `await bus.Advanced.Topics.Subscribe("some-topic@some-exchange")`
+
 ---
 
 [bzuu]: https://github.com/bzuu

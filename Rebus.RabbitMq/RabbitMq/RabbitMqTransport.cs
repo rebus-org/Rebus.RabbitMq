@@ -404,7 +404,7 @@ namespace Rebus.RabbitMq
             CreateQueue(Address);
 
             var subscriptionTasks = _registeredSubscriptions
-                .Select(x => RegisterSubscriber(x.Topic, x.SubscriberAddress))
+                .Select(x => RegisterSubscriber(x.Topic, x.QueueName))
                 .ToArray();
 
             Task.WaitAll(subscriptionTasks);
@@ -799,18 +799,22 @@ namespace Rebus.RabbitMq
         public async Task RegisterSubscriber(string topic, string subscriberAddress)
         {
             var connection = _connectionManager.GetConnection();
+            var subscription = ParseSubscription(topic, subscriberAddress);
+
+            _log.Debug("Registering subscriber {subscription}", subscription);
 
             using (var model = connection.CreateModel())
             {
-                model.QueueBind(Address, _topicExchangeName, topic);
+                model.QueueBind(subscription.QueueName, subscription.Exchange, subscription.Topic);
             }
 
-            var subscription = new Subscription(topic, subscriberAddress);
             await _subscriptionSemaphore.WaitAsync();
             try
             {
                 if (!_registeredSubscriptions.Contains(subscription))
+                {
                     _registeredSubscriptions.Add(subscription);
+                }
             }
             finally
             {
@@ -824,24 +828,44 @@ namespace Rebus.RabbitMq
         public async Task UnregisterSubscriber(string topic, string subscriberAddress)
         {
             var connection = _connectionManager.GetConnection();
+            var subscription = ParseSubscription(topic, subscriberAddress);
+
+            _log.Debug("Unregistering subscriber {subscription}", subscription);
 
             using (var model = connection.CreateModel())
             {
-                model.QueueUnbind(Address, _topicExchangeName, topic, new Dictionary<string, object>());
+                model.QueueUnbind(subscription.QueueName, subscription.Exchange, subscription.Topic, new Dictionary<string, object>());
             }
-
-            var subscription = new Subscription(topic, subscriberAddress);
 
             await _subscriptionSemaphore.WaitAsync();
             try
             {
                 if (_registeredSubscriptions.Contains(subscription))
+                {
                     _registeredSubscriptions.Remove(subscription);
+                }
             }
             finally
             {
                 _subscriptionSemaphore.Release();
             }
+        }
+
+        Subscription ParseSubscription(string topicPossiblyQualified, string queueName)
+        {
+            if (topicPossiblyQualified.Contains('@'))
+            {
+                var parts = topicPossiblyQualified.Split('@');
+
+                if (parts.Length != 2)
+                {
+                    throw new FormatException($"Could not parse the topic '{topicPossiblyQualified}' into an exchange-qualified topic - expected the format <topic>@<exchange>");
+                }
+
+                return new Subscription(parts[1], parts[0], queueName);
+            }
+
+            return new Subscription(_topicExchangeName, topicPossiblyQualified, queueName);
         }
 
         /// <summary>
@@ -852,18 +876,25 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Represents a subscription of a queue address to a topic.
         /// </summary>
-        private class Subscription
+        class Subscription
         {
             /// <summary>
             /// Initializes a new <see cref="Subscription"/> instance.
             /// </summary>
+            /// <param name="exchange">The exchange for the routing key</param>
             /// <param name="topic">The topic for the subscription.</param>
-            /// <param name="subscriberAddress">The queue address of the subscriber.</param>
-            public Subscription(string topic, string subscriberAddress)
+            /// <param name="queueName">The queue address of the subscriber.</param>
+            public Subscription(string exchange, string topic, string queueName)
             {
+                Exchange = exchange;
                 Topic = topic;
-                SubscriberAddress = subscriberAddress;
+                QueueName = queueName;
             }
+
+            /// <summary>
+            /// Gets the exchange
+            /// </summary>
+            public string Exchange { get; }
 
             /// <summary>
             /// Gets the topic for the subscription.
@@ -873,26 +904,42 @@ namespace Rebus.RabbitMq
             /// <summary>
             /// Gets the subscriber address for the subscription.
             /// </summary>
-            public string SubscriberAddress { get; }
+            public string QueueName { get; }
+
+            public override string ToString() => $"{Topic}@{Exchange} => {QueueName}";
+
+            protected bool Equals(Subscription other)
+            {
+                return Exchange == other.Exchange && Topic == other.Topic && QueueName == other.QueueName;
+            }
 
             public override bool Equals(object obj)
             {
-                if (obj == null)
-                    return false;
-
-                if (GetType() != obj.GetType())
-                    return false;
-
-                var otherSubscription = (Subscription)obj;
-                return (otherSubscription.Topic == Topic && otherSubscription.SubscriberAddress == SubscriberAddress);
+                if (ReferenceEquals(null, obj)) return false;
+                if (ReferenceEquals(this, obj)) return true;
+                if (obj.GetType() != this.GetType()) return false;
+                return Equals((Subscription) obj);
             }
 
             public override int GetHashCode()
             {
                 unchecked
                 {
-                    return (Topic?.GetHashCode() ?? 0) * 23 + (SubscriberAddress?.GetHashCode() ?? 0);
+                    var hashCode = (Exchange != null ? Exchange.GetHashCode() : 0);
+                    hashCode = (hashCode * 397) ^ (Topic != null ? Topic.GetHashCode() : 0);
+                    hashCode = (hashCode * 397) ^ (QueueName != null ? QueueName.GetHashCode() : 0);
+                    return hashCode;
                 }
+            }
+
+            public static bool operator ==(Subscription left, Subscription right)
+            {
+                return Equals(left, right);
+            }
+
+            public static bool operator !=(Subscription left, Subscription right)
+            {
+                return !Equals(left, right);
             }
         }
     }
