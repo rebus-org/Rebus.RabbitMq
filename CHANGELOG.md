@@ -85,8 +85,8 @@
 ## 6.1.0
 * Add support for subscribing to exchange-qualified topics via the `topic@exchange` syntax, so you can e.g. `await bus.Advanced.Topics.Subscribe("some-topic@some-exchange")`
 
-## 7.0.0
-* Enable publisher confirms by default, because otherwise RabbitMQ can LOSE your messages after you publish them! Add Rebus' `rbs2-express` header (via `Headers.Express`) to easily opt out of end-to-end durability
+## 6.1.1
+* Enable publisher confirms by default, because otherwise RabbitMQ can LOSE your messages after you publish them! Use `RebusTransactionScope` to batch send operations to be able to send faster, reliably, OR add Rebus' `rbs2-express` header (via `Headers.Express`) to easily opt out of end-to-end durability alltogether.
 
 ---
 
