@@ -51,18 +51,36 @@ namespace Rebus.RabbitMq.Tests
 
             var stopwatch = Stopwatch.StartNew();
 
-            await Task.WhenAll(Enumerable.Range(0, messageCount)
-                .Select(i => express ? (object)new ExpressMessage() : new NormalMessage())
-                .Batch(100)
-                .Select(async batch =>
-                {
-                    using (var scope = new RebusTransactionScope())
-                    {
-                        foreach(var msg in batch) await _bus.SendLocal(msg);
+            var messages = Enumerable.Range(0, messageCount).Select(i => express ? (object) new ExpressMessage() : new NormalMessage());
 
-                        await scope.CompleteAsync();
+            foreach (var batch in messages.Batch(100))
+            {
+                using (var scope = new RebusTransactionScope())
+                {
+                    foreach (var msg in batch)
+                    {
+                        await _bus.SendLocal(msg);
                     }
-                }));
+
+                    await scope.CompleteAsync();
+                }
+            }
+            //foreach (var msg in messages)
+            //{
+            //    await _bus.SendLocal(msg);
+            //}
+            //await Task.WhenAll(Enumerable.Range(0, messageCount)
+            //    .Select(i => express ? (object)new ExpressMessage() : new NormalMessage())
+            //    .Batch(100)
+            //    .Select(async batch =>
+            //    {
+            //        using (var scope = new RebusTransactionScope())
+            //        {
+            //            foreach(var msg in batch) await _bus.SendLocal(msg);
+
+            //            await scope.CompleteAsync();
+            //        }
+            //    }));
 
             var elapsedSending = stopwatch.Elapsed;
             stopwatch.Restart();
