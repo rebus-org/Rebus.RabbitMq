@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
+using Rebus.Messages;
 using Rebus.RabbitMq;
 
 namespace Rebus.Config
@@ -180,12 +181,14 @@ namespace Rebus.Config
         }
 
         /// <summary>
-        /// Enable the publisher confirms protocol.
-        /// This method is intended to use when publishers cannot afford message loss.
+        /// Set whether the publisher confirms protocol is enabled. To avoid message loss, publisher confirms ARE ENABLED BY DEFAULT.
+        /// Please note that you can opt out of publisher confirms ON A PER-MESSAGE BASIS by adding the <see cref="Messages.Headers.Express"/>
+        /// header to a message.
+        /// Calling this method with <paramref name="enabled"/> = false will disable publisher confirms alltogether.
         /// </summary>
-        public RabbitMqOptionsBuilder EnablePublisherConfirms(bool value = true)
+        public RabbitMqOptionsBuilder SetPublisherConfirms(bool enabled)
         {
-            PublisherConfirms = value;
+            PublisherConfirmsEnabled = enabled;
             return this;
         }
 
@@ -202,7 +205,7 @@ namespace Rebus.Config
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
-        internal bool? PublisherConfirms { get; private set; }
+        internal bool? PublisherConfirmsEnabled { get; private set; }
 
         internal string DirectExchangeName { get; private set; }
         internal string TopicExchangeName { get; private set; }
@@ -263,9 +266,9 @@ namespace Rebus.Config
                 transport.SetCallbackOptions(CallbackOptionsBuilder);
             }
 
-            if (PublisherConfirms.HasValue)
+            if (PublisherConfirmsEnabled.HasValue)
             {
-                transport.EnablePublisherConfirms(PublisherConfirms.Value);
+                transport.EnablePublisherConfirms(PublisherConfirmsEnabled.Value);
             }
 
             transport.SetInputQueueOptions(QueueOptions);

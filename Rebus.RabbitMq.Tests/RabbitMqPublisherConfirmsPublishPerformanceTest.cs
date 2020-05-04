@@ -47,7 +47,7 @@ namespace Rebus.RabbitMq.Tests
             Configure.With(activator)
                 .Logging(l => l.Console(LogLevel.Info))
                 .Transport(t => t.UseRabbitMq(ConnectionString, queueName)
-                    .EnablePublisherConfirms(value: enablePublisherConfirms))
+                    .SetPublisherConfirms(enabled: enablePublisherConfirms))
                 .Start();
 
             // In transaction
