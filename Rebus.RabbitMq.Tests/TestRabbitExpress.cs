@@ -9,7 +9,10 @@ using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Messages;
+using Rebus.RabbitMq.Tests.Extensions;
 using Rebus.Tests.Contracts;
+using Rebus.Transport;
+
 #pragma warning disable 1998
 
 namespace Rebus.RabbitMq.Tests
@@ -50,7 +53,16 @@ namespace Rebus.RabbitMq.Tests
 
             await Task.WhenAll(Enumerable.Range(0, messageCount)
                 .Select(i => express ? (object)new ExpressMessage() : new NormalMessage())
-                .Select(msg => _bus.SendLocal(msg)));
+                .Batch(100)
+                .Select(async batch =>
+                {
+                    using (var scope = new RebusTransactionScope())
+                    {
+                        foreach(var msg in batch) await _bus.SendLocal(msg);
+
+                        await scope.CompleteAsync();
+                    }
+                }));
 
             var elapsedSending = stopwatch.Elapsed;
             stopwatch.Restart();
