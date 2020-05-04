@@ -46,11 +46,18 @@ namespace Rebus.RabbitMq.Tests
 
             _bus.Advanced.Workers.SetNumberOfWorkers(0);
 
+            var stopwatch = Stopwatch.StartNew();
+
             await Task.WhenAll(Enumerable.Range(0, messageCount)
-                .Select(i => express ? (object) new ExpressMessage() : new NormalMessage())
+                .Select(i => express ? (object)new ExpressMessage() : new NormalMessage())
                 .Select(msg => _bus.SendLocal(msg)));
 
-            var stopwatch = Stopwatch.StartNew();
+            var elapsedSending = stopwatch.Elapsed;
+            stopwatch.Restart();
+
+            var totalSecondsElapsedSending = elapsedSending.TotalSeconds;
+
+            Console.WriteLine("Sent {0} messages in {1:0.0} s - that's {2:0.0} msg/s", messageCount, totalSecondsElapsedSending, messageCount / totalSecondsElapsedSending);
 
             _bus.Advanced.Workers.SetNumberOfWorkers(5);
 
@@ -60,8 +67,10 @@ namespace Rebus.RabbitMq.Tests
                 Console.WriteLine($"Got {Interlocked.Read(ref receivedMessages)} messages...");
             }
 
-            var totalSeconds = stopwatch.Elapsed.TotalSeconds;
-            Console.WriteLine("Received {0} messages in {1:0.0} s - that's {2:0.0} msg/s", messageCount, totalSeconds, messageCount/totalSeconds);
+            var elapsedReceiving = stopwatch.Elapsed;
+            var totalSecondsElapsedReceiving = elapsedReceiving.TotalSeconds;
+
+            Console.WriteLine("Received {0} messages in {1:0.0} s - that's {2:0.0} msg/s", messageCount, totalSecondsElapsedReceiving, messageCount / totalSecondsElapsedReceiving);
         }
 
         [Express]

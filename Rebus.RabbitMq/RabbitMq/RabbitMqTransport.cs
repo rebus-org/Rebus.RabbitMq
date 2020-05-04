@@ -18,6 +18,8 @@ using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
 // ReSharper disable EmptyGeneralCatchClause
+// ReSharper disable ArgumentsStyleOther
+// ReSharper disable ArgumentsStyleNamedExpression
 
 #pragma warning disable 1998
 
@@ -46,7 +48,7 @@ namespace Rebus.RabbitMq
         bool _declareExchanges = true;
         bool _declareInputQueue = true;
         bool _bindInputQueue = true;
-        bool _publisherConfirmsEnabled;
+        bool _publisherConfirmsEnabled = true;
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
@@ -273,16 +275,16 @@ namespace Rebus.RabbitMq
             {
                 var messages = new ConcurrentQueue<OutgoingMessage>();
 
-                context.OnCommitted((tc) => SendOutgoingMessages(context, messages));
+                context.OnCommitted(tc => SendOutgoingMessages(context, messages));
 
                 return messages;
             });
 
-            outgoingMessages.Enqueue(new OutgoingMessage(destinationAddress, message));
+            outgoingMessages.Enqueue(new OutgoingMessage(destinationAddress, message, isExpress: message.Headers.ContainsKey(Headers.Express)));
         }
 
         /// <inheritdoc />
-        public string Address { get; private set; }
+        public string Address { get; }
 
         /// <summary>
         /// Deletes all messages from the queue
@@ -518,7 +520,19 @@ namespace Rebus.RabbitMq
         {
             var model = GetModel(context);
 
-            if (_publisherConfirmsEnabled)
+            var expressGroups = outgoingMessages
+                .GroupBy(o => o.IsExpress)
+                .OrderByDescending(g => g.Key); //< send express messages first
+
+            foreach (var expressGroup in expressGroups)
+            {
+                DoSend(outgoingMessages, model, isExpress: expressGroup.Key);
+            }
+        }
+
+        void DoSend(ConcurrentQueue<OutgoingMessage> outgoingMessages, IModel model, bool isExpress)
+        {
+            if (_publisherConfirmsEnabled && !isExpress)
             {
                 model.ConfirmSelect();
             }
@@ -532,7 +546,8 @@ namespace Rebus.RabbitMq
                 var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
                 if (mandatory && !_callbackOptions.HasMandatoryCallback)
                 {
-                    throw new MandatoryDeliveryException("Mandatory delivery is not allowed without registering a handler for BasicReturn in RabbitMqOptions.");
+                    throw new MandatoryDeliveryException(
+                        "Mandatory delivery is not allowed without registering a handler for BasicReturn in RabbitMqOptions.");
                 }
 
                 var routingKey = new FullyQualifiedRoutingKey(destinationAddress);
@@ -556,7 +571,7 @@ namespace Rebus.RabbitMq
                 );
             }
 
-            if (_publisherConfirmsEnabled)
+            if (_publisherConfirmsEnabled && !isExpress)
             {
                 model.WaitForConfirmsOrDie();
             }
@@ -717,7 +732,7 @@ namespace Rebus.RabbitMq
                 {
                     if (modelFromPool.IsOpen)
                     {
-                        context.OnDisposed((tc) => _models.Enqueue(modelFromPool));
+                        context.OnDisposed(tc => _models.Enqueue(modelFromPool));
                         return modelFromPool;
                     }
 
@@ -734,7 +749,7 @@ namespace Rebus.RabbitMq
                 var connection = _connectionManager.GetConnection();
                 var newModel = connection.CreateModel();
 
-                context.OnDisposed((tc) => _models.Enqueue(newModel));
+                context.OnDisposed(tc => _models.Enqueue(newModel));
 
                 // Configure registered events on model
                 _callbackOptions?.ConfigureEvents(newModel);
@@ -747,14 +762,16 @@ namespace Rebus.RabbitMq
 
         class OutgoingMessage
         {
-            public OutgoingMessage(string destinationAddress, TransportMessage transportMessage)
+            public OutgoingMessage(string destinationAddress, TransportMessage transportMessage, bool isExpress)
             {
                 DestinationAddress = destinationAddress;
                 TransportMessage = transportMessage;
+                IsExpress = isExpress;
             }
 
             public string DestinationAddress { get; }
             public TransportMessage TransportMessage { get; }
+            public bool IsExpress { get; }
         }
 
         /// <inheritdoc />
@@ -918,7 +935,7 @@ namespace Rebus.RabbitMq
                 if (ReferenceEquals(null, obj)) return false;
                 if (ReferenceEquals(this, obj)) return true;
                 if (obj.GetType() != this.GetType()) return false;
-                return Equals((Subscription) obj);
+                return Equals((Subscription)obj);
             }
 
             public override int GetHashCode()
