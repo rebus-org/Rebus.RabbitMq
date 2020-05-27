@@ -88,6 +88,9 @@
 ## 7.0.0
 * Enable publisher confirms by default, because otherwise RabbitMQ can LOSE your messages after you publish them! Use `RebusTransactionScope` to batch send operations to be able to send faster, reliably, OR add Rebus' `rbs2-express` header (via `Headers.Express`) to easily opt out of end-to-end durability alltogether.
 
+## 7.1.0
+* Add explicit support for handling of separate RabbitMQ correlation ID, passed to Rebus as `rabbitmq-corr-id`
+
 ---
 
 [bzuu]: https://github.com/bzuu

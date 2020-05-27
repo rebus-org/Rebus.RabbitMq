@@ -25,7 +25,7 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// If the message is in reference to some other message or uniquely identifiable item, the correlation-id is a good way to indicate what the message is referencing
         /// </summary>
-        public const string CorrelationId = Headers.CorrelationId;
+        public const string CorrelationId = "rabbitmq-corr-id";
 
         /// <summary>
         /// A free-form string that if used, RabbitMQ will validate against the connected user and drop messages if they do not match.

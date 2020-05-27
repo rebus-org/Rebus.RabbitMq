@@ -442,7 +442,14 @@ namespace Rebus.RabbitMq
             }
 
             if (basicProperties.IsUserIdPresent())
+            {
                 headers[RabbitMqHeaders.UserId] = basicProperties.UserId;
+            }
+
+            if (basicProperties.IsCorrelationIdPresent())
+            {
+                headers[RabbitMqHeaders.CorrelationId] = basicProperties.CorrelationId;
+            }
 
             return new TransportMessage(headers, body);
         }
