@@ -20,6 +20,7 @@ using Headers = Rebus.Messages.Headers;
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
 // ReSharper disable ArgumentsStyleNamedExpression
+// ReSharper disable ArgumentsStyleLiteral
 
 #pragma warning disable 1998
 
@@ -373,7 +374,7 @@ namespace Rebus.RabbitMq
                 context.OnCompleted(async (tc) =>
                 {
                     var model = GetModel(context);
-                    model.BasicAck(deliveryTag, false);
+                    model.BasicAck(deliveryTag, multiple: false);
                 });
 
                 context.OnAborted((tc) =>
@@ -382,7 +383,7 @@ namespace Rebus.RabbitMq
                     try
                     {
                         var model = GetModel(context);
-                        model.BasicNack(deliveryTag, false, true);
+                        model.BasicNack(deliveryTag, multiple: false, requeue: true);
                     }
                     catch { }
                 });
@@ -420,20 +421,19 @@ namespace Rebus.RabbitMq
         /// <returns>the TransportMessage</returns>
         internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, byte[] body)
         {
-            var headers = basicProperties.Headers?
-                              .ToDictionary(kvp => kvp.Key, kvp =>
-                              {
-                                  var headerValue = kvp.Value;
+            string GetStringValue(KeyValuePair<string, object> kvp)
+            {
+                var headerValue = kvp.Value;
 
-                                  if (headerValue is byte[])
-                                  {
-                                      var stringHeaderValue = HeaderValueEncoding.GetString((byte[])headerValue);
+                if (headerValue is byte[] headerValueBytes)
+                {
+                    return HeaderValueEncoding.GetString(headerValueBytes);
+                }
 
-                                      return stringHeaderValue;
-                                  }
+                return headerValue?.ToString();
+            }
 
-                                  return headerValue?.ToString();
-                              })
+            var headers = basicProperties.Headers?.ToDictionary(kvp => kvp.Key, GetStringValue) 
                           ?? new Dictionary<string, string>();
 
             if (!headers.ContainsKey(Headers.MessageId))
