@@ -38,6 +38,8 @@ namespace Rebus.RabbitMq
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
         readonly ConcurrentQueue<CustomQueueingConsumer> _consumers = new ConcurrentQueue<CustomQueueingConsumer>();
+        readonly ConcurrentQueue<IModel> _models = new ConcurrentQueue<IModel>();
+
         readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new ConcurrentDictionary<FullyQualifiedRoutingKey, bool>();
         readonly List<Subscription> _registeredSubscriptions = new List<Subscription>();
         readonly SemaphoreSlim _subscriptionSemaphore = new SemaphoreSlim(1, 1);
@@ -729,27 +731,30 @@ namespace Rebus.RabbitMq
             return true;
         }
 
-        readonly ConcurrentQueue<IModel> _models = new ConcurrentQueue<IModel>();
-
         IModel GetModel(ITransactionContext context)
         {
-            var model = context.GetOrAdd(CurrentModelItemsKey, () =>
+            IModel GetOpenModelFromPool()
             {
-                if (_models.TryDequeue(out var modelFromPool))
+                while (_models.TryDequeue(out var modelFromPool))
                 {
+                    // did we find a usable model?
                     if (modelFromPool.IsOpen)
                     {
+                        // when yes: put it back in the pool when we're done and return it
                         context.OnDisposed(tc => _models.Enqueue(modelFromPool));
                         return modelFromPool;
                     }
 
+                    // if the model is not open, we close&dispose it
                     try
                     {
                         _log.Debug("Found out current model was closed... disposing it");
                         modelFromPool.Close();
                         modelFromPool.Dispose();
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                 }
 
                 _log.Debug("Initializing new model");
@@ -762,7 +767,9 @@ namespace Rebus.RabbitMq
                 _callbackOptions?.ConfigureEvents(newModel);
 
                 return newModel;
-            });
+            }
+
+            var model = context.GetOrAdd(CurrentModelItemsKey, GetOpenModelFromPool);
 
             return model;
         }
