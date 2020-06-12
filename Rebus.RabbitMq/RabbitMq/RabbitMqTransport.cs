@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using Rebus.Bus;
 using Rebus.Logging;
@@ -59,6 +60,7 @@ namespace Rebus.RabbitMq
         RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
         RabbitMqExchangeOptionsBuilder _inputExchangeOptions = new RabbitMqExchangeOptionsBuilder();
+        string _customConnectionName;
 
         RabbitMqTransport(IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch, string inputQueueAddress)
         {
@@ -211,7 +213,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void CreateQueue(string address)
         {
-            var connection = _connectionManager.GetConnection();
+            var connection = GetConnection();
 
             try
             {
@@ -241,6 +243,8 @@ namespace Rebus.RabbitMq
                 throw new RebusApplicationException(exception, $"Queue declaration for '{address}' failed");
             }
         }
+
+        IConnection GetConnection() => _connectionManager.GetConnection(_customConnectionName ?? "Rebus");
 
         void BindInputQueue(string address, IModel model)
         {
@@ -294,7 +298,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void PurgeInputQueue()
         {
-            var connection = _connectionManager.GetConnection();
+            var connection = GetConnection();
 
             using (var model = connection.CreateModel())
             {
@@ -359,12 +363,9 @@ namespace Rebus.RabbitMq
                     return null;
                 }
 
-                context.OnDisposed((tc) => _consumers.Enqueue(consumer));
+                context.OnDisposed(tc => _consumers.Enqueue(consumer));
 
-                if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
-                {
-                    return null;
-                }
+                var result = await consumer.TryDequeue(TimeSpan.FromSeconds(2), cancellationToken);
 
                 if (result == null) return null;
 
@@ -373,13 +374,13 @@ namespace Rebus.RabbitMq
 
                 var deliveryTag = result.DeliveryTag;
 
-                context.OnCompleted(async (tc) =>
+                context.OnCompleted(async tc =>
                 {
                     var model = GetModel(context);
                     model.BasicAck(deliveryTag, multiple: false);
                 });
 
-                context.OnAborted((tc) =>
+                context.OnAborted(tc =>
                 {
                     // we might not be able to do this, but it doesn't matter that much if it succeeds
                     try
@@ -421,8 +422,10 @@ namespace Rebus.RabbitMq
         /// <param name="basicProperties"></param>
         /// <param name="body"></param>
         /// <returns>the TransportMessage</returns>
-        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, byte[] body)
+        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, ReadOnlyMemory<byte> body)
         {
+            var bytes = body.ToArray();
+
             string GetStringValue(KeyValuePair<string, object> kvp)
             {
                 var headerValue = kvp.Value;
@@ -435,12 +438,12 @@ namespace Rebus.RabbitMq
                 return headerValue?.ToString();
             }
 
-            var headers = basicProperties.Headers?.ToDictionary(kvp => kvp.Key, GetStringValue) 
+            var headers = basicProperties.Headers?.ToDictionary(kvp => kvp.Key, GetStringValue)
                           ?? new Dictionary<string, string>();
 
             if (!headers.ContainsKey(Headers.MessageId))
             {
-                AddMessageId(headers, basicProperties, body);
+                AddMessageId(headers, basicProperties, bytes);
             }
 
             if (basicProperties.IsUserIdPresent())
@@ -453,7 +456,7 @@ namespace Rebus.RabbitMq
                 headers[RabbitMqHeaders.CorrelationId] = basicProperties.CorrelationId;
             }
 
-            return new TransportMessage(headers, body);
+            return new TransportMessage(headers, bytes);
         }
 
         static void AddMessageId(IDictionary<string, string> headers, IBasicProperties basicProperties, byte[] body)
@@ -488,7 +491,7 @@ namespace Rebus.RabbitMq
             try
             {
                 // receive must be done with separate model
-                connection = _connectionManager.GetConnection();
+                connection = GetConnection();
 
                 model = connection.CreateModel();
                 model.BasicQos(0, _maxMessagesToPrefetch, false);
@@ -758,7 +761,7 @@ namespace Rebus.RabbitMq
                 }
 
                 _log.Debug("Initializing new model");
-                var connection = _connectionManager.GetConnection();
+                var connection = GetConnection();
                 var newModel = connection.CreateModel();
 
                 context.OnDisposed(tc => _models.Enqueue(newModel));
@@ -829,7 +832,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public async Task RegisterSubscriber(string topic, string subscriberAddress)
         {
-            var connection = _connectionManager.GetConnection();
+            var connection = GetConnection();
             var subscription = ParseSubscription(topic, subscriberAddress);
 
             _log.Debug("Registering subscriber {subscription}", subscription);
@@ -858,7 +861,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public async Task UnregisterSubscriber(string topic, string subscriberAddress)
         {
-            var connection = _connectionManager.GetConnection();
+            var connection = GetConnection();
             var subscription = ParseSubscription(topic, subscriberAddress);
 
             _log.Debug("Unregistering subscriber {subscription}", subscription);
@@ -972,6 +975,11 @@ namespace Rebus.RabbitMq
             {
                 return !Equals(left, right);
             }
+        }
+
+        public void SetCustomConnectionName(string customConnectionName)
+        {
+            _customConnectionName = customConnectionName;
         }
     }
 }

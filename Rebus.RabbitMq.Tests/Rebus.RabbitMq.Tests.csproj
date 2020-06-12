@@ -5,7 +5,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Rebus.RabbitMq.Tests</RootNamespace>
     <AssemblyName>Rebus.RabbitMq.Tests</AssemblyName>
-    <TargetFrameworks>net452;netcoreapp2.1</TargetFrameworks>
+    <TargetFrameworks>net461;netcoreapp2.1</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -36,7 +36,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="rabbitmq.client" Version="5.1.0" />
+    <PackageReference Include="rabbitmq.client" Version="6.1.0" />
     <PackageReference Include="rebus" Version="6.0.0" />
     <PackageReference Include="rebus.tests.contracts" Version="6.0.0" />
   </ItemGroup>

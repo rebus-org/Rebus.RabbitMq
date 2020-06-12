@@ -94,6 +94,9 @@
 ## 7.1.1
 * Get rid of closed connections quicker, when there has been a connection outage
 
+## 8.0.0-a1
+* Update Rabbit.Client dependency to 6.1
+
 ---
 
 [bzuu]: https://github.com/bzuu

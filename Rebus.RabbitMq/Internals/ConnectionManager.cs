@@ -6,6 +6,7 @@ using System.Threading;
 using RabbitMQ.Client;
 using Rebus.Logging;
 using Rebus.RabbitMq;
+// ReSharper disable ArgumentsStyleNamedExpression
 
 namespace Rebus.Internals
 {
@@ -86,7 +87,7 @@ namespace Rebus.Internals
                 .ToList();
 
         }
-        
+
         public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, Func<IConnectionFactory, IConnectionFactory> customizer)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
@@ -143,7 +144,7 @@ namespace Rebus.Internals
                 .ToList();
         }
 
-        public IConnection GetConnection()
+        public IConnection GetConnection(string name)
         {
             var connection = _activeConnection;
 
@@ -178,7 +179,7 @@ namespace Rebus.Internals
 
                 try
                 {
-                    _activeConnection = _connectionFactory.CreateConnection(_amqpTcpEndpoints);
+                    _activeConnection = _connectionFactory.CreateConnection(_amqpTcpEndpoints, clientProvidedName: name);
 
                     return _activeConnection;
                 }

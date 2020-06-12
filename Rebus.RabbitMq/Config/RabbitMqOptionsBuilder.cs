@@ -199,9 +199,11 @@ namespace Rebus.Config
         /// <exception cref="InvalidOperationException">expcetion is thrown if another connection factory customizer is in use</exception>
         public RabbitMqOptionsBuilder ClientConnectionName(string connectionName)
         {
-            return CustomizeConnectionFactory(factory => new ConnectionFactoryClientNameDecorator(factory, connectionName));
+            CustomConnectionName = connectionName;
+            return this;
         }
 
+        internal string CustomConnectionName { get; private set; }
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
@@ -273,125 +275,130 @@ namespace Rebus.Config
 
             transport.SetInputQueueOptions(QueueOptions);
             transport.SetExchangeOptions(ExchangeOptions);
-        }
 
-        /// This is temporary decorator-fix, until Rebus is upgraded to a version 6+ of RabbitMQ.Client wich has new signature:
-        /// IConnection CreateConnection(IList AmqpTcpEndpoint endpoints, string clientProvidedName) 
-        /// so it is more correct to provide the name of client connection in ConnectionManager.GetConnection() method, when connections are created.
-        class ConnectionFactoryClientNameDecorator : IConnectionFactory
-        {
-            private readonly IConnectionFactory _decoratedFactory;
-            private readonly string _clientProvidedName;
-
-            public IDictionary<string, object> ClientProperties
+            if (CustomConnectionName != null)
             {
-                get { return _decoratedFactory.ClientProperties; }
-                set { _decoratedFactory.ClientProperties = value; }
-            }
-
-            public TimeSpan ContinuationTimeout
-            {
-                get { return _decoratedFactory.ContinuationTimeout; }
-                set { _decoratedFactory.ContinuationTimeout = value; }
-            }
-
-            public TimeSpan HandshakeContinuationTimeout
-            {
-                get { return _decoratedFactory.HandshakeContinuationTimeout; }
-                set { _decoratedFactory.HandshakeContinuationTimeout = value; }
-            }
-
-            public string Password
-            {
-                get { return _decoratedFactory.Password; }
-                set { _decoratedFactory.Password = value; }
-            }
-
-            public ushort RequestedChannelMax
-            {
-                get { return _decoratedFactory.RequestedChannelMax; }
-                set { _decoratedFactory.RequestedChannelMax = value; }
-            }
-
-            public uint RequestedFrameMax
-            {
-                get { return _decoratedFactory.RequestedFrameMax; }
-                set { _decoratedFactory.RequestedFrameMax = value; }
-            }
-
-            public ushort RequestedHeartbeat
-            {
-                get { return _decoratedFactory.RequestedHeartbeat; }
-                set { _decoratedFactory.RequestedHeartbeat = value; }
-            }
-
-            public TaskScheduler TaskScheduler
-            {
-#pragma warning disable CS0618 // Type or member is obsolete
-                get { return _decoratedFactory.TaskScheduler; }
-                set { _decoratedFactory.TaskScheduler = value; }
-#pragma warning restore CS0618 // Type or member is obsolete
-            }
-
-            public Uri Uri
-            {
-                get { return _decoratedFactory.Uri; }
-                set { _decoratedFactory.Uri = value; }
-            }
-
-            public bool UseBackgroundThreadsForIO
-            {
-                get { return _decoratedFactory.UseBackgroundThreadsForIO; }
-                set { _decoratedFactory.UseBackgroundThreadsForIO = value; }
-            }
-
-            public string UserName
-            {
-                get { return _decoratedFactory.UserName; }
-                set { _decoratedFactory.UserName = value; }
-            }
-
-            public string VirtualHost
-            {
-                get { return _decoratedFactory.VirtualHost; }
-                set { _decoratedFactory.VirtualHost = value; }
-            }
-
-            public ConnectionFactoryClientNameDecorator(IConnectionFactory originalFacotry, string clientProvidedName)
-            {
-                _decoratedFactory = originalFacotry;
-                _clientProvidedName = clientProvidedName;
-            }
-
-            public AuthMechanismFactory AuthMechanismFactory(IList<string> mechanismNames)
-            {
-                return _decoratedFactory.AuthMechanismFactory(mechanismNames);
-            }
-
-            public IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints)
-            {
-                return (_decoratedFactory as RabbitMQ.Client.ConnectionFactory).CreateConnection(new DefaultEndpointResolver(endpoints), _clientProvidedName);
-            }
-
-            public IConnection CreateConnection()
-            {
-                return _decoratedFactory.CreateConnection(_clientProvidedName);
-            }
-
-            public IConnection CreateConnection(string clientProvidedName)
-            {
-                return _decoratedFactory.CreateConnection(clientProvidedName);
-            }
-
-            public IConnection CreateConnection(IList<string> hostnames)
-            {
-                return _decoratedFactory.CreateConnection(hostnames, _clientProvidedName);
-            }
-
-            public IConnection CreateConnection(IList<string> hostnames, string clientProvidedName)
-            {
-                return _decoratedFactory.CreateConnection(hostnames, clientProvidedName);
+                transport.SetCustomConnectionName(CustomConnectionName);
             }
         }
+
+        //        /// This is temporary decorator-fix, until Rebus is upgraded to a version 6+ of RabbitMQ.Client wich has new signature:
+        //        /// IConnection CreateConnection(IList AmqpTcpEndpoint endpoints, string clientProvidedName) 
+        //        /// so it is more correct to provide the name of client connection in ConnectionManager.GetConnection() method, when connections are created.
+        //        class ConnectionFactoryClientNameDecorator : IConnectionFactory
+        //        {
+        //            private readonly IConnectionFactory _decoratedFactory;
+        //            private readonly string _clientProvidedName;
+
+        //            public IDictionary<string, object> ClientProperties
+        //            {
+        //                get { return _decoratedFactory.ClientProperties; }
+        //                set { _decoratedFactory.ClientProperties = value; }
+        //            }
+
+        //            public TimeSpan ContinuationTimeout
+        //            {
+        //                get { return _decoratedFactory.ContinuationTimeout; }
+        //                set { _decoratedFactory.ContinuationTimeout = value; }
+        //            }
+
+        //            public TimeSpan HandshakeContinuationTimeout
+        //            {
+        //                get { return _decoratedFactory.HandshakeContinuationTimeout; }
+        //                set { _decoratedFactory.HandshakeContinuationTimeout = value; }
+        //            }
+
+        //            public string Password
+        //            {
+        //                get { return _decoratedFactory.Password; }
+        //                set { _decoratedFactory.Password = value; }
+        //            }
+
+        //            public ushort RequestedChannelMax
+        //            {
+        //                get { return _decoratedFactory.RequestedChannelMax; }
+        //                set { _decoratedFactory.RequestedChannelMax = value; }
+        //            }
+
+        //            public uint RequestedFrameMax
+        //            {
+        //                get { return _decoratedFactory.RequestedFrameMax; }
+        //                set { _decoratedFactory.RequestedFrameMax = value; }
+        //            }
+
+        //            public ushort RequestedHeartbeat
+        //            {
+        //                get { return _decoratedFactory.RequestedHeartbeat; }
+        //                set { _decoratedFactory.RequestedHeartbeat = value; }
+        //            }
+
+        //            public TaskScheduler TaskScheduler
+        //            {
+        //#pragma warning disable CS0618 // Type or member is obsolete
+        //                get { return _decoratedFactory.TaskScheduler; }
+        //                set { _decoratedFactory.TaskScheduler = value; }
+        //#pragma warning restore CS0618 // Type or member is obsolete
+        //            }
+
+        //            public Uri Uri
+        //            {
+        //                get { return _decoratedFactory.Uri; }
+        //                set { _decoratedFactory.Uri = value; }
+        //            }
+
+        //            public bool UseBackgroundThreadsForIO
+        //            {
+        //                get { return _decoratedFactory.UseBackgroundThreadsForIO; }
+        //                set { _decoratedFactory.UseBackgroundThreadsForIO = value; }
+        //            }
+
+        //            public string UserName
+        //            {
+        //                get { return _decoratedFactory.UserName; }
+        //                set { _decoratedFactory.UserName = value; }
+        //            }
+
+        //            public string VirtualHost
+        //            {
+        //                get { return _decoratedFactory.VirtualHost; }
+        //                set { _decoratedFactory.VirtualHost = value; }
+        //            }
+
+        //            public ConnectionFactoryClientNameDecorator(IConnectionFactory originalFacotry, string clientProvidedName)
+        //            {
+        //                _decoratedFactory = originalFacotry;
+        //                _clientProvidedName = clientProvidedName;
+        //            }
+
+        //            public AuthMechanismFactory AuthMechanismFactory(IList<string> mechanismNames)
+        //            {
+        //                return _decoratedFactory.AuthMechanismFactory(mechanismNames);
+        //            }
+
+        //            public IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints)
+        //            {
+        //                return (_decoratedFactory as RabbitMQ.Client.ConnectionFactory).CreateConnection(new DefaultEndpointResolver(endpoints), _clientProvidedName);
+        //            }
+
+        //            public IConnection CreateConnection()
+        //            {
+        //                return _decoratedFactory.CreateConnection(_clientProvidedName);
+        //            }
+
+        //            public IConnection CreateConnection(string clientProvidedName)
+        //            {
+        //                return _decoratedFactory.CreateConnection(clientProvidedName);
+        //            }
+
+        //            public IConnection CreateConnection(IList<string> hostnames)
+        //            {
+        //                return _decoratedFactory.CreateConnection(hostnames, _clientProvidedName);
+        //            }
+
+        //            public IConnection CreateConnection(IList<string> hostnames, string clientProvidedName)
+        //            {
+        //                return _decoratedFactory.CreateConnection(hostnames, clientProvidedName);
+        //            }
+        //        }
     }
 }

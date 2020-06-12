@@ -1,18 +1,21 @@
-﻿using RabbitMQ.Client;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using RabbitMQ.Util;
 
 namespace Rebus.Internals
 {
-    class CustomQueueingConsumer : DefaultBasicConsumer, IQueueingBasicConsumer
+    class CustomQueueingConsumer : DefaultBasicConsumer
     {
-        public SharedQueue<BasicDeliverEventArgs> Queue { get; } = new SharedQueue<BasicDeliverEventArgs>();
+        public ConcurrentQueue<BasicDeliverEventArgs> Queue { get; } = new ConcurrentQueue<BasicDeliverEventArgs>();
 
         public CustomQueueingConsumer(IModel model) : base(model)
         {
         }
 
-        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, byte[] body)
+        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
         {
             Queue.Enqueue(new BasicDeliverEventArgs
             {
@@ -26,10 +29,49 @@ namespace Rebus.Internals
             });
         }
 
-        public override void OnCancel()
+        public override void HandleBasicCancelOk(string consumerTag)
         {
-            base.OnCancel();
-            Queue.Close();
+            NackReceivedMessages();
+
+            base.HandleBasicCancelOk(consumerTag);
+        }
+
+        public async Task<BasicDeliverEventArgs> TryDequeue(TimeSpan patience, CancellationToken cancellationToken)
+        {
+            if (Queue.TryDequeue(out var result)) return result;
+
+            using (var cancellationTokenSource = new CancellationTokenSource(patience))
+            {
+                try
+                {
+                    while (!cancellationTokenSource.IsCancellationRequested)
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+
+                        if (Queue.TryDequeue(out var ea)) return ea;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationTokenSource.IsCancellationRequested || cancellationToken.IsCancellationRequested)
+                {
+                    // we're on out way out now
+                }
+            }
+
+            return null;
+        }
+
+        void NackReceivedMessages()
+        {
+            try
+            {
+                while (Queue.TryDequeue(out var message))
+                {
+                    Model.BasicCancelNoWait(message.ConsumerTag);
+                }
+            }
+            catch
+            {
+            }
         }
 
         public void Dispose()
