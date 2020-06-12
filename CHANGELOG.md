@@ -91,6 +91,9 @@
 ## 7.1.0
 * Add explicit support for handling of separate RabbitMQ correlation ID, passed to Rebus as `rabbitmq-corr-id`
 
+## 7.1.1
+* Get rid of closed connections quicker, when there has been a connection outage
+
 ---
 
 [bzuu]: https://github.com/bzuu
