@@ -121,7 +121,7 @@ namespace Rebus.Config
         /// </summary>
         public RabbitMqOptionsBuilder PriorityQueue(int maxPriority)
         {
-            QueueOptions.Arguments.Add("x-max-priority", maxPriority);
+            InputQueueOptionsBuilder.Arguments.Add("x-max-priority", maxPriority);
 
             return this;
         }
@@ -140,12 +140,23 @@ namespace Rebus.Config
         }
 
         /// <summary>
-        /// Configure input queue manually. Beaware that this will override default settings.
+        /// Configure input queue specifically. Beware that this will override default settings.
         /// If used in conjunction with PriorityQueue and StrictPriorityQueue options it might have unexpected results. 
         /// </summary>
         public RabbitMqOptionsBuilder InputQueueOptions(Action<RabbitMqQueueOptionsBuilder> configurer)
         {
-            configurer?.Invoke(QueueOptions);
+            configurer?.Invoke(InputQueueOptionsBuilder);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Configure default queue options manually. Beware that this will override default settings.
+        /// If used in conjunction with PriorityQueue and StrictPriorityQueue options it might have unexpected results. 
+        /// </summary>
+        public RabbitMqOptionsBuilder DefaultQueueOptions(Action<RabbitMqQueueOptionsBuilder> configurer)
+        {
+            configurer?.Invoke(DefaultQueueOptionsBuilder);
 
             return this;
         }
@@ -216,7 +227,9 @@ namespace Rebus.Config
 
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 
-        internal RabbitMqQueueOptionsBuilder QueueOptions { get; } = new RabbitMqQueueOptionsBuilder();
+        internal RabbitMqQueueOptionsBuilder InputQueueOptionsBuilder { get; } = new RabbitMqQueueOptionsBuilder();
+        
+        internal RabbitMqQueueOptionsBuilder DefaultQueueOptionsBuilder { get; } = new RabbitMqQueueOptionsBuilder();
 
         internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new RabbitMqExchangeOptionsBuilder();
 
@@ -271,7 +284,8 @@ namespace Rebus.Config
                 transport.EnablePublisherConfirms(PublisherConfirmsEnabled.Value);
             }
 
-            transport.SetInputQueueOptions(QueueOptions);
+            transport.SetInputQueueOptions(InputQueueOptionsBuilder);
+            transport.SetDefaultQueueOptions(DefaultQueueOptionsBuilder);
             transport.SetExchangeOptions(ExchangeOptions);
         }
 

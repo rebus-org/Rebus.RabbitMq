@@ -94,6 +94,9 @@
 ## 7.1.1
 * Get rid of closed connections quicker, when there has been a connection outage
 
+## 7.2.0
+* Add ability to set queue options to use when creating queues other than the input queue. Useful to ensure that an automatically declared error queue has some specific properties applied to it.
+
 ---
 
 [bzuu]: https://github.com/bzuu

@@ -58,6 +58,7 @@ namespace Rebus.RabbitMq
 
         RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
+        RabbitMqQueueOptionsBuilder _defaultQueueOptions = new RabbitMqQueueOptionsBuilder();
         RabbitMqExchangeOptionsBuilder _inputExchangeOptions = new RabbitMqExchangeOptionsBuilder();
 
         RabbitMqTransport(IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch, string inputQueueAddress)
@@ -177,7 +178,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void SetCallbackOptions(RabbitMqCallbackOptionsBuilder callbackOptions)
         {
-            _callbackOptions = callbackOptions;
+            _callbackOptions = callbackOptions ?? throw new ArgumentNullException(nameof(callbackOptions));
         }
 
         /// <summary>
@@ -185,7 +186,15 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void SetInputQueueOptions(RabbitMqQueueOptionsBuilder inputQueueOptions)
         {
-            _inputQueueOptions = inputQueueOptions;
+            _inputQueueOptions = inputQueueOptions ?? throw new ArgumentNullException(nameof(inputQueueOptions));
+        }
+
+        /// <summary>
+        /// Configures input queue options
+        /// </summary>
+        public void SetDefaultQueueOptions(RabbitMqQueueOptionsBuilder defaultQueueOptions)
+        {
+            _defaultQueueOptions = defaultQueueOptions ?? throw new ArgumentNullException(nameof(defaultQueueOptions));
         }
 
         /// <summary>
@@ -193,7 +202,7 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void SetExchangeOptions(RabbitMqExchangeOptionsBuilder inputExchangeOptions)
         {
-            _inputExchangeOptions = inputExchangeOptions;
+            _inputExchangeOptions = inputExchangeOptions ?? throw new ArgumentNullException(nameof(inputExchangeOptions));
         }
 
         /// <summary>
@@ -261,13 +270,11 @@ namespace Rebus.RabbitMq
             else
             {
                 // This is another queue, probably the error queue => we use the default queue options
-                var defaultQueueOptions = new RabbitMqQueueOptionsBuilder();
-
                 model.QueueDeclare(address,
-                    exclusive: defaultQueueOptions.Exclusive,
-                    durable: defaultQueueOptions.Durable,
-                    autoDelete: defaultQueueOptions.AutoDelete,
-                    arguments: defaultQueueOptions.Arguments);
+                    exclusive: _defaultQueueOptions.Exclusive,
+                    durable: _defaultQueueOptions.Durable,
+                    autoDelete: _defaultQueueOptions.AutoDelete,
+                    arguments: _defaultQueueOptions.Arguments);
             }
         }
 
