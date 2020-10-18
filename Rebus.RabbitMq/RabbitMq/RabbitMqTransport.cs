@@ -17,6 +17,8 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
+using RabbitMQ.Client.Events;
+using System.Dynamic;
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
 // ReSharper disable ArgumentsStyleNamedExpression
@@ -37,7 +39,7 @@ namespace Rebus.RabbitMq
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
-        readonly ConcurrentQueue<CustomQueueingConsumer> _consumers = new ConcurrentQueue<CustomQueueingConsumer>();
+        readonly ConcurrentQueue<CustomEventQueueingConsumer> _consumers = new ConcurrentQueue<CustomEventQueueingConsumer>();
         readonly ConcurrentQueue<IModel> _models = new ConcurrentQueue<IModel>();
 
         readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new ConcurrentDictionary<FullyQualifiedRoutingKey, bool>();
@@ -368,12 +370,9 @@ namespace Rebus.RabbitMq
 
                 context.OnDisposed((tc) => _consumers.Enqueue(consumer));
 
-                if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
-                {
-                    return null;
-                }
+                consumer.Consume(GetModel(context), HandleReceive); 
 
-                if (result == null) return null;
+
 
                 // ensure we use the consumer's model throughtout the handling of this message
                 context.Items[CurrentModelItemsKey] = consumer.Model;
@@ -411,6 +410,11 @@ namespace Rebus.RabbitMq
             }
         }
 
+        internal Task HandleReceive(object o, BasicDeliverEventArgs ea, IModel model)
+        {
+            CreateTransportMessage(ea.BasicProperties, ea.Body);
+        }
+
         void ReconnectQueue()
         {
             CreateQueue(Address);
@@ -428,7 +432,7 @@ namespace Rebus.RabbitMq
         /// <param name="basicProperties"></param>
         /// <param name="body"></param>
         /// <returns>the TransportMessage</returns>
-        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, byte[] body)
+        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, ReadOnlyMemory<byte> body)
         {
             string GetStringValue(KeyValuePair<string, object> kvp)
             {
@@ -447,7 +451,7 @@ namespace Rebus.RabbitMq
 
             if (!headers.ContainsKey(Headers.MessageId))
             {
-                AddMessageId(headers, basicProperties, body);
+                AddMessageId(headers, basicProperties, body.ToArray());
             }
 
             if (basicProperties.IsUserIdPresent())
@@ -460,7 +464,7 @@ namespace Rebus.RabbitMq
                 headers[RabbitMqHeaders.CorrelationId] = basicProperties.CorrelationId;
             }
 
-            return new TransportMessage(headers, body);
+            return new TransportMessage(headers, body.ToArray());
         }
 
         static void AddMessageId(IDictionary<string, string> headers, IBasicProperties basicProperties, byte[] body)
@@ -488,7 +492,7 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Creates the consumer.
         /// </summary>
-        CustomQueueingConsumer InitializeConsumer()
+        CustomEventQueueingConsumer InitializeConsumer()
         {
             IConnection connection = null;
             IModel model = null;
@@ -500,7 +504,7 @@ namespace Rebus.RabbitMq
                 model = connection.CreateModel();
                 model.BasicQos(0, _maxMessagesToPrefetch, false);
 
-                var consumer = new CustomQueueingConsumer(model);
+                var consumer = new CustomEventQueueingConsumer(model);
 
                 model.BasicConsume(Address, false, consumer);
 

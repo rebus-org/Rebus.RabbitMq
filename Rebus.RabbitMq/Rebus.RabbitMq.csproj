@@ -5,7 +5,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Rebus</RootNamespace>
     <AssemblyName>Rebus.RabbitMq</AssemblyName>
-    <TargetFrameworks>net452;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net461;netstandard2.0</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Authors>mookid8000</Authors>
     <PackageLicenseUrl></PackageLicenseUrl>
@@ -40,7 +40,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="rebus" Version="6.0.0" />
-    <PackageReference Include="RabbitMq.Client" Version="5.1.0" />
+    <PackageReference Include="RabbitMq.Client" Version="6.2.1" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\artwork\little_rebusbus2_copy-500x500.png">

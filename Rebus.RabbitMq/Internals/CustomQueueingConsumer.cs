@@ -1,14 +1,18 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Util;
+using System;
 
 namespace Rebus.Internals
 {
-    class CustomQueueingConsumer : DefaultBasicConsumer, IQueueingBasicConsumer
+    class CustomQueueingConsumer : DefaultBasicConsumer
     {
-        public SharedQueue<BasicDeliverEventArgs> Queue { get; } = new SharedQueue<BasicDeliverEventArgs>();
 
         public CustomQueueingConsumer(IModel model) : base(model)
+        {
+        }
+
+        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
         {
         }
 
@@ -24,12 +28,6 @@ namespace Rebus.Internals
                 BasicProperties = properties,
                 Body = body
             });
-        }
-
-        public override void OnCancel()
-        {
-            base.OnCancel();
-            Queue.Close();
         }
 
         public void Dispose()
