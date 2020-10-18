@@ -39,7 +39,7 @@ namespace Rebus.RabbitMq
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
-        readonly ConcurrentQueue<CustomEventQueueingConsumer> _consumers = new ConcurrentQueue<CustomEventQueueingConsumer>();
+        readonly ConcurrentQueue<CustomQueueingConsumer> _consumers = new ConcurrentQueue<CustomQueueingConsumer>();
         readonly ConcurrentQueue<IModel> _models = new ConcurrentQueue<IModel>();
 
         readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new ConcurrentDictionary<FullyQualifiedRoutingKey, bool>();
@@ -370,9 +370,6 @@ namespace Rebus.RabbitMq
 
                 context.OnDisposed((tc) => _consumers.Enqueue(consumer));
 
-                consumer.Consume(GetModel(context), HandleReceive); 
-
-
 
                 // ensure we use the consumer's model throughtout the handling of this message
                 context.Items[CurrentModelItemsKey] = consumer.Model;
@@ -492,7 +489,7 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Creates the consumer.
         /// </summary>
-        CustomEventQueueingConsumer InitializeConsumer()
+        CustomQueueingConsumer InitializeConsumer()
         {
             IConnection connection = null;
             IModel model = null;
@@ -504,7 +501,7 @@ namespace Rebus.RabbitMq
                 model = connection.CreateModel();
                 model.BasicQos(0, _maxMessagesToPrefetch, false);
 
-                var consumer = new CustomEventQueueingConsumer(model);
+                var consumer = new CustomQueueingConsumer(model);
 
                 model.BasicConsume(Address, false, consumer);
 
