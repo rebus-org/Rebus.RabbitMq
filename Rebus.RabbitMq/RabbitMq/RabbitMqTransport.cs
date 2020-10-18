@@ -17,8 +17,6 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
-using RabbitMQ.Client.Events;
-using System.Dynamic;
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
 // ReSharper disable ArgumentsStyleNamedExpression

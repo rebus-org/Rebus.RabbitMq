@@ -407,7 +407,7 @@ namespace Rebus.Config
 
             public IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints, string clientProvidedName)
             {
-                throw new NotImplementedException();
+                return (_decoratedFactory as RabbitMQ.Client.ConnectionFactory).CreateConnection(new DefaultEndpointResolver(endpoints), clientProvidedName);
             }
         }
     }
