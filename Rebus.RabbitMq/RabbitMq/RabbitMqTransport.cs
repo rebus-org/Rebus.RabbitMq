@@ -371,6 +371,13 @@ namespace Rebus.RabbitMq
                 context.OnDisposed((tc) => _consumers.Enqueue(consumer));
 
 
+                if (!consumer.Queue.TryDequeue(out var result))
+                {
+                    return null;
+                }
+
+                if (result == null) return null;
+
                 // ensure we use the consumer's model throughtout the handling of this message
                 context.Items[CurrentModelItemsKey] = consumer.Model;
 
@@ -405,11 +412,6 @@ namespace Rebus.RabbitMq
 
                 throw new RebusApplicationException(exception, $"Unexpected exception thrown while trying to dequeue a message from rabbitmq, queue address: {Address}");
             }
-        }
-
-        internal Task HandleReceive(object o, BasicDeliverEventArgs ea, IModel model)
-        {
-            CreateTransportMessage(ea.BasicProperties, ea.Body);
         }
 
         void ReconnectQueue()
