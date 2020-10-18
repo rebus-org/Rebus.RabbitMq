@@ -431,6 +431,8 @@ namespace Rebus.RabbitMq
         /// <returns>the TransportMessage</returns>
         internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, ReadOnlyMemory<byte> body)
         {
+            var bytes = body.ToArray();
+
             string GetStringValue(KeyValuePair<string, object> kvp)
             {
                 var headerValue = kvp.Value;
@@ -448,7 +450,7 @@ namespace Rebus.RabbitMq
 
             if (!headers.ContainsKey(Headers.MessageId))
             {
-                AddMessageId(headers, basicProperties, body.ToArray());
+                AddMessageId(headers, basicProperties, bytes);
             }
 
             if (basicProperties.IsUserIdPresent())
@@ -461,7 +463,7 @@ namespace Rebus.RabbitMq
                 headers[RabbitMqHeaders.CorrelationId] = basicProperties.CorrelationId;
             }
 
-            return new TransportMessage(headers, body.ToArray());
+            return new TransportMessage(headers, bytes);
         }
 
         static void AddMessageId(IDictionary<string, string> headers, IBasicProperties basicProperties, byte[] body)
