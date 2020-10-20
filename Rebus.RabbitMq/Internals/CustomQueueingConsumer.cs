@@ -7,7 +7,7 @@ namespace Rebus.Internals
 {
     class CustomQueueingConsumer : DefaultBasicConsumer
     {
-        public ConcurrentQueue<BasicDeliverEventArgs> Queue => new ConcurrentQueue<BasicDeliverEventArgs>();
+        public ConcurrentQueue<BasicDeliverEventArgs> Queue { get; } = new ConcurrentQueue<BasicDeliverEventArgs>();
 
         public CustomQueueingConsumer(IModel model) : base(model)
         {
@@ -23,7 +23,7 @@ namespace Rebus.Internals
                 Exchange = exchange,
                 RoutingKey = routingKey,
                 BasicProperties = properties,
-                Body = body
+                Body = body.ToArray()
             });
         }
 

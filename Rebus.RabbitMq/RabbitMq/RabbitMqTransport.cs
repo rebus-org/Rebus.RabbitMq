@@ -33,7 +33,6 @@ namespace Rebus.RabbitMq
     {
         const string CurrentModelItemsKey = "rabbitmq-current-model";
         const string OutgoingMessagesItemsKey = "rabbitmq-outgoing-messages";
-        const int TwoSeconds = 2000;
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
