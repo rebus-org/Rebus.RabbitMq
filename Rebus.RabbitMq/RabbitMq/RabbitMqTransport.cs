@@ -33,6 +33,7 @@ namespace Rebus.RabbitMq
     {
         const string CurrentModelItemsKey = "rabbitmq-current-model";
         const string OutgoingMessagesItemsKey = "rabbitmq-outgoing-messages";
+        const int TwoSeconds = 2000;
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
@@ -368,7 +369,7 @@ namespace Rebus.RabbitMq
                 context.OnDisposed((tc) => _consumers.Enqueue(consumer));
 
 
-                if (!consumer.Queue.TryDequeue(out var result))
+                if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
                 {
                     return null;
                 }

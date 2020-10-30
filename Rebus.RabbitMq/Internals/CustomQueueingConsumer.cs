@@ -2,13 +2,13 @@
 using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Rebus.Internals
 {
     class CustomQueueingConsumer : DefaultBasicConsumer
     {
-        public ConcurrentQueue<BasicDeliverEventArgs> Queue { get; } = new ConcurrentQueue<BasicDeliverEventArgs>();
-
+        public SharedQueue<BasicDeliverEventArgs> Queue { get; } = new SharedQueue<BasicDeliverEventArgs>();
         public CustomQueueingConsumer(IModel model) : base(model)
         {
         }
@@ -25,6 +25,12 @@ namespace Rebus.Internals
                 BasicProperties = properties,
                 Body = body.ToArray()
             });
+        }
+
+        public override void OnCancel(params string[] consumerTags)
+        {
+            base.OnCancel(consumerTags);
+            Queue.Close();
         }
 
         public void Dispose()
