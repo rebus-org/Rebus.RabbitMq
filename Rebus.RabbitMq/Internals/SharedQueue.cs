@@ -307,7 +307,9 @@ namespace Rebus.Internals
                 return m_current;
             }
         }
-
+        /// <summary>
+        /// Dispose
+        /// </summary>
         public void Dispose()
         {
         }
