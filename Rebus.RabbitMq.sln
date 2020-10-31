@@ -1,18 +1,19 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26228.9
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30621.155
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "stuff", "stuff", "{1ABDD7C1-1F8D-402D-8692-3E4B66962DE0}"
 	ProjectSection(SolutionItems) = preProject
+		appveyor.yml = appveyor.yml
 		CHANGELOG.md = CHANGELOG.md
 		CONTRIBUTING.md = CONTRIBUTING.md
 		LICENSE.md = LICENSE.md
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rebus.RabbitMq", "Rebus.RabbitMq\Rebus.RabbitMq.csproj", "{F4DC44C0-8822-4602-A840-A061E12650B9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rebus.RabbitMq", "Rebus.RabbitMq\Rebus.RabbitMq.csproj", "{F4DC44C0-8822-4602-A840-A061E12650B9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rebus.RabbitMq.Tests", "Rebus.RabbitMq.Tests\Rebus.RabbitMq.Tests.csproj", "{B8B9F10C-A675-49F0-92F4-FBA327C8399F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rebus.RabbitMq.Tests", "Rebus.RabbitMq.Tests\Rebus.RabbitMq.Tests.csproj", "{B8B9F10C-A675-49F0-92F4-FBA327C8399F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,5 +32,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3E218423-84EF-479E-A65F-1E8BD5BBA623}
 	EndGlobalSection
 EndGlobal

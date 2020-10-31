@@ -4,7 +4,7 @@ shallow_clone: true
 
 install:
 - ps: >-
-    choco install rabbitmq -Version 3.6.14
+    choco install rabbitmq -Version 3.8.5
 
 cache:
   - packages -> **\packages.config
