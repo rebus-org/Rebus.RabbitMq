@@ -333,18 +333,10 @@ namespace Rebus.Config
                 set { _decoratedFactory.RequestedFrameMax = value; }
             }
 
-            public ushort RequestedHeartbeat
+            public TimeSpan RequestedHeartbeat
             {
                 get { return _decoratedFactory.RequestedHeartbeat; }
                 set { _decoratedFactory.RequestedHeartbeat = value; }
-            }
-
-            public TaskScheduler TaskScheduler
-            {
-#pragma warning disable CS0618 // Type or member is obsolete
-                get { return _decoratedFactory.TaskScheduler; }
-                set { _decoratedFactory.TaskScheduler = value; }
-#pragma warning restore CS0618 // Type or member is obsolete
             }
 
             public Uri Uri
@@ -371,13 +363,19 @@ namespace Rebus.Config
                 set { _decoratedFactory.VirtualHost = value; }
             }
 
+            public string ClientProvidedName 
+            { 
+                get { return _decoratedFactory.ClientProvidedName; }
+                set { _decoratedFactory.ClientProvidedName = value; } 
+            }
+
             public ConnectionFactoryClientNameDecorator(IConnectionFactory originalFacotry, string clientProvidedName)
             {
                 _decoratedFactory = originalFacotry;
                 _clientProvidedName = clientProvidedName;
             }
 
-            public AuthMechanismFactory AuthMechanismFactory(IList<string> mechanismNames)
+            public IAuthMechanismFactory AuthMechanismFactory(IList<string> mechanismNames)
             {
                 return _decoratedFactory.AuthMechanismFactory(mechanismNames);
             }
@@ -405,6 +403,11 @@ namespace Rebus.Config
             public IConnection CreateConnection(IList<string> hostnames, string clientProvidedName)
             {
                 return _decoratedFactory.CreateConnection(hostnames, clientProvidedName);
+            }
+
+            public IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints, string clientProvidedName)
+            {
+                return (_decoratedFactory as RabbitMQ.Client.ConnectionFactory).CreateConnection(new DefaultEndpointResolver(endpoints), clientProvidedName);
             }
         }
     }
