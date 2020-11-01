@@ -34,6 +34,11 @@ namespace Rebus.RabbitMq
         const string CurrentModelItemsKey = "rabbitmq-current-model";
         const string OutgoingMessagesItemsKey = "rabbitmq-outgoing-messages";
         const int TwoSeconds = 2000;
+        
+        /// <summary>
+        /// <see cref="ShutdownEventArgs.ReplyCode"/> value that indicates that a queue does not exist
+        /// </summary>
+        const int QueueDoesNotExist = 404;
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
@@ -309,19 +314,9 @@ namespace Rebus.RabbitMq
                 {
                     model.QueuePurge(Address);
                 }
-                catch (OperationInterruptedException exception)
+                catch (OperationInterruptedException exception) when (exception.HasReplyCode(QueueDoesNotExist))
                 {
-                    var shutdownReason = exception.ShutdownReason;
-
-                    var queueDoesNotExist = shutdownReason != null
-                                            && shutdownReason.ReplyCode == 404;
-
-                    if (queueDoesNotExist)
-                    {
-                        return;
-                    }
-
-                    throw;
+                    // ignore this error if the queue does not exist
                 }
             }
         }
@@ -445,7 +440,7 @@ namespace Rebus.RabbitMq
                 return headerValue?.ToString();
             }
 
-            var headers = basicProperties.Headers?.ToDictionary(kvp => kvp.Key, GetStringValue) 
+            var headers = basicProperties.Headers?.ToDictionary(kvp => kvp.Key, GetStringValue)
                           ?? new Dictionary<string, string>();
 
             if (!headers.ContainsKey(Headers.MessageId))
@@ -511,7 +506,7 @@ namespace Rebus.RabbitMq
 
                 return consumer;
             }
-            catch (OperationInterruptedException objectInterruptedException) when (objectInterruptedException.Message.Contains("code=404, text=\"NOT_FOUND - no queue"))
+            catch (OperationInterruptedException exception) when (exception.HasReplyCode(QueueDoesNotExist))
             {
                 _log.Warn("Queue not found - attempting to recreate queue and restore subscriptions.");
                 ReconnectQueue();

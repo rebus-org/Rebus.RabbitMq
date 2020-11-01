@@ -51,7 +51,7 @@ namespace Rebus.RabbitMq.Tests
                         RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
 
                         // wait a short while
-                        await Task.Delay(1000);
+                        await Task.Delay(200000);
 
                         // check that published message is received without problems
                         await publisher.Publish(message);
