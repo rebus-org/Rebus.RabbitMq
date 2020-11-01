@@ -97,6 +97,11 @@
 ## 7.2.0
 * Add ability to set queue options to use when creating queues other than the input queue. Useful to ensure that an automatically declared error queue has some specific properties applied to it.
 
+## 7.3.0
+* Update RabbitMQ client to 6.0 - thanks [mathiasnohall]
+
+
+
 ---
 
 [bzuu]: https://github.com/bzuu
@@ -105,6 +110,7 @@
 [jarikp]: https://github.com/jarikp
 [K3llr]: https://github.com/K3llr
 [kyrrem]: https://github.com/kyrrem
+[mathiasnohall]: https://github.com/mathiasnohall
 [michalsteyn]: https://github.com/michalsteyn
 [nebelx]: https://github.com/nebelx
 [pjh1974]: https://github.com/pjh1974
