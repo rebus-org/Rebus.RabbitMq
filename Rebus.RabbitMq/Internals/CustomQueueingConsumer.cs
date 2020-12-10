@@ -3,19 +3,24 @@ using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace Rebus.Internals
 {
-    class CustomQueueingConsumer : DefaultBasicConsumer
+    class CustomQueueingConsumer : AsyncDefaultBasicConsumer
     {
-        public SharedQueue<BasicDeliverEventArgs> Queue { get; } = new SharedQueue<BasicDeliverEventArgs>();
-        public CustomQueueingConsumer(IModel model) : base(model)
+        private Channel<BasicDeliverEventArgs> Queue { get; }
+        public CustomQueueingConsumer(IModel model, int maxSize) : base(model)
         {
+            // Use a bounded queue to avoid a memory explosion somewhere in case something goes haywire.
+            Queue = Channel.CreateBounded<BasicDeliverEventArgs>(maxSize);
         }
 
-        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
+        public override async Task HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
         {
-            Queue.Enqueue(new BasicDeliverEventArgs
+            await Queue.Writer.WriteAsync(new BasicDeliverEventArgs
             {
                 ConsumerTag = consumerTag,
                 DeliveryTag = deliveryTag,
@@ -27,10 +32,16 @@ namespace Rebus.Internals
             });
         }
 
-        public override void OnCancel(params string[] consumerTags)
+        public override Task OnCancel(params string[] consumerTags)
         {
             base.OnCancel(consumerTags);
-            Queue.Close();
+            Queue.Writer.Complete();
+            return Task.CompletedTask;
+        }
+
+        public ValueTask<BasicDeliverEventArgs> GetNext(CancellationToken cancellationToken)
+        {
+            return Queue.Reader.ReadAsync(cancellationToken);
         }
 
         public void Dispose()

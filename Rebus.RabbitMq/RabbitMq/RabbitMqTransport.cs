@@ -5,8 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using Rebus.Bus;
 using Rebus.Logging;
@@ -340,7 +342,7 @@ namespace Rebus.RabbitMq
                     try
                     {
                         // When a consumer is dequeued from the the "consumers" pool, it might be bound to a queue, which does not exist anymore,
-                        // eg. expired and deleted by RabittMQ server policy). In this case this calling QueueDeclarePassive will result in 
+                        // eg. expired and deleted by RabbitMQ server policy). In this case this calling QueueDeclarePassive will result in 
                         // an OperationInterruptedException and "consumer.Model.IsOpen" will be set to false (this is handled later in the code by 
                         // disposing this consumer). There is no need to handle this exception. The logic of InitializeConsumer() will make sure 
                         // that the queue is recreated later based on assumption about how ReBus is handling null-result of ITransport.Receive().
@@ -363,12 +365,9 @@ namespace Rebus.RabbitMq
 
                 context.OnDisposed((tc) => _consumers.Enqueue(consumer));
 
+                var result = await consumer.GetNext(cancellationToken); 
 
-                if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
-                {
-                    return null;
-                }
-
+                // This should rarely, if ever, be null now
                 if (result == null) return null;
 
                 // ensure we use the consumer's model throughtout the handling of this message
@@ -498,7 +497,7 @@ namespace Rebus.RabbitMq
                 model = connection.CreateModel();
                 model.BasicQos(0, _maxMessagesToPrefetch, false);
 
-                var consumer = new CustomQueueingConsumer(model);
+                var consumer = new CustomQueueingConsumer(model, _maxMessagesToPrefetch);
 
                 model.BasicConsume(Address, false, consumer);
 

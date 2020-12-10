@@ -63,7 +63,8 @@ namespace Rebus.Internals
                 Uri = endpoints.First().ConnectionUri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
-                ClientProperties = CreateClientProperties(inputQueueAddress)
+                ClientProperties = CreateClientProperties(inputQueueAddress),
+                DispatchConsumersAsync = true,
             };
 
             if (customizer != null)
@@ -120,7 +121,8 @@ namespace Rebus.Internals
                 Uri = new Uri(uriStrings.First()), //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
-                ClientProperties = CreateClientProperties(inputQueueAddress)
+                ClientProperties = CreateClientProperties(inputQueueAddress),
+                DispatchConsumersAsync = true,
             };
 
             if (customizer != null)
