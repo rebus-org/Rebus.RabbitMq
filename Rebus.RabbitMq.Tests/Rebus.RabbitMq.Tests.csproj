@@ -33,7 +33,7 @@
     <ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
     <PackageReference Include="microsoft.net.test.sdk" Version="16.5.0" />
     <PackageReference Include="nunit" Version="3.13.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.16.1">
+    <PackageReference Include="NUnit3TestAdapter" Version="3.17.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
