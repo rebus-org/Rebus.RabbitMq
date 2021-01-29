@@ -52,7 +52,7 @@ namespace Rebus.RabbitMq.Tests
                         RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
 
                         // wait a short while
-                        await Task.Delay(2);
+                        await Task.Delay(10);
 
                         // check that published message is received without problems
                         await publisher.Publish(message);
