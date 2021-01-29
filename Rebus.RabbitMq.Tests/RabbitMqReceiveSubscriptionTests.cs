@@ -46,18 +46,19 @@ namespace Rebus.RabbitMq.Tests
                     using (var subscriber = StartBus(_subscriberQueueName, HandlerMethod))
                     {
                         await subscriber.Subscribe<string>();
+                        subscriber.Advanced.Workers.SetNumberOfWorkers(1);
 
                         // remove the input queue
                         RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
 
                         // wait a short while
-                        await Task.Delay(200000);
+                        await Task.Delay(2);
 
                         // check that published message is received without problems
                         await publisher.Publish(message);
 
                         receivedEvent.WaitOrDie(TimeSpan.FromSeconds(2),
-                            "The event has not been receved by the subscriber within the expected time");
+                            "The event has not been received by the subscriber within the expected time");
                     }
                 }
             }
@@ -70,7 +71,9 @@ namespace Rebus.RabbitMq.Tests
 
             Using(activator);
 
-            activator.Handle(handlerMethod);
+            if (handlerMethod != null) {
+                activator.Handle(handlerMethod);
+            }
 
             Configure.With(activator)
                 .Transport(t =>
@@ -82,7 +85,7 @@ namespace Rebus.RabbitMq.Tests
 
                     t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName)
                         .AddClientProperties(properties);
-                })
+                }).Options(o => o.SetNumberOfWorkers(0))
                 .Start();
 
             return activator.Bus;

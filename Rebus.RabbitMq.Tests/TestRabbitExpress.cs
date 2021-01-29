@@ -30,11 +30,14 @@ namespace Rebus.RabbitMq.Tests
             Using(new QueueDeleter(queueName));
 
             _activator = Using(new BuiltinHandlerActivator());
-
             _bus = Configure.With(_activator)
                 .Logging(l => l.ColoredConsole(LogLevel.Info))
                 .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName))
-                .Options(o => o.SetMaxParallelism(100))
+                .Options(o =>
+                {
+                    o.SetMaxParallelism(100);
+                    o.SetNumberOfWorkers(0);
+                } )
                 .Start();
         }
 
@@ -47,7 +50,7 @@ namespace Rebus.RabbitMq.Tests
             var receivedMessages = 0L;
             _activator.Handle<object>(async msg => Interlocked.Increment(ref receivedMessages));
 
-            _bus.Advanced.Workers.SetNumberOfWorkers(0);
+            //_bus.Advanced.Workers.SetNumberOfWorkers(0);
 
             var stopwatch = Stopwatch.StartNew();
 
