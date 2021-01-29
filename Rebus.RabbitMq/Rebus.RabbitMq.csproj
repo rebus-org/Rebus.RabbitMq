@@ -39,7 +39,7 @@
     <DocumentationFile>bin\Release\Rebus.RabbitMq.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="rebus" Version="6.0.0" />
+    <PackageReference Include="rebus" Version="6.4.1" />
     <PackageReference Include="RabbitMq.Client" Version="6.2.1" />
   </ItemGroup>
   <ItemGroup>

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using RabbitMQ.Client;
 using Rebus.Activation;
+using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Extensions;
@@ -24,6 +25,7 @@ namespace Rebus.RabbitMq.Tests
         const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
         readonly string _inputQueueName = TestConfig.GetName("custom-msg");
         BuiltinHandlerActivator _activator;
+        private IBus _bus;
 
         protected override void SetUp()
         {
@@ -31,9 +33,10 @@ namespace Rebus.RabbitMq.Tests
 
             _activator = Using(new BuiltinHandlerActivator());
 
-            Configure.With(_activator)
+            _bus = Configure.With(_activator)
                 .Logging(l => l.Console(LogLevel.Warn))
                 .Transport(t => t.UseRabbitMq(ConnectionString, _inputQueueName))
+                .Options(o => o.SetNumberOfWorkers(0))
                 .Serialization(s => s.Decorate(c => new Utf8Fallback(c.Get<ISerializer>())))
                 .Start();
         }
@@ -51,6 +54,7 @@ namespace Rebus.RabbitMq.Tests
                 }
                 receivedCustomStringMessage.Set();
             });
+            _bus.Advanced.Workers.SetNumberOfWorkers(1);
 
             using (var connection = new ConnectionFactory { Uri = new Uri(ConnectionString) }.CreateConnection())
             {

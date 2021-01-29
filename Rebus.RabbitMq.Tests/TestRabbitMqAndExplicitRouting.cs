@@ -43,6 +43,7 @@ namespace Rebus.RabbitMq.Tests
             _bus = Configure.With(client)
                 .Logging(l => l.Console(minLevel: LogLevel.Warn))
                 .Transport(t => t.UseRabbitMqAsOneWayClient(_clientConnectionEndpoints))
+                .Options(o => o.SetNumberOfWorkers(0))
                 .Start();
         }
 
@@ -52,22 +53,23 @@ namespace Rebus.RabbitMq.Tests
             var queueName = TestConfig.GetName("manual_routing");
             var gotTheMessage = new ManualResetEvent(false);
 
-            StartServer(queueName).Handle<string>(async str =>
+            var activator = StartServer(queueName).Handle<string>(async str =>
             {
                 gotTheMessage.Set();
             });
 
+            activator.Bus.Advanced.Workers.SetNumberOfWorkers(5);
             Console.WriteLine($"Sending 'hej med dig min ven!' message to '{queueName}'");
 
             await _bus.Advanced.Routing.Send(queueName, "hej med dig min ven!");
 
             Console.WriteLine("Waiting for message to arrive");
 
-            gotTheMessage.WaitOrDie(TimeSpan.FromSeconds(5));
+            gotTheMessage.WaitOrDie(TimeSpan.FromSeconds(50));
 
             Console.WriteLine("Got it :)");
         }
-        
+
         BuiltinHandlerActivator StartServer(string queueName)
         {
             var activator = Using(new BuiltinHandlerActivator());
@@ -75,6 +77,7 @@ namespace Rebus.RabbitMq.Tests
             Configure.With(activator)
                 .Logging(l => l.Console(minLevel: LogLevel.Warn))
                 .Transport(t => t.UseRabbitMq(_serverConnectionEndpoints, queueName))
+                .Options(o => o.SetNumberOfWorkers(0))
                 .Start();
 
             return activator;

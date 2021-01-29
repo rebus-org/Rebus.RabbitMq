@@ -51,13 +51,13 @@ namespace Rebus.RabbitMq.Tests
                         RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
 
                         // wait a short while
-                        await Task.Delay(200000);
+                        await Task.Delay(10);
 
                         // check that published message is received without problems
                         await publisher.Publish(message);
 
                         receivedEvent.WaitOrDie(TimeSpan.FromSeconds(2),
-                            "The event has not been receved by the subscriber within the expected time");
+                            "The event has not been received by the subscriber within the expected time");
                     }
                 }
             }
@@ -70,7 +70,9 @@ namespace Rebus.RabbitMq.Tests
 
             Using(activator);
 
-            activator.Handle(handlerMethod);
+            if (handlerMethod != null) {
+                activator.Handle(handlerMethod);
+            }
 
             Configure.With(activator)
                 .Transport(t =>

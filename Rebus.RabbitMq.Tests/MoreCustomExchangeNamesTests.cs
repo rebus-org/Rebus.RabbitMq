@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
+using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
@@ -46,6 +47,9 @@ namespace Rebus.RabbitMq.Tests
                 }
             });
 
+            firstActivator.Bus.Advanced.Workers.SetNumberOfWorkers(1);
+            secondActivator.Bus.Advanced.Workers.SetNumberOfWorkers(1);
+
             await secondActivator.Bus.Advanced.Routing.Send($"{firstQueueName}@{firstExchangeName}Direct", "from second exchange");
             await firstActivator.Bus.Advanced.Routing.Send($"{secondQueueName}@{secondExchangeName}Direct", "from first exchange");
 
@@ -73,6 +77,7 @@ namespace Rebus.RabbitMq.Tests
             Configure.With(activator)
                 .Transport(t => t.UseRabbitMq(ConnectionString, queueName)
                     .ExchangeNames(directExchangeName, topicExchangeName))
+                .Options(o => o.SetNumberOfWorkers(0))
                 .Start();
 
             return activator;
