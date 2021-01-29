@@ -1,0 +1,17 @@
+image: Visual Studio 2019
+
+shallow_clone: true
+
+install:
+- ps: >-
+    choco install rabbitmq -Version 3.8.5
+cache:
+  - packages -> **\packages.config
+  - '%LocalAppData%\NuGet\Cache'
+
+before_build:
+  - appveyor-retry dotnet restore -v Minimal
+
+build_script:
+  - dotnet build Rebus.RabbitMq -c Release
+  - dotnet build Rebus.RabbitMq.Tests -c Release 
