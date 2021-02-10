@@ -1,4 +1,4 @@
-name: .NET Ubuntu
+name: .NET Windows
 
 on:
   push:
@@ -9,16 +9,10 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
-    - uses: getong/rabbitmq-action@v1.2
-      with:
-        rabbitmq version: '3.8.2-management-alpine'
-        host port: 5672
-        rabbitmq user: 'guest'
-        rabbitmq password: 'guest'
     - name: Setup .NET 2.1
       uses: actions/setup-dotnet@v1
       with:
@@ -31,6 +25,9 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.x
+    - name: Install rabbitmq
+      shell: pwsh
+      run: choco install rabbitmq -Version 3.8.5
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
