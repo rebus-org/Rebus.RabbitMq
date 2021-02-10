@@ -29,7 +29,9 @@ jobs:
       shell: pwsh
       run: choco install rabbitmq -Version 3.8.5
     - name: Restore dependencies
-      run: dotnet restore
+      run:  |
+        dotnet nuget locals all --clear
+        dotnet restore
     - name: Build
       run: dotnet build --no-restore -c Release
     - name: Test
