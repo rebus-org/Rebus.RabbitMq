@@ -7,6 +7,8 @@ using Rebus.Activation;
 using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Tests.Contracts;
+using Rebus.Transport;
+
 #pragma warning disable 1998
 
 namespace Rebus.RabbitMq.Tests
@@ -14,10 +16,13 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture]
     public class SeeHowFastWeCanPublish : FixtureBase
     {
-        [TestCase(100)]
-        [TestCase(1000)]
-        [TestCase(10000)]
-        public async Task SeeHowFast(int count)
+        [TestCase(100, true)]
+        [TestCase(1000, true)]
+        [TestCase(10000, true)]
+        [TestCase(100, false)]
+        [TestCase(1000, false)]
+        [TestCase(10000, false)]
+        public async Task SeeHowFast(int count, bool useRebusTransactionScope)
         {
             var activator = new BuiltinHandlerActivator();
 
@@ -37,8 +42,21 @@ namespace Rebus.RabbitMq.Tests
 
             var stopwatch = Stopwatch.StartNew();
 
-            await Task.WhenAll(Enumerable.Range(0, count)
-                .Select(async n => await bus.SendLocal("huigehuig3huigehgueisubliminalmessagejiogjeioge")));
+            if (useRebusTransactionScope)
+            {
+                using var scope = new RebusTransactionScope();
+
+                await Task.WhenAll(Enumerable.Range(0, count)
+                    .Select(async n => await bus.SendLocal($"huigehuig3huigehgueisubliminalmessagejiogjeioge{n}hiuhgiuehgiuehgiue")));
+
+                await scope.CompleteAsync();
+            }
+            else
+            {
+                await Task.WhenAll(Enumerable.Range(0, count)
+                    .Select(async n => await bus.SendLocal($"huigehuig3huigehgueisubliminalmessagejiogjeioge{n}hiuhgiuehgiuehgiue")));
+            }
+
 
             var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
 
