@@ -58,13 +58,24 @@ namespace Rebus.Internals
                 }
             }
 
+            var uri = endpoints.First().ConnectionUri;
+
             _connectionFactory = new ConnectionFactory
             {
-                Uri = endpoints.First().ConnectionUri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
+                Uri = uri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
                 ClientProperties = CreateClientProperties(inputQueueAddress)
             };
+
+            if (!string.IsNullOrWhiteSpace(uri.UserInfo))
+            {
+                var parts = uri.UserInfo.Split(':');
+                var username = parts.First();
+                var password = parts.LastOrDefault() ?? "";
+                _connectionFactory.UserName = username;
+                _connectionFactory.Password = password;
+            }
 
             if (customizer != null)
             {
@@ -86,7 +97,7 @@ namespace Rebus.Internals
                 .ToList();
 
         }
-        
+
         public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, Func<IConnectionFactory, IConnectionFactory> customizer)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
@@ -115,13 +126,24 @@ namespace Rebus.Internals
                 _log.Info("RabbitMQ transport has {count} connection strings available", uriStrings.Length);
             }
 
+            var uri = new Uri(uriStrings.First());
+
             _connectionFactory = new ConnectionFactory
             {
-                Uri = new Uri(uriStrings.First()), //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
+                Uri = uri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
                 ClientProperties = CreateClientProperties(inputQueueAddress)
             };
+
+            if (!string.IsNullOrWhiteSpace(uri.UserInfo))
+            {
+                var parts = uri.UserInfo.Split(':');
+                var username = parts.First();
+                var password = parts.LastOrDefault() ?? "";
+                _connectionFactory.UserName = username;
+                _connectionFactory.Password = password;
+            }
 
             if (customizer != null)
             {

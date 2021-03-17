@@ -100,7 +100,8 @@
 ## 7.3.0
 * Update RabbitMQ client to 6.0 - thanks [mathiasnohall]
 
-
+## 7.3.1-b1
+* Add code to manually transfer basic auth credentials from connection string to connection factory
 
 ---
 
