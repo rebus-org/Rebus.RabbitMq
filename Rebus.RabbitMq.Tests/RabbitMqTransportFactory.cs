@@ -56,6 +56,17 @@ namespace Rebus.RabbitMq.Tests
             _queuesToDelete.Clear();
         }
 
+        public static void CreateQueue(string queueName)
+        {
+            var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
+
+            using (var connection = connectionFactory.CreateConnection())
+            using (var model = connection.CreateModel())
+            {
+                model.QueueDeclare(queueName, true, false, false);
+            }
+        }
+
         public static void DeleteQueue(string queueName)
         {
             var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
