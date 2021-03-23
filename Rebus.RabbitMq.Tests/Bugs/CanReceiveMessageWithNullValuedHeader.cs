@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,7 +40,7 @@ namespace Rebus.RabbitMq.Tests.Bugs
 
             await bus.SendLocal("Hej søtte", new Dictionary<string, string> {{headerKey, null}});
 
-            nullHeaderSuccessfullyReceived.WaitOrDie(TimeSpan.FromSeconds(3));
+            nullHeaderSuccessfullyReceived.WaitOrDie(TimeSpan.FromSeconds(5));
         }
     }
 }

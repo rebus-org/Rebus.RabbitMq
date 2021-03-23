@@ -100,8 +100,9 @@
 ## 7.3.0
 * Update RabbitMQ client to 6.0 - thanks [mathiasnohall]
 
-## 7.3.1-b1
+## 7.3.1-b2
 * Add code to manually transfer basic auth credentials from connection string to connection factory
+* In RabbitMqTransport.Receive call QueueDeclarePassive only if declare input queue is true - thanks [marcoariboni]
 
 ---
 
@@ -111,6 +112,7 @@
 [jarikp]: https://github.com/jarikp
 [K3llr]: https://github.com/K3llr
 [kyrrem]: https://github.com/kyrrem
+[marcoariboni]: https://github.com/marcoariboni
 [mathiasnohall]: https://github.com/mathiasnohall
 [michalsteyn]: https://github.com/michalsteyn
 [nebelx]: https://github.com/nebelx
