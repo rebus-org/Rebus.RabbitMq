@@ -344,7 +344,11 @@ namespace Rebus.RabbitMq
                         // an OperationInterruptedException and "consumer.Model.IsOpen" will be set to false (this is handled later in the code by 
                         // disposing this consumer). There is no need to handle this exception. The logic of InitializeConsumer() will make sure 
                         // that the queue is recreated later based on assumption about how ReBus is handling null-result of ITransport.Receive().
-                        consumer?.Model.QueueDeclarePassive(Address);
+                        // Applied this logic to recreate the queue only if the transport is configure initially to create the queue if it doesnt exists.
+                        if (_declareInputQueue)
+                        {
+                            consumer?.Model.QueueDeclarePassive(Address);
+                        }
                     }
                     catch { }
                 }

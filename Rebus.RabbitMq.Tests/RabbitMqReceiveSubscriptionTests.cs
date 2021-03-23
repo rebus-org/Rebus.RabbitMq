@@ -63,8 +63,48 @@ namespace Rebus.RabbitMq.Tests
             }
         }
 
+        [Test]
+        public async Task ReceiveOnSubscribe_WHEN_SubscriberQueueDeleted_THEN_ItThrowsException()
+        {
+            const string message = "Test-Message-123";
 
-        IBus StartBus(string queueName, Func<string, Task> handlerMethod = null)
+            using (var receivedEvent = new ManualResetEvent(false))
+            {
+                using (var publisher = StartBus(_publisherQueueName))
+                {
+                    async Task HandlerMethod(string data)
+                    {
+                        if (string.Equals(data, message))
+                        {
+                            receivedEvent.Set();
+                        }
+                    }
+
+                    using (var subscriber = StartBus(_subscriberQueueName, HandlerMethod, false, false))
+                    {
+                        // create the input queue
+                        RabbitMqTransportFactory.CreateQueue(_subscriberQueueName);
+
+                        await subscriber.Subscribe<string>();
+
+                        // remove the input queue
+                        RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+
+                        // wait a short while
+                        await Task.Delay(5000);
+
+                        // check that published message is received without problems
+                        await publisher.Publish(message);
+
+                        var result = receivedEvent.WaitOne(TimeSpan.FromSeconds(2));
+                        Assert.IsFalse(result);
+
+                    }
+                }
+            }
+        }
+
+        IBus StartBus(string queueName, Func<string, Task> handlerMethod = null, bool autoDeclareQueue = true, bool autoDeclareBindQueue = true)
         {
             var activator = new BuiltinHandlerActivator();
 
@@ -81,7 +121,8 @@ namespace Rebus.RabbitMq.Tests
                     };
 
                     t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName)
-                        .AddClientProperties(properties);
+                        .AddClientProperties(properties)
+                        .Declarations(true, autoDeclareQueue, autoDeclareBindQueue);
                 })
                 .Start();
 
