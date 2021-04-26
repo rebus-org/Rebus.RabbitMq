@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using Rebus.Bus;
 using Rebus.Logging;
@@ -367,9 +368,23 @@ namespace Rebus.RabbitMq
 
                 context.OnDisposed((tc) => _consumers.Enqueue(consumer));
 
-
-                if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
+                BasicDeliverEventArgs result;
+                try
                 {
+                    var cts = new CancellationTokenSource(TwoSeconds);
+                    var registration = cancellationToken.Register(() =>
+                    {
+                        cts.Cancel();
+                    });
+                    _log.Debug("Waiting for queue read");
+                    result = await consumer.Queue.Reader.ReadAsync(cts.Token);
+                    cts.Dispose();
+                    registration.Dispose();
+                    _log.Debug("Read message from queue");
+                }
+                catch (OperationCanceledException)
+                {
+                    _log.Debug("Reading from queue was cancelled");
                     return null;
                 }
 

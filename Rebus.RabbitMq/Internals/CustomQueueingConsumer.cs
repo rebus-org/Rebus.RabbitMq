@@ -1,21 +1,21 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Threading.Channels;
 
 namespace Rebus.Internals
 {
     class CustomQueueingConsumer : DefaultBasicConsumer
     {
-        public SharedQueue<BasicDeliverEventArgs> Queue { get; } = new SharedQueue<BasicDeliverEventArgs>();
+        public Channel<BasicDeliverEventArgs> Queue { get; } = Channel.CreateUnbounded<BasicDeliverEventArgs>();
         public CustomQueueingConsumer(IModel model) : base(model)
         {
         }
 
         public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
         {
-            Queue.Enqueue(new BasicDeliverEventArgs
+            Console.WriteLine("Handle basic deliver");
+            Queue.Writer.TryWrite(new BasicDeliverEventArgs
             {
                 ConsumerTag = consumerTag,
                 DeliveryTag = deliveryTag,
@@ -30,11 +30,13 @@ namespace Rebus.Internals
         public override void OnCancel(params string[] consumerTags)
         {
             base.OnCancel(consumerTags);
-            Queue.Close();
+            Console.WriteLine("Completing");
+            Queue.Writer.Complete();
         }
 
         public void Dispose()
         {
+            Console.WriteLine("Disposing");
             try
             {
                 // it's so fucked up that these can throw exceptions

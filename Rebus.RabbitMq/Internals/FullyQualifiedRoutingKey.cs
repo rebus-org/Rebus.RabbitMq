@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace Rebus.Internals
 {
-    class FullyQualifiedRoutingKey
+    record FullyQualifiedRoutingKey
     {
         public FullyQualifiedRoutingKey(string destinationAddress)
         {
@@ -27,36 +27,5 @@ namespace Rebus.Internals
 
         public string ExchangeName { get; }
         public string RoutingKey { get; }
-
-        protected bool Equals(FullyQualifiedRoutingKey other)
-        {
-            return String.Equals(ExchangeName, other.ExchangeName) && String.Equals(RoutingKey, other.RoutingKey);
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((FullyQualifiedRoutingKey)obj);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return ((ExchangeName != null ? ExchangeName.GetHashCode() : 0) * 397) ^ (RoutingKey != null ? RoutingKey.GetHashCode() : 0);
-            }
-        }
-
-        public static bool operator ==(FullyQualifiedRoutingKey left, FullyQualifiedRoutingKey right)
-        {
-            return Equals(left, right);
-        }
-
-        public static bool operator !=(FullyQualifiedRoutingKey left, FullyQualifiedRoutingKey right)
-        {
-            return !Equals(left, right);
-        }
     }
 }
