@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
@@ -151,14 +152,14 @@ namespace Rebus.Internals
                 return true;
             }
 
-            DateTime startTime = DateTime.Now;
+            var stopwatch = Stopwatch.StartNew();
             lock (m_queue)
             {
                 while (m_queue.Count == 0)
                 {
                     EnsureIsOpen();
-                    var elapsedTime = (int)((DateTime.Now - startTime).TotalMilliseconds);
-                    int remainingTime = millisecondsTimeout - elapsedTime;
+                    var elapsedTime = (int)stopwatch.ElapsedMilliseconds;
+                    var remainingTime = millisecondsTimeout - elapsedTime;
                     if (remainingTime <= 0)
                     {
                         result = default(T);

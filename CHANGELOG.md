@@ -100,9 +100,10 @@
 ## 7.3.0
 * Update RabbitMQ client to 6.0 - thanks [mathiasnohall]
 
-## 7.3.1-b2
+## 7.3.1-b3
 * Add code to manually transfer basic auth credentials from connection string to connection factory
 * In RabbitMqTransport.Receive call QueueDeclarePassive only if declare input queue is true - thanks [marcoariboni]
+* Use `Stopwatch` instead of `DateTime.Now` in `SharedQueue` to do the timeout math
 
 ---
 
