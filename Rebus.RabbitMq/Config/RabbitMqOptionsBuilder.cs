@@ -213,6 +213,17 @@ namespace Rebus.Config
             return CustomizeConnectionFactory(factory => new ConnectionFactoryClientNameDecorator(factory, connectionName));
         }
 
+        /// <summary>
+        /// Sets the max timeout the transport has when waiting for a new message to come in
+        /// before it starts considering doing backoffs. Defaults to 2 seconds if nothing
+        /// is specified.
+        /// </summary>
+        public RabbitMqOptionsBuilder SetMaxPollingTimeout(TimeSpan timeout)
+        {
+            MaxPollingTimeout = timeout;
+            return this;
+        } 
+
         internal bool? DeclareExchanges { get; private set; }
         internal bool? DeclareInputQueue { get; private set; }
         internal bool? BindInputQueue { get; private set; }
@@ -232,6 +243,8 @@ namespace Rebus.Config
         internal RabbitMqQueueOptionsBuilder DefaultQueueOptionsBuilder { get; } = new RabbitMqQueueOptionsBuilder();
 
         internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new RabbitMqExchangeOptionsBuilder();
+        
+        internal TimeSpan MaxPollingTimeout { get; private set; } = TimeSpan.FromSeconds(2);
 
         internal Func<IConnectionFactory, IConnectionFactory> ConnectionFactoryCustomizer;
 
@@ -287,6 +300,7 @@ namespace Rebus.Config
             transport.SetInputQueueOptions(InputQueueOptionsBuilder);
             transport.SetDefaultQueueOptions(DefaultQueueOptionsBuilder);
             transport.SetExchangeOptions(ExchangeOptions);
+            transport.SetMaxPollingTimeout(MaxPollingTimeout);
         }
 
         /// This is temporary decorator-fix, until Rebus is upgraded to a version 6+ of RabbitMQ.Client wich has new signature:

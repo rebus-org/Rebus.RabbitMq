@@ -34,7 +34,6 @@ namespace Rebus.RabbitMq
     {
         const string CurrentModelItemsKey = "rabbitmq-current-model";
         const string OutgoingMessagesItemsKey = "rabbitmq-outgoing-messages";
-        const int TwoSeconds = 2000;
         
         /// <summary>
         /// <see cref="ShutdownEventArgs.ReplyCode"/> value that indicates that a queue does not exist
@@ -61,6 +60,8 @@ namespace Rebus.RabbitMq
 
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
+        
+        TimeSpan _maxPollingTimeout = TimeSpan.FromSeconds(2);
 
         RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
@@ -209,6 +210,16 @@ namespace Rebus.RabbitMq
         public void SetExchangeOptions(RabbitMqExchangeOptionsBuilder inputExchangeOptions)
         {
             _inputExchangeOptions = inputExchangeOptions ?? throw new ArgumentNullException(nameof(inputExchangeOptions));
+        }
+
+        
+        /// <summary>
+        /// Sets the max timeout the transport has when waiting for a new message to come in
+        /// before it starts considering doing backoffs.
+        /// </summary>
+        public void SetMaxPollingTimeout(TimeSpan timeout)
+        {
+            _maxPollingTimeout = timeout;
         }
 
         /// <summary>
@@ -371,14 +382,13 @@ namespace Rebus.RabbitMq
                 BasicDeliverEventArgs result;
                 try
                 {
-                    var cts = new CancellationTokenSource(TwoSeconds);
+                    using var cts = new CancellationTokenSource(_maxPollingTimeout);
                     var registration = cancellationToken.Register(() =>
                     {
                         cts.Cancel();
                     });
                     _log.Debug("Waiting for queue read");
                     result = await consumer.Queue.Reader.ReadAsync(cts.Token);
-                    cts.Dispose();
                     registration.Dispose();
                     _log.Debug("Read message from queue");
                 }
