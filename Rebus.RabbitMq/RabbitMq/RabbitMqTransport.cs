@@ -323,6 +323,7 @@ namespace Rebus.RabbitMq
         }
 
 
+        /// <inheritdoc />
         protected override Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages,
             ITransactionContext context)
         {
