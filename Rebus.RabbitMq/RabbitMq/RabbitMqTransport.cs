@@ -83,7 +83,6 @@ namespace Rebus.RabbitMq
 
             _log = rebusLoggerFactory.GetLogger<RabbitMqTransport>();
 
-            // TODO: Make max entries configurable
             _writerPool = new ModelObjectPool(new WriterModelPoolPolicy(this), 5);
         }
 
@@ -235,6 +234,16 @@ namespace Rebus.RabbitMq
         public void SetMaxPollingTimeout(TimeSpan timeout)
         {
             _maxPollingTimeout = timeout;
+        }
+
+        /// <summary>
+        /// Sets the max amount of writers that are available kept around for writing messages back
+        /// to rabbitmq. Reducing this number uses less resource, while increasing it might increase
+        /// performance on high-rate systems. 
+        /// </summary>
+        public void SetMaxWriterPoolSize(int poolSize)
+        {
+            _writerPool.MaxEntries = poolSize;
         }
 
         /// <summary>
