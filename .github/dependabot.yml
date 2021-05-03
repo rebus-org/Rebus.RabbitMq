@@ -1,0 +1,23 @@
+version: 2
+updates:
+- package-ecosystem: nuget
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "04:00"
+  open-pull-requests-limit: 10
+  target-branch: net50
+  ignore:
+  - dependency-name: rebus
+    versions:
+    - 6.4.1
+    - 6.5.0
+    - 6.5.2
+    - 6.5.3
+    - 6.5.4
+  - dependency-name: microsoft.net.test.sdk
+    versions:
+    - 16.9.1
+  - dependency-name: rebus.tests.contracts
+    versions:
+    - 6.4.0
