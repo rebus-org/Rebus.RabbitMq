@@ -42,7 +42,7 @@ namespace Rebus.RabbitMq
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
         private CustomQueueingConsumer _consumer;
-        private SemaphoreSlim _constumerLock = new(1, 1);
+        private readonly SemaphoreSlim _consumerLock = new(1, 1);
 
         private readonly ModelObjectPool _writerPool;
 
@@ -363,14 +363,14 @@ namespace Rebus.RabbitMq
             {
                 if (_consumer == null)
                 {
-                    await _constumerLock.WaitAsync(cancellationToken);
+                    await _consumerLock.WaitAsync(cancellationToken);
                     try
                     {
                         _consumer ??= InitializeConsumer();
                     }
                     finally
                     {
-                        _constumerLock.Release();
+                        _consumerLock.Release();
                     }
                 }
 
