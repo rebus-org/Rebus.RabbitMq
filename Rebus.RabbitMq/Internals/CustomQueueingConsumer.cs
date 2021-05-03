@@ -14,7 +14,6 @@ namespace Rebus.Internals
 
         public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
         {
-            Console.WriteLine("Handle basic deliver");
             Queue.Writer.TryWrite(new BasicDeliverEventArgs
             {
                 ConsumerTag = consumerTag,
@@ -30,22 +29,12 @@ namespace Rebus.Internals
         public override void OnCancel(params string[] consumerTags)
         {
             base.OnCancel(consumerTags);
-            Console.WriteLine("Completing");
             Queue.Writer.Complete();
         }
 
         public void Dispose()
         {
-            Console.WriteLine("Disposing");
-            try
-            {
-                // it's so fucked up that these can throw exceptions
-                Model?.Close();
-                Model?.Dispose();
-            }
-            catch
-            {
-            }
+            Model.SafeDrop();
         }
     }
 }
