@@ -6,7 +6,7 @@ using Rebus.RabbitMq;
 namespace Rebus.Internals
 {
     /// <summary>
-    /// A simple object pool implementation, because the default (Microsoft.Extensions.ObjectPoo)
+    /// A simple object pool implementation, because the default (Microsoft.Extensions.ObjectPool)
     /// doesn't allow proper dispose methods
     /// </summary>
     internal class ModelObjectPool : IDisposable
