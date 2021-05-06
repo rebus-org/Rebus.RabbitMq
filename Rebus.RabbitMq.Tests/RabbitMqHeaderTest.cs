@@ -60,7 +60,7 @@ namespace Rebus.RabbitMq.Tests
             var bus = StartOneWayClient(Callback);
             await bus.Advanced.Routing.Send(_noneExistingQueueName, "I have headers", headers);
 
-            gotCallback.WaitOrDie(TimeSpan.FromSeconds(5000));
+            gotCallback.WaitOrDie(TimeSpan.FromSeconds(2));
 
             var keys = new[]
             {
