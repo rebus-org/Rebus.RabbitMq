@@ -5,7 +5,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Rebus.RabbitMq.Tests</RootNamespace>
     <AssemblyName>Rebus.RabbitMq.Tests</AssemblyName>
-    <TargetFrameworks>netstandard2.0;netstandard2.1;net5.0</TargetFrameworks>
+    <TargetFrameworks>net5.0</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
@@ -32,8 +32,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
     <PackageReference Include="microsoft.net.test.sdk" Version="16.9.4" />
-    <PackageReference Include="Microting.Rebus" Version="7.0.1" />
-    <PackageReference Include="Microting.Rebus.Tests.Contracts" Version="7.0.1" />
+    <PackageReference Include="Microting.Rebus" Version="7.1.0" />
+    <PackageReference Include="Microting.Rebus.Tests.Contracts" Version="7.1.0" />
     <PackageReference Include="nunit" Version="3.13.2" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.17.0">
       <PrivateAssets>all</PrivateAssets>
