@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using Rebus.Bus;
 using Rebus.Logging;
@@ -17,6 +18,7 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
+
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
 // ReSharper disable ArgumentsStyleNamedExpression
@@ -29,12 +31,9 @@ namespace Rebus.RabbitMq
     /// <summary>
     /// Implementation of <see cref="ITransport"/> that uses RabbitMQ to send/receive messages
     /// </summary>
-    public class RabbitMqTransport : ITransport, IDisposable, IInitializable, ISubscriptionStorage
+    public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializable, ISubscriptionStorage
     {
-        const string CurrentModelItemsKey = "rabbitmq-current-model";
-        const string OutgoingMessagesItemsKey = "rabbitmq-outgoing-messages";
-        const int TwoSeconds = 2000;
-        
+
         /// <summary>
         /// <see cref="ShutdownEventArgs.ReplyCode"/> value that indicates that a queue does not exist
         /// </summary>
@@ -42,10 +41,14 @@ namespace Rebus.RabbitMq
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
-        readonly ConcurrentQueue<CustomQueueingConsumer> _consumers = new ConcurrentQueue<CustomQueueingConsumer>();
-        readonly ConcurrentQueue<IModel> _models = new ConcurrentQueue<IModel>();
+        private CustomQueueingConsumer _consumer;
+        private readonly SemaphoreSlim _consumerLock = new(1, 1);
 
-        readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new ConcurrentDictionary<FullyQualifiedRoutingKey, bool>();
+        private readonly ModelObjectPool _writerPool;
+
+        readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues =
+            new ConcurrentDictionary<FullyQualifiedRoutingKey, bool>();
+
         readonly List<Subscription> _registeredSubscriptions = new List<Subscription>();
         readonly SemaphoreSlim _subscriptionSemaphore = new SemaphoreSlim(1, 1);
         readonly ConnectionManager _connectionManager;
@@ -61,28 +64,35 @@ namespace Rebus.RabbitMq
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
 
+        TimeSpan _maxPollingTimeout = TimeSpan.FromSeconds(2);
+
         RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
         RabbitMqQueueOptionsBuilder _defaultQueueOptions = new RabbitMqQueueOptionsBuilder();
         RabbitMqExchangeOptionsBuilder _inputExchangeOptions = new RabbitMqExchangeOptionsBuilder();
 
-        RabbitMqTransport(IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch, string inputQueueAddress)
+        RabbitMqTransport(IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch, string inputQueueAddress) :
+            base(inputQueueAddress)
         {
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
-            if (maxMessagesToPrefetch <= 0) throw new ArgumentException($"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
+            if (maxMessagesToPrefetch <= 0)
+                throw new ArgumentException(
+                    $"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
 
-            _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
+            _maxMessagesToPrefetch = (ushort) maxMessagesToPrefetch;
 
             _log = rebusLoggerFactory.GetLogger<RabbitMqTransport>();
 
-            Address = inputQueueAddress;
+            _writerPool = new ModelObjectPool(new WriterModelPoolPolicy(this), 5);
         }
 
         /// <summary>
         /// Constructs the RabbitMQ transport with multiple connection endpoints. They will be tried in random order until working one is found
         ///  Credentials will be extracted from the connectionString of the first provided endpoint
         /// </summary>
-        public RabbitMqTransport(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50, Func<IConnectionFactory, IConnectionFactory> customizer = null)
+        public RabbitMqTransport(IList<ConnectionEndpoint> endpoints, string inputQueueAddress,
+            IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50,
+            Func<IConnectionFactory, IConnectionFactory> customizer = null)
             : this(rebusLoggerFactory, maxMessagesToPrefetch, inputQueueAddress)
         {
             if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
@@ -94,12 +104,15 @@ namespace Rebus.RabbitMq
         /// Constructs the transport with a connection to the RabbitMQ instance specified by the given connection string.
         /// Multiple connection strings could be provided. They should be separates with , or ; 
         /// </summary>
-        public RabbitMqTransport(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50, Func<IConnectionFactory, IConnectionFactory> customizer = null)
+        public RabbitMqTransport(string connectionString, string inputQueueAddress,
+            IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50,
+            Func<IConnectionFactory, IConnectionFactory> customizer = null)
             : this(rebusLoggerFactory, maxMessagesToPrefetch, inputQueueAddress)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
 
-            _connectionManager = new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory, customizer);
+            _connectionManager =
+                new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory, customizer);
         }
 
         /// <summary>
@@ -118,6 +131,7 @@ namespace Rebus.RabbitMq
         {
             _connectionManager.SetSslOptions(sslSettings);
         }
+
         /// <summary>
         /// Sets whether the exchange should be declared
         /// </summary>
@@ -175,7 +189,8 @@ namespace Rebus.RabbitMq
             {
                 throw new ArgumentException($"Cannot set 'max messages to prefetch' to {maxMessagesToPrefetch}");
             }
-            _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
+
+            _maxMessagesToPrefetch = (ushort) maxMessagesToPrefetch;
         }
 
         /// <summary>
@@ -207,7 +222,28 @@ namespace Rebus.RabbitMq
         /// </summary>
         public void SetExchangeOptions(RabbitMqExchangeOptionsBuilder inputExchangeOptions)
         {
-            _inputExchangeOptions = inputExchangeOptions ?? throw new ArgumentNullException(nameof(inputExchangeOptions));
+            _inputExchangeOptions =
+                inputExchangeOptions ?? throw new ArgumentNullException(nameof(inputExchangeOptions));
+        }
+
+
+        /// <summary>
+        /// Sets the max timeout the transport has when waiting for a new message to come in
+        /// before it starts considering doing backoffs.
+        /// </summary>
+        public void SetMaxPollingTimeout(TimeSpan timeout)
+        {
+            _maxPollingTimeout = timeout;
+        }
+
+        /// <summary>
+        /// Sets the max amount of writers that are available kept around for writing messages back
+        /// to rabbitmq. Reducing this number uses less resource, while increasing it might increase
+        /// performance on high-rate systems. 
+        /// </summary>
+        public void SetMaxWriterPoolSize(int poolSize)
+        {
+            _writerPool.MaxEntries = poolSize;
         }
 
         /// <summary>
@@ -223,32 +259,35 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Creates a queue with the given name and binds it to a topic with the same name in the direct exchange
         /// </summary>
-        public void CreateQueue(string address)
+        public override void CreateQueue(string address)
         {
             var connection = _connectionManager.GetConnection();
 
             try
             {
-                using (var model = connection.CreateModel())
+                using var model = connection.CreateModel();
+
+                const bool durable = true;
+
+                if (_declareExchanges)
                 {
-                    const bool durable = true;
-
-                    if (_declareExchanges)
-                    {
-                        model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable, arguments: _inputExchangeOptions.DirectExchangeArguments);
-                        model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable, arguments: _inputExchangeOptions.TopicExchangeArguments);
-                    }
-
-                    if (_declareInputQueue)
-                    {
-                        DeclareQueue(address, model);
-                    }
-
-                    if (_bindInputQueue)
-                    {
-                        BindInputQueue(address, model);
-                    }
+                    model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable,
+                        arguments: _inputExchangeOptions.DirectExchangeArguments);
+                    model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable,
+                        arguments: _inputExchangeOptions.TopicExchangeArguments);
                 }
+
+                if (_declareInputQueue)
+                {
+                    DeclareQueue(address, model);
+                }
+
+                if (_bindInputQueue)
+                {
+                    BindInputQueue(address, model);
+                }
+                
+                model.Close();
             }
             catch (Exception exception)
             {
@@ -283,23 +322,13 @@ namespace Rebus.RabbitMq
             }
         }
 
+
         /// <inheritdoc />
-        public async Task Send(string destinationAddress, TransportMessage message, ITransactionContext context)
+        protected override Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages,
+            ITransactionContext context)
         {
-            var outgoingMessages = context.GetOrAdd(OutgoingMessagesItemsKey, () =>
-            {
-                var messages = new ConcurrentQueue<OutgoingMessage>();
-
-                context.OnCommitted(tc => SendOutgoingMessages(context, messages));
-
-                return messages;
-            });
-
-            outgoingMessages.Enqueue(new OutgoingMessage(destinationAddress, message, isExpress: message.Headers.ContainsKey(Headers.Express)));
+            return SendOutgoingMessages(outgoingMessages);
         }
-
-        /// <inheritdoc />
-        public string Address { get; }
 
         /// <summary>
         /// Deletes all messages from the queue
@@ -322,79 +351,95 @@ namespace Rebus.RabbitMq
         }
 
         /// <inheritdoc />
-        public async Task<TransportMessage> Receive(ITransactionContext context, CancellationToken cancellationToken)
+        public override async Task<TransportMessage> Receive(ITransactionContext context,
+            CancellationToken cancellationToken)
         {
             if (Address == null)
             {
-                throw new InvalidOperationException("This RabbitMQ transport does not have an input queue - therefore, it is not possible to receive anything");
+                throw new InvalidOperationException(
+                    "This RabbitMQ transport does not have an input queue - therefore, it is not possible to receive anything");
             }
 
             try
             {
-                if (!_consumers.TryDequeue(out var consumer))
+                if (_consumer == null)
                 {
-                    consumer = InitializeConsumer();
-                }
-                else
-                {
+                    await _consumerLock.WaitAsync(cancellationToken);
                     try
                     {
-                        // When a consumer is dequeued from the the "consumers" pool, it might be bound to a queue, which does not exist anymore,
-                        // eg. expired and deleted by RabittMQ server policy). In this case this calling QueueDeclarePassive will result in 
-                        // an OperationInterruptedException and "consumer.Model.IsOpen" will be set to false (this is handled later in the code by 
-                        // disposing this consumer). There is no need to handle this exception. The logic of InitializeConsumer() will make sure 
-                        // that the queue is recreated later based on assumption about how ReBus is handling null-result of ITransport.Receive().
-                        // Applied this logic to recreate the queue only if the transport is configure initially to create the queue if it doesnt exists.
-                        if (_declareInputQueue)
-                        {
-                            consumer?.Model.QueueDeclarePassive(Address);
-                        }
+                        _consumer ??= InitializeConsumer();
                     }
-                    catch { }
+                    finally
+                    {
+                        _consumerLock.Release();
+                    }
                 }
 
-                if (consumer == null)
+                try
+                {
+                    // When a consumer is dequeued from the the "consumers" pool, it might be bound to a queue, which does not exist anymore,
+                    // eg. expired and deleted by RabittMQ server policy). In this case this calling QueueDeclarePassive will result in 
+                    // an OperationInterruptedException and "consumer.Model.IsOpen" will be set to false (this is handled later in the code by 
+                    // disposing this consumer). There is no need to handle this exception. The logic of InitializeConsumer() will make sure 
+                    // that the queue is recreated later based on assumption about how ReBus is handling null-result of ITransport.Receive().
+                    // Applied this logic to recreate the queue only if the transport is configure initially to create the queue if it doesnt exists.
+                    if (_declareInputQueue)
+                    {
+                        _consumer?.Model.QueueDeclarePassive(Address);
+                    }
+                }
+                catch
+                {
+                }
+
+                if (_consumer == null)
                 {
                     // initialization must have failed
                     return null;
                 }
 
-                if (!consumer.Model.IsOpen)
+                if (!_consumer.Model.IsOpen)
                 {
-                    consumer.Dispose();
+                    _consumer.Dispose();
+                    _consumer = null;
                     return null;
                 }
 
-                context.OnDisposed((tc) => _consumers.Enqueue(consumer));
-
-
-                if (!consumer.Queue.Dequeue(TwoSeconds, out var result))
+                BasicDeliverEventArgs result;
+                try
                 {
+                    using var timeout = new CancellationTokenSource(_maxPollingTimeout);
+                    using var readTimeout =
+                        CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken);
+                    _log.Debug("Waiting for queue read");
+                    result = await _consumer.Queue.Reader.ReadAsync(readTimeout.Token);
+                    _log.Debug("Read message from queue");
+                }
+                catch (OperationCanceledException)
+                {
+                    _log.Debug("Reading from queue was cancelled");
                     return null;
                 }
 
                 if (result == null) return null;
 
-                // ensure we use the consumer's model throughtout the handling of this message
-                context.Items[CurrentModelItemsKey] = consumer.Model;
-
                 var deliveryTag = result.DeliveryTag;
 
-                context.OnCompleted(async (tc) =>
+                context.OnCompleted(async _ =>
                 {
-                    var model = GetModel(context);
-                    model.BasicAck(deliveryTag, multiple: false);
+                    _consumer.Model.BasicAck(deliveryTag, multiple: false);
                 });
 
-                context.OnAborted((tc) =>
+                context.OnAborted(_ =>
                 {
                     // we might not be able to do this, but it doesn't matter that much if it succeeds
                     try
                     {
-                        var model = GetModel(context);
-                        model.BasicNack(deliveryTag, multiple: false, requeue: true);
+                        _consumer.Model.BasicNack(deliveryTag, multiple: false, requeue: true);
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                 });
 
                 return CreateTransportMessage(result.BasicProperties, result.Body);
@@ -405,9 +450,10 @@ namespace Rebus.RabbitMq
             }
             catch (Exception exception)
             {
-                Thread.Sleep(1000);
+                await Task.Delay(1000, cancellationToken);
 
-                throw new RebusApplicationException(exception, $"Unexpected exception thrown while trying to dequeue a message from rabbitmq, queue address: {Address}");
+                throw new RebusApplicationException(exception,
+                    $"Unexpected exception thrown while trying to dequeue a message from rabbitmq, queue address: {Address}");
             }
         }
 
@@ -428,7 +474,8 @@ namespace Rebus.RabbitMq
         /// <param name="basicProperties"></param>
         /// <param name="body"></param>
         /// <returns>the TransportMessage</returns>
-        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties,
+            ReadOnlyMemory<byte> body)
         {
             var bytes = body.ToArray();
 
@@ -487,24 +534,31 @@ namespace Rebus.RabbitMq
             return $"knuth-{Knuth.CalculateHash(base64String)}";
         }
 
+        internal IModel CreateChannel()
+        {
+            var connection = _connectionManager.GetConnection();
+
+            var channel = connection.CreateModel();
+            _callbackOptions.ConfigureEvents(channel);
+            return channel;
+        }
+
         /// <summary>
         /// Creates the consumer.
         /// </summary>
         CustomQueueingConsumer InitializeConsumer()
         {
-            IConnection connection = null;
             IModel model = null;
             try
             {
-                // receive must be done with separate model
-                connection = _connectionManager.GetConnection();
-
-                model = connection.CreateModel();
+                model = CreateChannel();
                 model.BasicQos(0, _maxMessagesToPrefetch, false);
 
                 var consumer = new CustomQueueingConsumer(model);
 
-                model.BasicConsume(Address, false, consumer);
+                const bool autoAck = false;
+                
+                model.BasicConsume(Address, autoAck, consumer);
 
                 _log.Info("Successfully initialized consumer for {queueName}", Address);
 
@@ -518,37 +572,29 @@ namespace Rebus.RabbitMq
             }
             catch (Exception)
             {
-                try
-                {
-                    model?.Dispose();
-                }
-                catch { }
-
-                try
-                {
-                    connection?.Dispose();
-                }
-                catch { }
+                model.SafeDrop();
 
                 throw;
             }
         }
 
-        async Task SendOutgoingMessages(ITransactionContext context, ConcurrentQueue<OutgoingMessage> outgoingMessages)
+        async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages)
         {
-            var model = GetModel(context);
+            var model = _writerPool.Get();
 
             var expressGroups = outgoingMessages
-                .GroupBy(o => o.IsExpress)
+                .GroupBy(o => o.TransportMessage.Headers.ContainsKey(Headers.Express))
                 .OrderByDescending(g => g.Key); //< send express messages first
 
             foreach (var expressGroup in expressGroups)
             {
-                DoSend(outgoingMessages, model, isExpress: expressGroup.Key);
+                DoSend(expressGroup, model, isExpress: expressGroup.Key);
             }
+
+            _writerPool.Return(model);
         }
 
-        void DoSend(ConcurrentQueue<OutgoingMessage> outgoingMessages, IModel model, bool isExpress)
+        void DoSend(IEnumerable<OutgoingMessage> outgoingMessages, IModel model, bool isExpress)
         {
             if (_publisherConfirmsEnabled && !isExpress)
             {
@@ -639,7 +685,9 @@ namespace Rebus.RabbitMq
                             props.ContentEncoding = charset;
                         }
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                 }
             }
 
@@ -677,7 +725,7 @@ namespace Rebus.RabbitMq
                 if (DateTimeOffset.TryParse(timestampVal, out var timestamp))
                 {
                     // Unix epoch
-                    var unixTime = (long)(timestamp.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds;
+                    var unixTime = (long) (timestamp.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds;
                     props.Timestamp = new AmqpTimestamp(unixTime);
                 }
             }
@@ -696,7 +744,8 @@ namespace Rebus.RabbitMq
 
             // must be last because the other functions on the headers might change them
             props.Headers = headers
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value != null ? (object)HeaderValueEncoding.GetBytes(kvp.Value) : null);
+                .ToDictionary(kvp => kvp.Key,
+                    kvp => kvp.Value != null ? (object) HeaderValueEncoding.GetBytes(kvp.Value) : null);
 
             return props;
         }
@@ -740,84 +789,12 @@ namespace Rebus.RabbitMq
             return true;
         }
 
-        IModel GetModel(ITransactionContext context)
-        {
-            IModel GetOpenModelFromPool()
-            {
-                while (_models.TryDequeue(out var modelFromPool))
-                {
-                    // did we find a usable model?
-                    if (modelFromPool.IsOpen)
-                    {
-                        // when yes: put it back in the pool when we're done and return it
-                        context.OnDisposed(tc => _models.Enqueue(modelFromPool));
-                        return modelFromPool;
-                    }
-
-                    // if the model is not open, we close&dispose it
-                    try
-                    {
-                        _log.Debug("Found out current model was closed... disposing it");
-                        modelFromPool.Close();
-                        modelFromPool.Dispose();
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                _log.Debug("Initializing new model");
-                var connection = _connectionManager.GetConnection();
-                var newModel = connection.CreateModel();
-
-                context.OnDisposed(tc => _models.Enqueue(newModel));
-
-                // Configure registered events on model
-                _callbackOptions?.ConfigureEvents(newModel);
-
-                return newModel;
-            }
-
-            var model = context.GetOrAdd(CurrentModelItemsKey, GetOpenModelFromPool);
-
-            return model;
-        }
-
-        class OutgoingMessage
-        {
-            public OutgoingMessage(string destinationAddress, TransportMessage transportMessage, bool isExpress)
-            {
-                DestinationAddress = destinationAddress;
-                TransportMessage = transportMessage;
-                IsExpress = isExpress;
-            }
-
-            public string DestinationAddress { get; }
-            public TransportMessage TransportMessage { get; }
-            public bool IsExpress { get; }
-        }
-
         /// <inheritdoc />
         public void Dispose()
         {
-            while (_models.TryDequeue(out var model))
-            {
-                try
-                {
-                    model.Close();
-                    model.Dispose();
-                }
-                catch { }
-            }
+            _writerPool.Dispose();
 
-            while (_consumers.TryDequeue(out var consumer))
-            {
-                try
-                {
-                    consumer.Dispose();
-                }
-                catch { }
-            }
+            _consumer?.Dispose();
 
             _connectionManager.Dispose();
         }
@@ -829,8 +806,8 @@ namespace Rebus.RabbitMq
         public async Task<string[]> GetSubscriberAddresses(string topic)
         {
             return topic.Contains('@')
-                ? new[] { topic }
-                : new[] { $"{topic}@{_topicExchangeName}" };
+                ? new[] {topic}
+                : new[] {$"{topic}@{_topicExchangeName}"};
         }
 
         /// <summary>
@@ -874,7 +851,8 @@ namespace Rebus.RabbitMq
 
             using (var model = connection.CreateModel())
             {
-                model.QueueUnbind(subscription.QueueName, subscription.Exchange, subscription.Topic, new Dictionary<string, object>());
+                model.QueueUnbind(subscription.QueueName, subscription.Exchange, subscription.Topic,
+                    new Dictionary<string, object>());
             }
 
             await _subscriptionSemaphore.WaitAsync();
@@ -899,7 +877,8 @@ namespace Rebus.RabbitMq
 
                 if (parts.Length != 2)
                 {
-                    throw new FormatException($"Could not parse the topic '{topicPossiblyQualified}' into an exchange-qualified topic - expected the format <topic>@<exchange>");
+                    throw new FormatException(
+                        $"Could not parse the topic '{topicPossiblyQualified}' into an exchange-qualified topic - expected the format <topic>@<exchange>");
                 }
 
                 return new Subscription(parts[1], parts[0], queueName);
@@ -916,7 +895,7 @@ namespace Rebus.RabbitMq
         /// <summary>
         /// Represents a subscription of a queue address to a topic.
         /// </summary>
-        class Subscription
+        record Subscription
         {
             /// <summary>
             /// Initializes a new <see cref="Subscription"/> instance.
@@ -947,40 +926,6 @@ namespace Rebus.RabbitMq
             public string QueueName { get; }
 
             public override string ToString() => $"{Topic}@{Exchange} => {QueueName}";
-
-            protected bool Equals(Subscription other)
-            {
-                return Exchange == other.Exchange && Topic == other.Topic && QueueName == other.QueueName;
-            }
-
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(null, obj)) return false;
-                if (ReferenceEquals(this, obj)) return true;
-                if (obj.GetType() != this.GetType()) return false;
-                return Equals((Subscription)obj);
-            }
-
-            public override int GetHashCode()
-            {
-                unchecked
-                {
-                    var hashCode = (Exchange != null ? Exchange.GetHashCode() : 0);
-                    hashCode = (hashCode * 397) ^ (Topic != null ? Topic.GetHashCode() : 0);
-                    hashCode = (hashCode * 397) ^ (QueueName != null ? QueueName.GetHashCode() : 0);
-                    return hashCode;
-                }
-            }
-
-            public static bool operator ==(Subscription left, Subscription right)
-            {
-                return Equals(left, right);
-            }
-
-            public static bool operator !=(Subscription left, Subscription right)
-            {
-                return !Equals(left, right);
-            }
         }
     }
 }
