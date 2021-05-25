@@ -79,7 +79,7 @@ namespace Rebus.RabbitMq
                 throw new ArgumentException(
                     $"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
 
-            _maxMessagesToPrefetch = (ushort) maxMessagesToPrefetch;
+            _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
 
             _log = rebusLoggerFactory.GetLogger<RabbitMqTransport>();
 
@@ -190,7 +190,7 @@ namespace Rebus.RabbitMq
                 throw new ArgumentException($"Cannot set 'max messages to prefetch' to {maxMessagesToPrefetch}");
             }
 
-            _maxMessagesToPrefetch = (ushort) maxMessagesToPrefetch;
+            _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
         }
 
         /// <summary>
@@ -286,7 +286,7 @@ namespace Rebus.RabbitMq
                 {
                     BindInputQueue(address, model);
                 }
-                
+
                 model.Close();
             }
             catch (Exception exception)
@@ -557,7 +557,7 @@ namespace Rebus.RabbitMq
                 var consumer = new CustomQueueingConsumer(model);
 
                 const bool autoAck = false;
-                
+
                 model.BasicConsume(Address, autoAck, consumer);
 
                 _log.Info("Successfully initialized consumer for {queueName}", Address);
@@ -581,17 +581,21 @@ namespace Rebus.RabbitMq
         async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages)
         {
             var model = _writerPool.Get();
-
-            var expressGroups = outgoingMessages
-                .GroupBy(o => o.TransportMessage.Headers.ContainsKey(Headers.Express))
-                .OrderByDescending(g => g.Key); //< send express messages first
-
-            foreach (var expressGroup in expressGroups)
+            try
             {
-                DoSend(expressGroup, model, isExpress: expressGroup.Key);
-            }
+                var expressGroups = outgoingMessages
+                    .GroupBy(o => o.TransportMessage.Headers.ContainsKey(Headers.Express))
+                    .OrderByDescending(g => g.Key); //< send express messages first
 
-            _writerPool.Return(model);
+                foreach (var expressGroup in expressGroups)
+                {
+                    DoSend(expressGroup, model, isExpress: expressGroup.Key);
+                }
+            }
+            finally
+            {
+                _writerPool.Return(model);
+            }
         }
 
         void DoSend(IEnumerable<OutgoingMessage> outgoingMessages, IModel model, bool isExpress)
@@ -725,7 +729,7 @@ namespace Rebus.RabbitMq
                 if (DateTimeOffset.TryParse(timestampVal, out var timestamp))
                 {
                     // Unix epoch
-                    var unixTime = (long) (timestamp.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds;
+                    var unixTime = (long)(timestamp.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds;
                     props.Timestamp = new AmqpTimestamp(unixTime);
                 }
             }
@@ -745,7 +749,7 @@ namespace Rebus.RabbitMq
             // must be last because the other functions on the headers might change them
             props.Headers = headers
                 .ToDictionary(kvp => kvp.Key,
-                    kvp => kvp.Value != null ? (object) HeaderValueEncoding.GetBytes(kvp.Value) : null);
+                    kvp => kvp.Value != null ? (object)HeaderValueEncoding.GetBytes(kvp.Value) : null);
 
             return props;
         }
@@ -806,8 +810,8 @@ namespace Rebus.RabbitMq
         public async Task<string[]> GetSubscriberAddresses(string topic)
         {
             return topic.Contains('@')
-                ? new[] {topic}
-                : new[] {$"{topic}@{_topicExchangeName}"};
+                ? new[] { topic }
+                : new[] { $"{topic}@{_topicExchangeName}" };
         }
 
         /// <summary>
