@@ -749,7 +749,24 @@ namespace Rebus.RabbitMq
             // must be last because the other functions on the headers might change them
             props.Headers = headers
                 .ToDictionary(kvp => kvp.Key,
-                    kvp => kvp.Value != null ? (object)HeaderValueEncoding.GetBytes(kvp.Value) : null);
+                    kvp =>
+                    {
+                        if (kvp.Value != null)
+                        {
+                            var value = kvp.Value;
+
+                            var rawBytes = HeaderValueEncoding.GetBytes(value);
+
+                            var length = Math.Min(rawBytes.Length, 2 << 15);
+
+                            var headerBytes = new byte[length];
+                            Buffer.BlockCopy(rawBytes, 0, headerBytes, 0, length);
+
+                            return (object) headerBytes;
+                        }
+                        else
+                            return null;
+                    });
 
             return props;
         }
