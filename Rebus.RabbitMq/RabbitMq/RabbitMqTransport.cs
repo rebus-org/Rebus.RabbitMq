@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -581,6 +582,7 @@ namespace Rebus.RabbitMq
         async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages)
         {
             var model = _writerPool.Get();
+            var modelDisposed = false;
             try
             {
                 var expressGroups = outgoingMessages
@@ -592,9 +594,27 @@ namespace Rebus.RabbitMq
                     DoSend(expressGroup, model, isExpress: expressGroup.Key);
                 }
             }
+            catch (Exception exception) when (exception is IOException || exception is SocketException)
+            {
+                // if this failed, we check that the connection is ok
+                if (!model.IsOpen)
+                {
+                    try
+                    {
+                        model.Dispose();
+                    }
+                    catch { }
+                }
+
+                modelDisposed = true;
+                throw;
+            }
             finally
             {
-                _writerPool.Return(model);
+                if (!modelDisposed)
+                {
+                    _writerPool.Return(model);
+                }
             }
         }
 
@@ -762,7 +782,7 @@ namespace Rebus.RabbitMq
                             var headerBytes = new byte[length];
                             Buffer.BlockCopy(rawBytes, 0, headerBytes, 0, length);
 
-                            return (object) headerBytes;
+                            return (object)headerBytes;
                         }
                         else
                             return null;
