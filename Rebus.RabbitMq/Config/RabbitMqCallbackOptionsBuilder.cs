@@ -28,7 +28,7 @@ namespace Rebus.Config
             {
                 model.BasicReturn += (sender, args) =>
                 {
-                    var transportMessage = RabbitMqTransport.CreateTransportMessage(args.BasicProperties, args.Body);
+                    var transportMessage = RabbitMqTransport.CreateTransportMessage(args.BasicProperties, args.Body.ToArray());
 
                     var eventArgs = new BasicReturnEventArgs(
                         transportMessage,
