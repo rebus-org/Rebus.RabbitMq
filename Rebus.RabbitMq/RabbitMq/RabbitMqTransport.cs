@@ -593,7 +593,7 @@ namespace Rebus.RabbitMq
                     DoSend(expressGroup, model, isExpress: expressGroup.Key);
                 }
             }
-            catch (Exception exception) when (exception is IOException || exception is SocketException)
+            catch (Exception exception) when (exception is IOException || exception is SocketException || exception is AlreadyClosedException)
             {
                 // if this failed, we check that the connection is ok
                 if (!model.IsOpen)
