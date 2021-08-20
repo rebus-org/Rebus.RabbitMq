@@ -8,6 +8,7 @@ namespace Rebus.Internals
     class CustomQueueingConsumer : DefaultBasicConsumer
     {
         public Channel<BasicDeliverEventArgs> Queue { get; } = Channel.CreateUnbounded<BasicDeliverEventArgs>();
+        
         public CustomQueueingConsumer(IModel model) : base(model)
         {
         }
@@ -22,6 +23,8 @@ namespace Rebus.Internals
                 Exchange = exchange,
                 RoutingKey = routingKey,
                 BasicProperties = properties,
+                
+                //      \/- it's important to take a copy of the message body here, because the memory area pointed to by the body reference will be mutated later
                 Body = body.ToArray()
             });
         }
