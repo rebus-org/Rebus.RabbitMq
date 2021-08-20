@@ -22,7 +22,7 @@ namespace Rebus.Internals
                 Exchange = exchange,
                 RoutingKey = routingKey,
                 BasicProperties = properties,
-                Body = body
+                Body = body.ToArray()
             });
         }
 
