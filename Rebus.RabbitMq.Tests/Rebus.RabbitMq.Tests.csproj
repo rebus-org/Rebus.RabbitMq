@@ -37,7 +37,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="rabbitmq.client" Version="6.2.1" />
+    <PackageReference Include="rabbitmq.client" Version="6.2.2" />
     <PackageReference Include="rebus" Version="6.0.0" />
     <PackageReference Include="rebus.tests.contracts" Version="6.0.0" />
   </ItemGroup>

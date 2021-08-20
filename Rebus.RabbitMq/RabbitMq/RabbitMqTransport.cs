@@ -404,11 +404,11 @@ namespace Rebus.RabbitMq
                 }
 
                 BasicDeliverEventArgs result;
+
                 try
                 {
                     using var timeout = new CancellationTokenSource(_maxPollingTimeout);
-                    using var readTimeout =
-                        CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken);
+                    using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken);
                     _log.Debug("Waiting for queue read");
                     result = await _consumer.Queue.Reader.ReadAsync(readTimeout.Token);
                     _log.Debug("Read message from queue");

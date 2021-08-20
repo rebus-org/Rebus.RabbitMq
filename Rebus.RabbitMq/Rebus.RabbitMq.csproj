@@ -41,7 +41,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="rebus" Version="6.0.0" />
-    <PackageReference Include="RabbitMq.Client" Version="6.2.1" />
+    <PackageReference Include="RabbitMq.Client" Version="6.2.2" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\artwork\little_rebusbus2_copy-500x500.png">
