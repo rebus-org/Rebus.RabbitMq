@@ -581,7 +581,6 @@ namespace Rebus.RabbitMq
         async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages)
         {
             var model = _writerPool.Get();
-            var modelDisposed = false;
             try
             {
                 var expressGroups = outgoingMessages
@@ -595,26 +594,17 @@ namespace Rebus.RabbitMq
             }
             catch (Exception exception) when (exception is IOException || exception is SocketException || exception is AlreadyClosedException)
             {
-                // if this failed, we check that the connection is ok
-                if (!model.IsOpen)
+                // if we come here, the connection is broken
+                try
                 {
-                    try
-                    {
-                        model.Dispose();
-                    }
-                    catch { }
+                    model.Dispose();
                 }
-
-                modelDisposed = true;
+                catch { }
+                
                 throw;
             }
-            finally
-            {
-                if (!modelDisposed)
-                {
-                    _writerPool.Return(model);
-                }
-            }
+
+            _writerPool.Return(model);
         }
 
         void DoSend(IEnumerable<OutgoingMessage> outgoingMessages, IModel model, bool isExpress)
