@@ -416,7 +416,7 @@ namespace Rebus.RabbitMq
                 catch (ChannelClosedException)
                 {
                     _log.Error("Channel was closed, removing");
-                    _consumer.Dispose();
+                    _consumer?.Dispose();
                     _consumer = null;
                     return null;
                 }
