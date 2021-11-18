@@ -38,6 +38,7 @@ namespace Rebus.Internals
         public void Dispose()
         {
             Model.SafeDrop();
+            Queue.Writer.TryComplete();
         }
     }
 }

@@ -413,6 +413,13 @@ namespace Rebus.RabbitMq
                     result = await _consumer.Queue.Reader.ReadAsync(readTimeout.Token);
                     _log.Debug("Read message from queue");
                 }
+                catch (ChannelClosedException)
+                {
+                    _log.Error("Channel was closed, removing");
+                    _consumer?.Dispose();
+                    _consumer = null;
+                    return null;
+                }
                 catch (OperationCanceledException)
                 {
                     _log.Debug("Reading from queue was cancelled");
