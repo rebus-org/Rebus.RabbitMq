@@ -43,10 +43,10 @@ namespace Rebus.RabbitMq
 
         static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
-        private CustomQueueingConsumer _consumer;
-        private readonly SemaphoreSlim _consumerLock = new(1, 1);
-
-        private readonly ModelObjectPool _writerPool;
+        readonly SemaphoreSlim _consumerLock = new(1, 1);
+        readonly ModelObjectPool _writerPool;
+        
+        CustomQueueingConsumer _consumer;
 
         readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new();
 
@@ -405,19 +405,22 @@ namespace Rebus.RabbitMq
 
                 BasicDeliverEventArgs result;
 
+                using var timeout = new CancellationTokenSource(_maxPollingTimeout);
+                using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken);
+
                 try
                 {
-                    using var timeout = new CancellationTokenSource(_maxPollingTimeout);
-                    using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken);
-                    _log.Debug("Waiting for queue read");
                     result = await _consumer.Queue.Reader.ReadAsync(readTimeout.Token);
-                    _log.Debug("Read message from queue");
                 }
                 catch (ChannelClosedException)
                 {
-                    _log.Error("Channel was closed, removing");
+                    _log.Warn("Closed channel detected - consumer will be disposed");
                     _consumer?.Dispose();
                     _consumer = null;
+                    return null;
+                }
+                catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+                {
                     return null;
                 }
                 catch (OperationCanceledException)

@@ -109,6 +109,9 @@
 * Detect errors in connections used for outgoing messages and throw them out if they fail
 * Add another channel re-initialization case - thanks [zlepper]
 
+## 7.3.3
+* Remove useless logging around dequeueing operation
+
 ---
 
 [bzuu]: https://github.com/bzuu
