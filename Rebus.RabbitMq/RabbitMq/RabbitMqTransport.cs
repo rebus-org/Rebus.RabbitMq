@@ -45,7 +45,7 @@ namespace Rebus.RabbitMq
 
         readonly SemaphoreSlim _consumerLock = new(1, 1);
         readonly ModelObjectPool _writerPool;
-        
+
         CustomQueueingConsumer _consumer;
 
         readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new();
@@ -65,8 +65,6 @@ namespace Rebus.RabbitMq
         string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
         string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
 
-        TimeSpan _maxPollingTimeout = TimeSpan.FromSeconds(2);
-
         RabbitMqCallbackOptionsBuilder _callbackOptions = new();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new();
         RabbitMqQueueOptionsBuilder _defaultQueueOptions = new();
@@ -77,8 +75,9 @@ namespace Rebus.RabbitMq
         {
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
             if (maxMessagesToPrefetch <= 0)
-                throw new ArgumentException(
-                    $"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
+            {
+                throw new ArgumentException($"Cannot set 'maxMessagesToPrefetch' to {maxMessagesToPrefetch} - it must be at least 1!");
+            }
 
             _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
 
@@ -115,6 +114,8 @@ namespace Rebus.RabbitMq
             _connectionManager =
                 new ConnectionManager(connectionString, inputQueueAddress, rebusLoggerFactory, customizer);
         }
+
+        public void SetBlockOnReceive(bool blockOnReceive) => _blockOnReceive = blockOnReceive;
 
         /// <summary>
         /// Stores the client properties to be handed to RabbitMQ when the connection is established
@@ -225,16 +226,6 @@ namespace Rebus.RabbitMq
         {
             _inputExchangeOptions =
                 inputExchangeOptions ?? throw new ArgumentNullException(nameof(inputExchangeOptions));
-        }
-
-
-        /// <summary>
-        /// Sets the max timeout the transport has when waiting for a new message to come in
-        /// before it starts considering doing backoffs.
-        /// </summary>
-        public void SetMaxPollingTimeout(TimeSpan timeout)
-        {
-            _maxPollingTimeout = timeout;
         }
 
         /// <summary>
@@ -350,6 +341,8 @@ namespace Rebus.RabbitMq
             }
         }
 
+        bool _blockOnReceive = true;
+
         /// <inheritdoc />
         public override async Task<TransportMessage> Receive(ITransactionContext context, CancellationToken cancellationToken)
         {
@@ -405,12 +398,27 @@ namespace Rebus.RabbitMq
 
                 BasicDeliverEventArgs result;
 
-                using var timeout = new CancellationTokenSource(_maxPollingTimeout);
-                using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken);
-
                 try
                 {
-                    result = await _consumer.Queue.Reader.ReadAsync(readTimeout.Token);
+                    if (_blockOnReceive)
+                    {
+                        result = await _consumer.Queue.Reader.ReadAsync(cancellationToken);
+                    }
+                    else
+                    {
+                        // alternative way of receiving to fit in with Rebus' contract tests
+                        using var timeout = new CancellationTokenSource(millisecondsDelay: 2000);
+                        using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken);
+                        var combinedCancellationToken = linkedTokenSource.Token;
+                        try
+                        {
+                            result = await _consumer.Queue.Reader.ReadAsync(combinedCancellationToken);
+                        }
+                        catch (OperationCanceledException) when (combinedCancellationToken.IsCancellationRequested)
+                        {
+                            return null;
+                        }
+                    }
                 }
                 catch (ChannelClosedException)
                 {
@@ -419,11 +427,7 @@ namespace Rebus.RabbitMq
                     _consumer = null;
                     return null;
                 }
-                catch (OperationCanceledException) when (timeout.IsCancellationRequested)
-                {
-                    return null;
-                }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     _log.Debug("Reading from queue was cancelled");
                     return null;
@@ -610,7 +614,7 @@ namespace Rebus.RabbitMq
                     model.Dispose();
                 }
                 catch { }
-                
+
                 throw;
             }
 

@@ -45,9 +45,10 @@ namespace Rebus.RabbitMq.Tests
         public async Task TestPerformance(int messageCount, bool express)
         {
             var receivedMessages = 0L;
-            _activator.Handle<object>(async msg => Interlocked.Increment(ref receivedMessages));
-
+            
             _bus.Advanced.Workers.SetNumberOfWorkers(0);
+            
+            _activator.Handle<object>(async _ => Interlocked.Increment(ref receivedMessages));
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -55,32 +56,15 @@ namespace Rebus.RabbitMq.Tests
 
             foreach (var batch in messages.Batch(100))
             {
-                using (var scope = new RebusTransactionScope())
+                using var scope = new RebusTransactionScope();
+                
+                foreach (var msg in batch)
                 {
-                    foreach (var msg in batch)
-                    {
-                        await _bus.SendLocal(msg);
-                    }
-
-                    await scope.CompleteAsync();
+                    await _bus.SendLocal(msg);
                 }
-            }
-            //foreach (var msg in messages)
-            //{
-            //    await _bus.SendLocal(msg);
-            //}
-            //await Task.WhenAll(Enumerable.Range(0, messageCount)
-            //    .Select(i => express ? (object)new ExpressMessage() : new NormalMessage())
-            //    .Batch(100)
-            //    .Select(async batch =>
-            //    {
-            //        using (var scope = new RebusTransactionScope())
-            //        {
-            //            foreach(var msg in batch) await _bus.SendLocal(msg);
 
-            //            await scope.CompleteAsync();
-            //        }
-            //    }));
+                await scope.CompleteAsync();
+            }
 
             var elapsedSending = stopwatch.Elapsed;
             stopwatch.Restart();

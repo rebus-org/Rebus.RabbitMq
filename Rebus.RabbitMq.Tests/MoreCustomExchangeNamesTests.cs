@@ -24,8 +24,8 @@ namespace Rebus.RabbitMq.Tests
             var firstExchangeName = TestConfig.GetName("firstExchange");
             var secondExchangeName = TestConfig.GetName("secondExchange");
 
-            var firstActivator = ConfigureBus(firstQueueName, firstExchangeName);
-            var secondActivator = ConfigureBus(secondQueueName, secondExchangeName);
+            var (firstActivator, firstStarter) = ConfigureBus(firstQueueName, firstExchangeName);
+            var (secondActivator, secondStarter) = ConfigureBus(secondQueueName, secondExchangeName);
 
             var gotMessageFromSecondExchange = new ManualResetEvent(false);
             var gotMessageFromFirstExchange = new ManualResetEvent(false);
@@ -46,6 +46,9 @@ namespace Rebus.RabbitMq.Tests
                 }
             });
 
+            firstStarter.Start();
+            secondStarter.Start();
+
             await secondActivator.Bus.Advanced.Routing.Send($"{firstQueueName}@{firstExchangeName}Direct", "from second exchange");
             await firstActivator.Bus.Advanced.Routing.Send($"{secondQueueName}@{secondExchangeName}Direct", "from first exchange");
 
@@ -53,7 +56,7 @@ namespace Rebus.RabbitMq.Tests
             gotMessageFromSecondExchange.WaitOrDie(TimeSpan.FromSeconds(5));
         }
 
-        BuiltinHandlerActivator ConfigureBus(string queueName, string exchangeName)
+        (BuiltinHandlerActivator activator, IBusStarter starter) ConfigureBus(string queueName, string exchangeName)
         {
             var activator = new BuiltinHandlerActivator();
 
@@ -70,12 +73,12 @@ namespace Rebus.RabbitMq.Tests
 
 ");
 
-            Configure.With(activator)
+            var starter = Configure.With(activator)
                 .Transport(t => t.UseRabbitMq(ConnectionString, queueName)
                     .ExchangeNames(directExchangeName, topicExchangeName))
-                .Start();
+                .Create();
 
-            return activator;
+            return (activator, starter);
         }
     }
 }

@@ -61,6 +61,7 @@ namespace Rebus.RabbitMq.Tests
             const string connectionString = RabbitMqTransportFactory.ConnectionString;
             
             var rabbitMqTransport = new RabbitMqTransport(connectionString, "inputQueue", new ConsoleLoggerFactory(false));
+            rabbitMqTransport.SetBlockOnReceive(blockOnReceive: false);
 
             var defaultTopicExchange = "defaultTopicExchange";
             rabbitMqTransport.SetTopicExchangeName(defaultTopicExchange);

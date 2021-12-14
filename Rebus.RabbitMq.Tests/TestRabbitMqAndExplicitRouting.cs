@@ -18,14 +18,14 @@ namespace Rebus.RabbitMq.Tests
     [TestFixture]
     public class TestRabbitMqAndExplicitRouting : FixtureBase
     {
-        readonly List<ConnectionEndpoint>  _clientConnectionEndpoints = new List<ConnectionEndpoint>
+        readonly List<ConnectionEndpoint> _clientConnectionEndpoints = new List<ConnectionEndpoint>
         {
             new ConnectionEndpoint
             {
                 ConnectionString =  RabbitMqTransportFactory.ConnectionString
             }
         };
-        readonly List<ConnectionEndpoint>  _serverConnectionEndpoints = new List<ConnectionEndpoint>
+        readonly List<ConnectionEndpoint> _serverConnectionEndpoints = new List<ConnectionEndpoint>
         {
             new ConnectionEndpoint
             {
@@ -52,10 +52,14 @@ namespace Rebus.RabbitMq.Tests
             var queueName = TestConfig.GetName("manual_routing");
             var gotTheMessage = new ManualResetEvent(false);
 
-            StartServer(queueName).Handle<string>(async str =>
+            var (activator, starter) = StartServer(queueName);
+            
+            activator.Handle<string>(async str =>
             {
                 gotTheMessage.Set();
             });
+
+            starter.Start();
 
             Console.WriteLine($"Sending 'hej med dig min ven!' message to '{queueName}'");
 
@@ -67,17 +71,17 @@ namespace Rebus.RabbitMq.Tests
 
             Console.WriteLine("Got it :)");
         }
-        
-        BuiltinHandlerActivator StartServer(string queueName)
+
+        (BuiltinHandlerActivator activator, IBusStarter starter) StartServer(string queueName)
         {
             var activator = Using(new BuiltinHandlerActivator());
 
-            Configure.With(activator)
+            var starter = Configure.With(activator)
                 .Logging(l => l.Console(minLevel: LogLevel.Warn))
                 .Transport(t => t.UseRabbitMq(_serverConnectionEndpoints, queueName))
-                .Start();
+                .Create();
 
-            return activator;
+            return (activator, starter);
         }
     }
 }

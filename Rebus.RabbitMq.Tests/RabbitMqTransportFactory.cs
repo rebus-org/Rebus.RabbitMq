@@ -12,8 +12,8 @@ namespace Rebus.RabbitMq.Tests
         // connection string for default docker instance
         public const string ConnectionString = "amqp://guest:guest@localhost:5672";
         
-        readonly List<IDisposable> _disposables = new List<IDisposable>();
-        readonly HashSet<string> _queuesToDelete = new HashSet<string>();
+        readonly List<IDisposable> _disposables = new();
+        readonly HashSet<string> _queuesToDelete = new();
 
         public ITransport CreateOneWayClient()
         {
@@ -147,7 +147,9 @@ namespace Rebus.RabbitMq.Tests
 
         protected virtual RabbitMqTransport CreateRabbitMqTransport(string inputQueueAddress)
         {
-            return new RabbitMqTransport(ConnectionString, inputQueueAddress, new ConsoleLoggerFactory(false));
+            var rabbitMqTransport = new RabbitMqTransport(ConnectionString, inputQueueAddress, new ConsoleLoggerFactory(false));
+            rabbitMqTransport.SetBlockOnReceive(blockOnReceive: false);
+            return rabbitMqTransport;
         }
     }
 }

@@ -214,23 +214,6 @@ namespace Rebus.Config
         }
 
         /// <summary>
-        /// Sets the max timeout the transport has when waiting for a new message to come in
-        /// before it starts considering doing backoffs. Defaults to 2 seconds if nothing
-        /// is specified.
-        /// </summary>
-        public RabbitMqOptionsBuilder SetMaxPollingTimeout(TimeSpan timeout)
-        {
-            if (timeout.TotalMilliseconds < 1)
-            {
-                throw new ArgumentOutOfRangeException(nameof(timeout), timeout,
-                    "MaxPollingTimeout cannot be less than 1ms");
-            }
-            
-            MaxPollingTimeout = timeout;
-            return this;
-        }
-
-        /// <summary>
         /// Sets the max amount of writers that are available kept around for writing messages back
         /// to rabbitmq. Reducing this number uses less resource, while increasing it might increase
         /// performance on high-rate systems. We would recommend at least as many as you have
@@ -268,8 +251,6 @@ namespace Rebus.Config
 
         internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new RabbitMqExchangeOptionsBuilder();
         
-        internal TimeSpan MaxPollingTimeout { get; private set; } = TimeSpan.FromSeconds(2);
-
         internal int MaxWriterPoolSize { get; private set; } = 10;
 
         internal Func<IConnectionFactory, IConnectionFactory> ConnectionFactoryCustomizer;
@@ -326,7 +307,6 @@ namespace Rebus.Config
             transport.SetInputQueueOptions(InputQueueOptionsBuilder);
             transport.SetDefaultQueueOptions(DefaultQueueOptionsBuilder);
             transport.SetExchangeOptions(ExchangeOptions);
-            transport.SetMaxPollingTimeout(MaxPollingTimeout);
             transport.SetMaxWriterPoolSize(MaxWriterPoolSize);
         }
 

@@ -4,5 +4,7 @@ using Rebus.Tests.Contracts.Transports;
 namespace Rebus.RabbitMq.Tests
 {
     [TestFixture]
-    public class RabbitMqPublisherConfirmsTransportBasicSendReceive : BasicSendReceive<RabbitMqTransportFactoryWithPublisherConfirms> { }
+    public class RabbitMqPublisherConfirmsTransportBasicSendReceive : BasicSendReceive<RabbitMqTransportFactoryWithPublisherConfirms>
+    {
+    }
 }

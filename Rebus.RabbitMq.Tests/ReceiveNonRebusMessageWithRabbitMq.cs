@@ -24,6 +24,7 @@ namespace Rebus.RabbitMq.Tests
         const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
         readonly string _inputQueueName = TestConfig.GetName("custom-msg");
         BuiltinHandlerActivator _activator;
+        IBusStarter _starter;
 
         protected override void SetUp()
         {
@@ -31,11 +32,11 @@ namespace Rebus.RabbitMq.Tests
 
             _activator = Using(new BuiltinHandlerActivator());
 
-            Configure.With(_activator)
+            _starter = Configure.With(_activator)
                 .Logging(l => l.Console(LogLevel.Warn))
                 .Transport(t => t.UseRabbitMq(ConnectionString, _inputQueueName))
                 .Serialization(s => s.Decorate(c => new Utf8Fallback(c.Get<ISerializer>())))
-                .Start();
+                .Create();
         }
 
         [Test]
@@ -51,6 +52,8 @@ namespace Rebus.RabbitMq.Tests
                 }
                 receivedCustomStringMessage.Set();
             });
+
+            _starter.Start();
 
             using (var connection = new ConnectionFactory { Uri = new Uri(ConnectionString) }.CreateConnection())
             {
