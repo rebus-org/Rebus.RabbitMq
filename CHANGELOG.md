@@ -112,6 +112,9 @@
 ## 7.3.3
 * Remove useless logging around dequeueing operation
 
+## 7.3.4
+* Block on empty queue instead of returning NULL after a few seconds.
+
 ---
 
 [bzuu]: https://github.com/bzuu
