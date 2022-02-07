@@ -12,7 +12,7 @@ public class AutomaticallyCreatesErrorQueue : FixtureBase
 {
     [TestCase("error")]
     [TestCase("error_customized")]
-    public async Task WithDefaultName(string errorQueueName)
+    public void WhatTheFixtureSays(string errorQueueName)
     {
         var inputQueueName = TestConfig.GetName("input");
 
@@ -30,6 +30,11 @@ public class AutomaticallyCreatesErrorQueue : FixtureBase
             .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, inputQueueName))
             .Options(o =>
             {
+                // only works with locally running Fleet Manager, so it's commented out here
+                //o.EnableFleetManager("https://localhost:44342/api",
+                //    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJhaWQiOiJ0LXRlYW0xLTEiLCJ1cG4iOiJ1c2VyMSIsIndoZW4iOiIxNjQ0MjYxMDg0Nzc4In0.-_f9REjOGM8fmZi5MyUncGoEw7XPTIVTxNCq1PDWWt5aWE5zwLAjY6WAbtU6LxUqgahmh1i-h0u9qW0FQtDv-w",
+                //    new(deadLetteringStrategy: DeadLetteringStrategy.StoreInFleetManagerAndErrorQueue));
+
                 // pretend we didn't customize it
                 if (errorQueueName == "error") return;
 
