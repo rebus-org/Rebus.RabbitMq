@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
 using Rebus.Retry.Simple;
@@ -12,6 +11,7 @@ public class AutomaticallyCreatesErrorQueue : FixtureBase
 {
     [TestCase("error")]
     [TestCase("error_customized")]
+    [Description("Tried without success to reproduce an error where error queues would, for some reason, not be there after starting")]
     public void WhatTheFixtureSays(string errorQueueName)
     {
         var inputQueueName = TestConfig.GetName("input");
