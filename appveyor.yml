@@ -14,7 +14,7 @@ before_build:
   - appveyor-retry dotnet restore -v Minimal
 
 build_script:
-  - dotnet build -c Release 
+  - dotnet build -c Release --no-restore
 
 test_script:
-  - dotnet test
+  - dotnet test --no-restore
