@@ -11,57 +11,56 @@ using Rebus.Tests.Contracts.Utilities;
 // ReSharper disable ArgumentsStyleAnonymousFunction
 #pragma warning disable 1998
 
-namespace Rebus.RabbitMq.Tests.Bugs
+namespace Rebus.RabbitMq.Tests.Bugs;
+
+[TestFixture]
+[Description("Added after bug report. Issue could not be reproduced though")]
+public class CanSendMessageFromRebusHandler : FixtureBase
 {
-    [TestFixture]
-    [Description("Added after bug report. Issue could not be reproduced though")]
-    public class CanSendMessageFromRebusHandler : FixtureBase
+    [Test]
+    //[Repeat(100)]
+    public async Task ItWorksAsExpected()
     {
-        [Test]
-        //[Repeat(100)]
-        public async Task ItWorksAsExpected()
-        {
-            var sender = StartBus(
-                queueName: "sender",
-                routing: r => r.Map<TheMessage>("middleman")
-            );
+        var sender = StartBus(
+            queueName: "sender",
+            routing: r => r.Map<TheMessage>("middleman")
+        );
 
-            StartBus(
-                queueName: "middleman",
-                handlers: a => a.Handle<TheMessage>(async (bus, msg) => await bus.Send(msg)),
-                routing: r => r.Map<TheMessage>("receiver")
-            );
+        StartBus(
+            queueName: "middleman",
+            handlers: a => a.Handle<TheMessage>(async (bus, msg) => await bus.Send(msg)),
+            routing: r => r.Map<TheMessage>("receiver")
+        );
 
-            var counter = Using(new SharedCounter(initialValue: 10));
+        var counter = Using(new SharedCounter(initialValue: 10));
 
-            StartBus("receiver", a => a.Handle<TheMessage>(async _ => counter.Decrement()));
+        StartBus("receiver", a => a.Handle<TheMessage>(async _ => counter.Decrement()));
 
-            await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => sender.Bus.Send(new TheMessage())));
+        await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => sender.Bus.Send(new TheMessage())));
 
-            counter.WaitForResetEvent();
-        }
+        counter.WaitForResetEvent();
+    }
 
-        class TheMessage { }
+    class TheMessage { }
 
-        BuiltinHandlerActivator StartBus(string queueName, Action<BuiltinHandlerActivator> handlers = null, Action<TypeBasedRouterConfigurationExtensions.TypeBasedRouterConfigurationBuilder> routing = null)
-        {
-            Using(new QueueDeleter(queueName));
+    BuiltinHandlerActivator StartBus(string queueName, Action<BuiltinHandlerActivator> handlers = null, Action<TypeBasedRouterConfigurationExtensions.TypeBasedRouterConfigurationBuilder> routing = null)
+    {
+        Using(new QueueDeleter(queueName));
 
-            var activator = Using(new BuiltinHandlerActivator());
+        var activator = Using(new BuiltinHandlerActivator());
 
-            handlers?.Invoke(activator);
+        handlers?.Invoke(activator);
 
-            Configure.With(activator)
-                .Logging(l => l.Console(minLevel: LogLevel.Warn))
-                .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName))
-                .Routing(r =>
-                {
-                    var builder = r.TypeBased();
-                    routing?.Invoke(builder);
-                })
-                .Start();
+        Configure.With(activator)
+            .Logging(l => l.Console(minLevel: LogLevel.Warn))
+            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName))
+            .Routing(r =>
+            {
+                var builder = r.TypeBased();
+                routing?.Invoke(builder);
+            })
+            .Start();
 
-            return activator;
-        }
+        return activator;
     }
 }

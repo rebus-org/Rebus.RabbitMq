@@ -10,44 +10,43 @@ using Rebus.Tests.Contracts.Extensions;
 // ReSharper disable ArgumentsStyleLiteral
 #pragma warning disable 1998
 
-namespace Rebus.RabbitMq.Tests
-{
-    [TestFixture]
-    [Explicit(@"Requires that the 'quorum_queue' feature flag has been enabled
+namespace Rebus.RabbitMq.Tests;
+
+[TestFixture]
+[Explicit(@"Requires that the 'quorum_queue' feature flag has been enabled
 
     rabbitmqctl.bat enable_feature_flag quorum_queue
 
 ")]
-    public class WorksWithQuorumQueue : FixtureBase
+public class WorksWithQuorumQueue : FixtureBase
+{
+    [Test]
+    public async Task CanDoAllThisWithQuorumQueue()
     {
-        [Test]
-        public async Task CanDoAllThisWithQuorumQueue()
-        {
-            const string connectionString = RabbitMqTransportFactory.ConnectionString;
+        const string connectionString = RabbitMqTransportFactory.ConnectionString;
 
-            var queueName = TestConfig.GetName("quorum-test");
+        var queueName = TestConfig.GetName("quorum-test");
 
-            Using(new QueueDeleter(queueName));
+        Using(new QueueDeleter(queueName));
 
-            var activator = Using(new BuiltinHandlerActivator());
-            var gotTheString = new ManualResetEvent(initialState: false);
+        var activator = Using(new BuiltinHandlerActivator());
+        var gotTheString = new ManualResetEvent(initialState: false);
 
-            activator.Handle<string>(async str => gotTheString.Set());
+        activator.Handle<string>(async str => gotTheString.Set());
 
-            Configure.With(activator)
-                .Transport(t =>
-                {
-                    t.UseRabbitMq(connectionString, queueName)
-                        .InputQueueOptions(q => q.AddArgument("x-queue-type", "quorum"));
-                })
-                .Start();
+        Configure.With(activator)
+            .Transport(t =>
+            {
+                t.UseRabbitMq(connectionString, queueName)
+                    .InputQueueOptions(q => q.AddArgument("x-queue-type", "quorum"));
+            })
+            .Start();
 
-            var bus = activator.Bus;
+        var bus = activator.Bus;
 
-            await bus.SendLocal("HEJ HEJ 😘");
+        await bus.SendLocal("HEJ HEJ 😘");
 
-            gotTheString.WaitOrDie(timeout: TimeSpan.FromSeconds(2));
-        }
-
+        gotTheString.WaitOrDie(timeout: TimeSpan.FromSeconds(2));
     }
+
 }

@@ -1,54 +1,50 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using RabbitMQ.Client;
-using Rebus.RabbitMq;
 
-namespace Rebus.Internals
+namespace Rebus.Internals;
+
+/// <summary>
+/// A simple object pool implementation, because the default (Microsoft.Extensions.ObjectPool)
+/// doesn't allow proper dispose methods
+/// </summary>
+class ModelObjectPool : IDisposable
 {
-    /// <summary>
-    /// A simple object pool implementation, because the default (Microsoft.Extensions.ObjectPool)
-    /// doesn't allow proper dispose methods
-    /// </summary>
-    internal class ModelObjectPool : IDisposable
+    readonly ConcurrentBag<IModel> _availableObjects = new();
+    readonly WriterModelPoolPolicy _policy;
+
+    int _maxEntries;
+
+    public ModelObjectPool(WriterModelPoolPolicy policy, int maxEntries)
     {
-        private readonly WriterModelPoolPolicy _policy;
-        internal int MaxEntries;
-        private readonly ConcurrentBag<IModel> _availableObjects = new();
+        _policy = policy;
+        _maxEntries = maxEntries;
+    }
 
-        internal ModelObjectPool(WriterModelPoolPolicy policy, int maxEntries)
+    public void SetMaxEntries(int maxEntries)
+    {
+        _maxEntries = maxEntries;
+    }
+
+    public IModel Get() => _availableObjects.TryTake(out var model) ? model : _policy.Create();
+
+    public void Return(IModel model)
+    {
+        if (_availableObjects.Count >= _maxEntries)
         {
-            _policy = policy;
-            MaxEntries = maxEntries;
+            model.SafeDrop();
         }
-
-        internal IModel Get()
+        else
         {
-            if (_availableObjects.TryTake(out var model))
-            {
-                return model;
-            }
-
-            return _policy.Create();
+            _availableObjects.Add(model);
         }
+    }
 
-        internal void Return(IModel model)
+    public void Dispose()
+    {
+        foreach (var model in _availableObjects)
         {
-            if (_availableObjects.Count >= MaxEntries)
-            {
-                model.SafeDrop();
-            }
-            else
-            {
-                _availableObjects.Add(model);
-            }
-        }
-
-        public void Dispose()
-        {
-            foreach (var model in _availableObjects)
-            {
-                model.SafeDrop();
-            }
+            model.SafeDrop();
         }
     }
 }

@@ -10,60 +10,60 @@ using Rebus.Tests.Contracts;
 using Rebus.Transport;
 #pragma warning disable 1998
 
-namespace Rebus.RabbitMq.Tests
+namespace Rebus.RabbitMq.Tests;
+
+[TestFixture]
+public class RabbitMqPublisherConfirmsPublishPerformanceTest : FixtureBase
 {
-    [TestFixture]
-    public class RabbitMqPublisherConfirmsPublishPerformanceTest : FixtureBase
+    const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
+
+    /// <summary>
+    /// Without confirms: 15508.5 msg/s
+    ///
+    /// With confirms without transaction
+    ///     - initial:                      645 msg/s
+    ///     - move call to ConfirmSelect:   815.0 msg/s
+    /// 
+    /// (The following was done on a different machine, not directly comparable to other results)
+    /// With confirms and in transaction
+    ///     - initial                       118 msg/s
+    ///     - moved outside of send loop:   4315 msg/s 
+    /// 
+    /// </summary>
+    [TestCase(true, 10000)]
+    [TestCase(false, 10000)]
+    public async Task PublishBunchOfMessages(bool enablePublisherConfirms, int count)
     {
-        const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
+        var queueName = TestConfig.GetName("pub-conf");
 
-        /// <summary>
-        /// Without confirms: 15508.5 msg/s
-        ///
-        /// With confirms without transaction
-        ///     - initial:                      645 msg/s
-        ///     - move call to ConfirmSelect:   815.0 msg/s
-        /// 
-        /// (The following was done on a different machine, not directly comparable to other results)
-        /// With confirms and in transaction
-        ///     - initial                       118 msg/s
-        ///     - moved outside of send loop:   4315 msg/s 
-        /// 
-        /// </summary>
-        [TestCase(true, 10000)]
-        [TestCase(false, 10000)]
-        public async Task PublishBunchOfMessages(bool enablePublisherConfirms, int count)
+        Using(new QueueDeleter(queueName));
+
+        var activator = new BuiltinHandlerActivator();
+
+        Using(activator);
+
+        activator.Handle<string>(async _ => { });
+
+        Configure.With(activator)
+            .Logging(l => l.Console(LogLevel.Info))
+            .Transport(t => t.UseRabbitMq(ConnectionString, queueName)
+                .SetPublisherConfirms(enabled: enablePublisherConfirms))
+            .Start();
+
+        // In transaction
+        using(var scope = new RebusTransactionScope())
         {
-            var queueName = TestConfig.GetName("pub-conf");
+            var stopwatch = Stopwatch.StartNew();
 
-            Using(new QueueDeleter(queueName));
+            await Task.WhenAll(Enumerable.Range(0, count)
+                .Select(n => $"THIS IS MESSAGE NUMBER {n} OUT OF {count}")
+                .Select(str => activator.Bus.SendLocal(str)));
 
-            var activator = new BuiltinHandlerActivator();
+            await scope.CompleteAsync();
 
-            Using(activator);
+            var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
 
-            activator.Handle<string>(async str => { });
-
-            Configure.With(activator)
-                .Logging(l => l.Console(LogLevel.Info))
-                .Transport(t => t.UseRabbitMq(ConnectionString, queueName)
-                    .SetPublisherConfirms(enabled: enablePublisherConfirms))
-                .Start();
-
-            // In transaction
-            using(var scope = new RebusTransactionScope())
-            {
-                var stopwatch = Stopwatch.StartNew();
-
-                await Task.WhenAll(Enumerable.Range(0, count)
-                    .Select(n => $"THIS IS MESSAGE NUMBER {n} OUT OF {count}")
-                    .Select(str => activator.Bus.SendLocal(str)));
-
-                await scope.CompleteAsync();
-
-                var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
-
-                Console.WriteLine($@"Publishing 
+            Console.WriteLine($@"Publishing 
 
                     {count} 
 
@@ -72,18 +72,18 @@ namespace Rebus.RabbitMq.Tests
                     {elapsedSeconds:0.0} s
 
                 - that's {count/elapsedSeconds:0.0} msg/s");
-             }
+        }
 
-            // Without transaction
-            var stopwatch2 = Stopwatch.StartNew();
+        // Without transaction
+        var stopwatch2 = Stopwatch.StartNew();
 
-            await Task.WhenAll(Enumerable.Range(0, count)
-                .Select(n => $"THIS IS MESSAGE NUMBER {n} OUT OF {count}")
-                .Select(str => activator.Bus.SendLocal(str)));
+        await Task.WhenAll(Enumerable.Range(0, count)
+            .Select(n => $"THIS IS MESSAGE NUMBER {n} OUT OF {count}")
+            .Select(str => activator.Bus.SendLocal(str)));
 
-            var elapsedSeconds2 = stopwatch2.Elapsed.TotalSeconds;         
+        var elapsedSeconds2 = stopwatch2.Elapsed.TotalSeconds;         
 
-            Console.WriteLine($@"Publishing 
+        Console.WriteLine($@"Publishing 
 
                 {count} 
 
@@ -92,6 +92,5 @@ namespace Rebus.RabbitMq.Tests
                 {elapsedSeconds2:0.0} s
 
             - that's {count/elapsedSeconds2:0.0} msg/s");
-        }
     }
 }

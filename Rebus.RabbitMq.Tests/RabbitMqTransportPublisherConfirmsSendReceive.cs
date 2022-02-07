@@ -1,10 +1,9 @@
 ﻿using NUnit.Framework;
 using Rebus.Tests.Contracts.Transports;
 
-namespace Rebus.RabbitMq.Tests
+namespace Rebus.RabbitMq.Tests;
+
+[TestFixture]
+public class RabbitMqTransportPublisherConfirmsSendReceive : BasicSendReceive<RabbitMqTransportFactoryWithPublisherConfirms>
 {
-    [TestFixture]
-    public class RabbitMqTransportPublisherConfirmsSendReceive : BasicSendReceive<RabbitMqTransportFactoryWithPublisherConfirms>
-    {
-    }
 }

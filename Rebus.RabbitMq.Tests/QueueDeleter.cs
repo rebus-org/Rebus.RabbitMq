@@ -1,25 +1,25 @@
 ﻿using System;
+// ReSharper disable EmptyGeneralCatchClause
 
-namespace Rebus.RabbitMq.Tests
+namespace Rebus.RabbitMq.Tests;
+
+class QueueDeleter : IDisposable
 {
-    class QueueDeleter : IDisposable
+    readonly string _queueName;
+
+    public QueueDeleter(string queueName)
     {
-        readonly string _queueName;
+        _queueName = queueName;
+    }
 
-        public QueueDeleter(string queueName)
+    public void Dispose()
+    {
+        try
         {
-            _queueName = queueName;
-        }
+            RabbitMqTransportFactory.DeleteQueue(_queueName);
 
-        public void Dispose()
-        {
-            try
-            {
-                RabbitMqTransportFactory.DeleteQueue(_queueName);
-
-                Console.WriteLine($"Queue '{_queueName}' deleted");
-            }
-            catch { }
+            Console.WriteLine($"Queue '{_queueName}' deleted");
         }
+        catch { }
     }
 }

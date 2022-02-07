@@ -10,45 +10,44 @@ using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 #pragma warning disable 1998
 
-namespace Rebus.RabbitMq.Tests
+namespace Rebus.RabbitMq.Tests;
+
+[TestFixture]
+public class RabbitMqCorrelationId : FixtureBase
 {
-    [TestFixture]
-    public class RabbitMqCorrelationId : FixtureBase
+    [Test]
+    public async Task IncomingMessageHasRabbitMqCorrelationId()
     {
-        [Test]
-        public async Task IncomingMessageHasRabbitMqCorrelationId()
+        var activator = Using(new BuiltinHandlerActivator());
+
+        var messageHandled = new ManualResetEvent(initialState: false);
+        var receivedCorrelationId = "";
+
+        activator.Handle<string>(async (_, context, _) =>
         {
-            var activator = Using(new BuiltinHandlerActivator());
-
-            var messageHandled = new ManualResetEvent(initialState: false);
-            var receivedCorrelationId = "";
-
-            activator.Handle<string>(async (_, context, __) =>
+            if (context.Headers.TryGetValue(RabbitMqHeaders.CorrelationId, out var correlationId))
             {
-                if (context.Headers.TryGetValue(RabbitMqHeaders.CorrelationId, out var correlationId))
-                {
-                    receivedCorrelationId = correlationId;
-                }
+                receivedCorrelationId = correlationId;
+            }
 
-                messageHandled.Set();
-            });
+            messageHandled.Set();
+        });
 
-            var bus = Configure.With(activator)
-                .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, TestConfig.GetName("corr-id")))
-                .Start();
+        var bus = Configure.With(activator)
+            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, TestConfig.GetName("corr-id")))
+            .Start();
 
-            var expectedCorrelationId = Guid.NewGuid().ToString();
-            var headers = new Dictionary<string, string>
-            {
-                [RabbitMqHeaders.CorrelationId] = expectedCorrelationId,
-                [Headers.CorrelationId] = Guid.NewGuid().ToString()
-            };
+        var expectedCorrelationId = Guid.NewGuid().ToString();
+        var headers = new Dictionary<string, string>
+        {
+            [RabbitMqHeaders.CorrelationId] = expectedCorrelationId,
+            [Headers.CorrelationId] = Guid.NewGuid().ToString()
+        };
 
-            await bus.SendLocal("hej med dig 🍟", headers);
+        await bus.SendLocal("hej med dig 🍟", headers);
 
-            messageHandled.WaitOrDie(timeout: TimeSpan.FromSeconds(3));
+        messageHandled.WaitOrDie(timeout: TimeSpan.FromSeconds(3));
 
-            Assert.That(receivedCorrelationId, Is.EqualTo(expectedCorrelationId));
-        }
+        Assert.That(receivedCorrelationId, Is.EqualTo(expectedCorrelationId));
     }
 }

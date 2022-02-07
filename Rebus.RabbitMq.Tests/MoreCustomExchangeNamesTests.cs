@@ -8,64 +8,64 @@ using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
 #pragma warning disable 1998
 
-namespace Rebus.RabbitMq.Tests
+namespace Rebus.RabbitMq.Tests;
+
+[TestFixture]
+public class MoreCustomExchangeNamesTests : FixtureBase
 {
-    [TestFixture]
-    public class MoreCustomExchangeNamesTests : FixtureBase
+    protected internal const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
+
+    [Test]
+    public async Task CanSendToAlternativeExchange()
     {
-        protected internal const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
+        var firstQueueName = TestConfig.GetName("firstQueue");
+        var secondQueueName = TestConfig.GetName("secondQueue");
 
-        [Test]
-        public async Task CanSendToAlternativeExchange()
+        var firstExchangeName = TestConfig.GetName("firstExchange");
+        var secondExchangeName = TestConfig.GetName("secondExchange");
+
+        var (firstActivator, firstStarter) = ConfigureBus(firstQueueName, firstExchangeName);
+        var (secondActivator, secondStarter) = ConfigureBus(secondQueueName, secondExchangeName);
+
+        var gotMessageFromSecondExchange = new ManualResetEvent(false);
+        var gotMessageFromFirstExchange = new ManualResetEvent(false);
+
+        firstActivator.Handle<string>(async str =>
         {
-            var firstQueueName = TestConfig.GetName("firstQueue");
-            var secondQueueName = TestConfig.GetName("secondQueue");
-
-            var firstExchangeName = TestConfig.GetName("firstExchange");
-            var secondExchangeName = TestConfig.GetName("secondExchange");
-
-            var (firstActivator, firstStarter) = ConfigureBus(firstQueueName, firstExchangeName);
-            var (secondActivator, secondStarter) = ConfigureBus(secondQueueName, secondExchangeName);
-
-            var gotMessageFromSecondExchange = new ManualResetEvent(false);
-            var gotMessageFromFirstExchange = new ManualResetEvent(false);
-
-            firstActivator.Handle<string>(async str =>
+            if (str == "from second exchange")
             {
-                if (str == "from second exchange")
-                {
-                    gotMessageFromSecondExchange.Set();
-                }
-            });
+                gotMessageFromSecondExchange.Set();
+            }
+        });
 
-            secondActivator.Handle<string>(async str =>
-            {
-                if (str == "from first exchange")
-                {
-                    gotMessageFromFirstExchange.Set();
-                }
-            });
-
-            firstStarter.Start();
-            secondStarter.Start();
-
-            await secondActivator.Bus.Advanced.Routing.Send($"{firstQueueName}@{firstExchangeName}Direct", "from second exchange");
-            await firstActivator.Bus.Advanced.Routing.Send($"{secondQueueName}@{secondExchangeName}Direct", "from first exchange");
-
-            gotMessageFromFirstExchange.WaitOrDie(TimeSpan.FromSeconds(5));
-            gotMessageFromSecondExchange.WaitOrDie(TimeSpan.FromSeconds(5));
-        }
-
-        (BuiltinHandlerActivator activator, IBusStarter starter) ConfigureBus(string queueName, string exchangeName)
+        secondActivator.Handle<string>(async str =>
         {
-            var activator = new BuiltinHandlerActivator();
+            if (str == "from first exchange")
+            {
+                gotMessageFromFirstExchange.Set();
+            }
+        });
 
-            Using(activator);
+        firstStarter.Start();
+        secondStarter.Start();
 
-            var directExchangeName = $"{exchangeName}Direct";
-            var topicExchangeName = $"{exchangeName}Topic";
+        await secondActivator.Bus.Advanced.Routing.Send($"{firstQueueName}@{firstExchangeName}Direct", "from second exchange");
+        await firstActivator.Bus.Advanced.Routing.Send($"{secondQueueName}@{secondExchangeName}Direct", "from first exchange");
 
-            Console.WriteLine($@"Configuring bus with
+        gotMessageFromFirstExchange.WaitOrDie(TimeSpan.FromSeconds(5));
+        gotMessageFromSecondExchange.WaitOrDie(TimeSpan.FromSeconds(5));
+    }
+
+    (BuiltinHandlerActivator activator, IBusStarter starter) ConfigureBus(string queueName, string exchangeName)
+    {
+        var activator = new BuiltinHandlerActivator();
+
+        Using(activator);
+
+        var directExchangeName = $"{exchangeName}Direct";
+        var topicExchangeName = $"{exchangeName}Topic";
+
+        Console.WriteLine($@"Configuring bus with
 
      queue: '{queueName}'
     direct: '{directExchangeName}'
@@ -73,12 +73,11 @@ namespace Rebus.RabbitMq.Tests
 
 ");
 
-            var starter = Configure.With(activator)
-                .Transport(t => t.UseRabbitMq(ConnectionString, queueName)
-                    .ExchangeNames(directExchangeName, topicExchangeName))
-                .Create();
+        var starter = Configure.With(activator)
+            .Transport(t => t.UseRabbitMq(ConnectionString, queueName)
+                .ExchangeNames(directExchangeName, topicExchangeName))
+            .Create();
 
-            return (activator, starter);
-        }
+        return (activator, starter);
     }
 }

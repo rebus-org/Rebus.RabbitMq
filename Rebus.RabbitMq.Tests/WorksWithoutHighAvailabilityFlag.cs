@@ -11,39 +11,38 @@ using Rebus.Tests.Contracts.Extensions;
 // ReSharper disable ArgumentsStyleLiteral
 #pragma warning disable 1998
 
-namespace Rebus.RabbitMq.Tests
+namespace Rebus.RabbitMq.Tests;
+
+[TestFixture]
+public class WorksWithoutHighAvailabilityFlag : FixtureBase
 {
-    [TestFixture]
-    public class WorksWithoutHighAvailabilityFlag : FixtureBase
+    [Test]
+    public async Task CanWorkWithEmptyArguments()
     {
-        [Test]
-        public async Task CanWorkWithEmptyArguments()
-        {
-            const string connectionString = RabbitMqTransportFactory.ConnectionString;
+        const string connectionString = RabbitMqTransportFactory.ConnectionString;
 
-            var queueName = TestConfig.GetName("empty-args-test");
+        var queueName = TestConfig.GetName("empty-args-test");
 
-            Using(new QueueDeleter(queueName));
+        Using(new QueueDeleter(queueName));
 
-            var activator = Using(new BuiltinHandlerActivator());
-            var gotTheString = new ManualResetEvent(initialState: false);
+        var activator = Using(new BuiltinHandlerActivator());
+        var gotTheString = new ManualResetEvent(initialState: false);
 
-            activator.Handle<string>(async str => gotTheString.Set());
+        activator.Handle<string>(async str => gotTheString.Set());
 
-            Configure.With(activator)
-                .Transport(t =>
-                {
-                    t.UseRabbitMq(connectionString, queueName)
-                        .InputQueueOptions(q => q.SetArguments(new Dictionary<string, object>()));
-                })
-                .Start();
+        Configure.With(activator)
+            .Transport(t =>
+            {
+                t.UseRabbitMq(connectionString, queueName)
+                    .InputQueueOptions(q => q.SetArguments(new Dictionary<string, object>()));
+            })
+            .Start();
 
-            var bus = activator.Bus;
+        var bus = activator.Bus;
 
-            await bus.SendLocal("HEJ HEJ 😘");
+        await bus.SendLocal("HEJ HEJ 😘");
 
-            gotTheString.WaitOrDie(timeout: TimeSpan.FromSeconds(2));
-        }
-
+        gotTheString.WaitOrDie(timeout: TimeSpan.FromSeconds(2));
     }
+
 }
