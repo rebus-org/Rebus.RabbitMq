@@ -18,6 +18,6 @@
 		</PackageReference>
 		<PackageReference Include="rabbitmq.client" Version="6.2.2" />
 		<PackageReference Include="rebus" Version="6.6.1" />
-		<PackageReference Include="rebus.tests.contracts" Version="6.4.0" />
+		<PackageReference Include="rebus.tests.contracts" Version="6.5.0" />
 	</ItemGroup>
 </Project>
