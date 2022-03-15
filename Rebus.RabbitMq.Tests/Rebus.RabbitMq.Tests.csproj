@@ -7,6 +7,8 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
+	</ItemGroup>
+	<ItemGroup>
 		<PackageReference Include="microsoft.net.test.sdk" Version="17.0.0" />
 		<PackageReference Include="nunit" Version="3.13.2" />
 		<PackageReference Include="NUnit3TestAdapter" Version="4.2.1">
@@ -19,6 +21,6 @@
 		<PackageReference Include="rebus.tests.contracts" Version="6.5.0" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Internals\" />
+		<Folder Include="Internals\" />
 	</ItemGroup>
 </Project>
