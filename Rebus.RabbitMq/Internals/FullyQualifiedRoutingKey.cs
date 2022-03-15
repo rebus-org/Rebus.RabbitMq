@@ -23,7 +23,7 @@ record FullyQualifiedRoutingKey
         }
     }
 
-    public override string ToString() => $"{RoutingKey}@{ExchangeName}";
+    public override string ToString() => ExchangeName != null ? $"{RoutingKey}@{ExchangeName}" : RoutingKey;
 
     public string ExchangeName { get; }
     public string RoutingKey { get; }

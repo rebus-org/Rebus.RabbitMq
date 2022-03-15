@@ -20,6 +20,7 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
+// ReSharper disable AccessToDisposedClosure
 
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
@@ -664,7 +665,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         if (_publisherConfirmsEnabled && !isExpress)
         {
-            model.WaitForConfirmsOrDie();
+            var timeout = TimeSpan.FromSeconds(60);
+
+            model.WaitForConfirmsOrDie(timeout);
         }
     }
 
