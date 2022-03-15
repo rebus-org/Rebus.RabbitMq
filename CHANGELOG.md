@@ -115,6 +115,9 @@
 ## 7.3.4
 * Block on empty queue instead of returning NULL after a few seconds.
 
+## 7.3.5
+* Support basic URL-encoded credentials in URI
+
 ---
 
 [bzuu]: https://github.com/bzuu

@@ -68,13 +68,10 @@ class ConnectionManager : IDisposable
             ClientProperties = CreateClientProperties(inputQueueAddress)
         };
 
-        if (!string.IsNullOrWhiteSpace(uri.UserInfo))
+        if (uri.TryGetCredentials(out var credentials))
         {
-            var parts = uri.UserInfo.Split(':');
-            var username = parts.First();
-            var password = parts.LastOrDefault() ?? "";
-            _connectionFactory.UserName = username;
-            _connectionFactory.Password = password;
+            _connectionFactory.UserName = credentials.UserName;
+            _connectionFactory.Password = credentials.Password;
         }
 
         if (customizer != null)
@@ -136,13 +133,10 @@ class ConnectionManager : IDisposable
             ClientProperties = CreateClientProperties(inputQueueAddress)
         };
 
-        if (!string.IsNullOrWhiteSpace(uri.UserInfo))
+        if (uri.TryGetCredentials(out var credentials))
         {
-            var parts = uri.UserInfo.Split(':');
-            var username = parts.First();
-            var password = parts.LastOrDefault() ?? "";
-            _connectionFactory.UserName = username;
-            _connectionFactory.Password = password;
+            _connectionFactory.UserName = credentials.UserName;
+            _connectionFactory.Password = credentials.Password;
         }
 
         if (customizer != null)

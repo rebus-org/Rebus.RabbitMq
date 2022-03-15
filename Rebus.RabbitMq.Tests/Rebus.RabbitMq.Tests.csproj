@@ -6,9 +6,6 @@
 		<LangVersion>10</LangVersion>
 	</PropertyGroup>
 	<ItemGroup>
-		<Compile Include="..\Rebus.RabbitMq\Internals\FullyQualifiedRoutingKey.cs" Link="Links\FullyQualifiedRoutingKey.cs" />
-	</ItemGroup>
-	<ItemGroup>
 		<ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
 		<PackageReference Include="microsoft.net.test.sdk" Version="17.0.0" />
 		<PackageReference Include="nunit" Version="3.13.2" />
@@ -20,5 +17,8 @@
 		<PackageReference Include="rebus" Version="6.6.1" />
 		<PackageReference Include="rebus.fleetmanager" Version="6.1.5" />
 		<PackageReference Include="rebus.tests.contracts" Version="6.5.0" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Internals\" />
 	</ItemGroup>
 </Project>
