@@ -67,7 +67,8 @@ class ConnectionManager : IDisposable
             Uri = uri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
             AutomaticRecoveryEnabled = true,
             NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
-            ClientProperties = CreateClientProperties(inputQueueAddress)
+            ClientProperties = CreateClientProperties(inputQueueAddress),
+            ClientProvidedName = $"{Assembly.GetEntryAssembly()?.GetName().Name ?? "rebus"}"
         };
 
         if (uri.TryGetCredentials(out var credentials))
@@ -103,9 +104,14 @@ class ConnectionManager : IDisposable
 
         _log = rebusLoggerFactory.GetLogger<ConnectionManager>();
 
-        inputQueueAddress ??= $"{Assembly.GetEntryAssembly()?.GetName().Name ?? "rebus"}";
-
-        _log.Info("Initializing RabbitMQ connection manager for transport with input queue {queueName}", inputQueueAddress);
+        if (inputQueueAddress != null)
+        {
+            _log.Info("Initializing RabbitMQ connection manager for transport with input queue {queueName}", inputQueueAddress);
+        }
+        else
+        {
+            _log.Info("Initializing RabbitMQ connection manager for one-way transport");
+        }
 
         var uriStrings = connectionString.Split(";,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 
@@ -125,7 +131,8 @@ class ConnectionManager : IDisposable
             Uri = uri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
             AutomaticRecoveryEnabled = true,
             NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
-            ClientProperties = CreateClientProperties(inputQueueAddress)
+            ClientProperties = CreateClientProperties(inputQueueAddress),
+            ClientProvidedName = $"{Assembly.GetEntryAssembly()?.GetName().Name ?? "rebus"}"
         };
 
         if (uri.TryGetCredentials(out var credentials))
@@ -186,24 +193,11 @@ class ConnectionManager : IDisposable
 
             try
             {
-                _activeConnection = _connectionFactory.CreateConnection(_amqpTcpEndpoints);
+                //TODO: not working with Amazon MQ
+                //_activeConnection = _connectionFactory.CreateConnection(_amqpTcpEndpoints);
+                _activeConnection = _connectionFactory.CreateConnection();
 
                 return _activeConnection;
-            }
-            catch (BrokerUnreachableException)
-            {
-                try
-                {
-                    _activeConnection = _connectionFactory.CreateConnection();
-
-                    return _activeConnection;
-                }
-                catch (Exception e)
-                {
-                    _log.Warn("Could not establish connection: {message}", e.Message);
-                    Thread.Sleep(1000); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
-                    throw;
-                }
             }
             catch (Exception exception)
             {

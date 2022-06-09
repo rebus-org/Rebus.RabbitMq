@@ -388,9 +388,9 @@ public class RabbitMqOptionsBuilder
             set { _decoratedFactory.ClientProvidedName = value; } 
         }
 
-        public ConnectionFactoryClientNameDecorator(IConnectionFactory originalFacotry, string clientProvidedName)
+        public ConnectionFactoryClientNameDecorator(IConnectionFactory originalFactory, string clientProvidedName)
         {
-            _decoratedFactory = originalFacotry;
+            _decoratedFactory = originalFactory;
             _clientProvidedName = clientProvidedName;
         }
 
