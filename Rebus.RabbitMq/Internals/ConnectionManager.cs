@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 using Rebus.Logging;
 using Rebus.RabbitMq;
 
@@ -92,7 +94,6 @@ class ConnectionManager : IDisposable
                 }
             })
             .ToList();
-
     }
 
     public ConnectionManager(string connectionString, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, Func<IConnectionFactory, IConnectionFactory> customizer)
@@ -102,25 +103,19 @@ class ConnectionManager : IDisposable
 
         _log = rebusLoggerFactory.GetLogger<ConnectionManager>();
 
-        if (inputQueueAddress != null)
-        {
-            _log.Info("Initializing RabbitMQ connection manager for transport with input queue {queueName}", inputQueueAddress);
-        }
-        else
-        {
-            _log.Info("Initializing RabbitMQ connection manager for one-way transport");
-        }
+        inputQueueAddress ??= $"{Assembly.GetEntryAssembly()?.GetName().Name ?? "rebus"}";
+
+        _log.Info("Initializing RabbitMQ connection manager for transport with input queue {queueName}", inputQueueAddress);
 
         var uriStrings = connectionString.Split(";,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 
-        if (uriStrings.Length == 0)
+        switch (uriStrings.Length)
         {
-            throw new ArgumentException("Please remember to specify at least one connection string for a RabbitMQ server somewhere. You can also add multiple connection strings separated by ; or , which Rebus will use in failover scenarios");
-        }
-
-        if (uriStrings.Length > 1)
-        {
-            _log.Info("RabbitMQ transport has {count} connection strings available", uriStrings.Length);
+            case 0:
+                throw new ArgumentException("Please remember to specify at least one connection string for a RabbitMQ server somewhere. You can also add multiple connection strings separated by ; or , which Rebus will use in failover scenarios");
+            case > 1:
+                _log.Info("RabbitMQ transport has {count} connection strings available", uriStrings.Length);
+                break;
         }
 
         var uri = new Uri(uriStrings.First());
@@ -163,7 +158,7 @@ class ConnectionManager : IDisposable
     {
         var connection = _activeConnection;
 
-        if (connection != null && connection.IsOpen)
+        if (connection is { IsOpen: true })
         {
             return connection;
         }
@@ -186,7 +181,7 @@ class ConnectionManager : IDisposable
                     connection.Close();
                     connection.Dispose();
                 }
-                catch { }
+                catch (Exception exception) { _log.Warn("Existing connection exception: {message}", exception.Message); }
             }
 
             try
@@ -194,6 +189,21 @@ class ConnectionManager : IDisposable
                 _activeConnection = _connectionFactory.CreateConnection(_amqpTcpEndpoints);
 
                 return _activeConnection;
+            }
+            catch (BrokerUnreachableException)
+            {
+                try
+                {
+                    _activeConnection = _connectionFactory.CreateConnection();
+
+                    return _activeConnection;
+                }
+                catch (Exception e)
+                {
+                    _log.Warn("Could not establish connection: {message}", e.Message);
+                    Thread.Sleep(1000); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
+                    throw;
+                }
             }
             catch (Exception exception)
             {
