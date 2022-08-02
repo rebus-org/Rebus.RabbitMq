@@ -118,7 +118,7 @@
 ## 7.3.5
 * Support basic URL-encoded credentials in URI
 
-## 7.4.0
+## 7.4.1
 * Make publisher confirms timeout configurable via an additional `EnablePublisherConfirms` overload
 
 ---

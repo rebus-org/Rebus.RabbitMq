@@ -161,14 +161,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     }
 
     /// <summary>
-    /// Sets whether to use the publisher confirms protocol. Will wait up to 60 seconds for the confirmation from the broker.
-    /// </summary>
-    public void EnablePublisherConfirms(bool value = true)
-    {
-        EnablePublisherConfirms(value, TimeSpan.FromSeconds(60));
-    }
-
-    /// <summary>
     /// Sets whether to use the publisher confirms protocol. When <paramref name="value"/> is set to true,
     /// the <paramref name="timeout"/> parameter indicates how long to wait for the confirmation from the broker. Use <code>TimeSpan.Zero</code>
     /// for INFINITE timeout.

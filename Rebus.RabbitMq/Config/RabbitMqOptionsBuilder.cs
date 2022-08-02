@@ -202,6 +202,19 @@ public class RabbitMqOptionsBuilder
     }
 
     /// <summary>
+    /// Set whether the publisher confirms protocol is enabled. To avoid message loss, publisher confirms ARE ENABLED BY DEFAULT.
+    /// Please note that you can opt out of publisher confirms ON A PER-MESSAGE BASIS by adding the <see cref="Messages.Headers.Express"/>
+    /// header to a message.
+    /// Calling this method with <paramref name="enabled"/> = false will disable publisher confirms alltogether.
+    /// </summary>
+    public RabbitMqOptionsBuilder SetPublisherConfirms(bool enabled, TimeSpan timeout)
+    {
+        PublisherConfirmsEnabled = enabled;
+        PublisherConfirmsTimeout = timeout;
+        return this;
+    }
+
+    /// <summary>
     /// Set the connection_name property (user-friendly non-unique client connection name) of RabbitMQ connection, which is 
     /// shown in the connections overview list and in the client properites of a connection.         
     /// </summary>
@@ -233,6 +246,7 @@ public class RabbitMqOptionsBuilder
     internal bool? DeclareInputQueue { get; private set; }
     internal bool? BindInputQueue { get; private set; }
     internal bool? PublisherConfirmsEnabled { get; private set; }
+    internal TimeSpan? PublisherConfirmsTimeout { get; private set; }
 
     internal string DirectExchangeName { get; private set; }
     internal string TopicExchangeName { get; private set; }
@@ -241,14 +255,14 @@ public class RabbitMqOptionsBuilder
 
     internal SslSettings SslSettings { get; private set; }
 
-    internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
+    internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new();
 
-    internal RabbitMqQueueOptionsBuilder InputQueueOptionsBuilder { get; } = new RabbitMqQueueOptionsBuilder();
-        
-    internal RabbitMqQueueOptionsBuilder DefaultQueueOptionsBuilder { get; } = new RabbitMqQueueOptionsBuilder();
+    internal RabbitMqQueueOptionsBuilder InputQueueOptionsBuilder { get; } = new();
 
-    internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new RabbitMqExchangeOptionsBuilder();
-        
+    internal RabbitMqQueueOptionsBuilder DefaultQueueOptionsBuilder { get; } = new();
+
+    internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new();
+
     internal int MaxWriterPoolSize { get; private set; } = 10;
 
     internal Func<IConnectionFactory, IConnectionFactory> ConnectionFactoryCustomizer;
@@ -299,7 +313,9 @@ public class RabbitMqOptionsBuilder
 
         if (PublisherConfirmsEnabled.HasValue)
         {
-            transport.EnablePublisherConfirms(PublisherConfirmsEnabled.Value);
+            var timeout = PublisherConfirmsTimeout ?? TimeSpan.FromSeconds(60);
+
+            transport.EnablePublisherConfirms(PublisherConfirmsEnabled.Value, timeout);
         }
 
         transport.SetInputQueueOptions(InputQueueOptionsBuilder);
@@ -382,10 +398,10 @@ public class RabbitMqOptionsBuilder
             set { _decoratedFactory.VirtualHost = value; }
         }
 
-        public string ClientProvidedName 
-        { 
+        public string ClientProvidedName
+        {
             get { return _decoratedFactory.ClientProvidedName; }
-            set { _decoratedFactory.ClientProvidedName = value; } 
+            set { _decoratedFactory.ClientProvidedName = value; }
         }
 
         public ConnectionFactoryClientNameDecorator(IConnectionFactory originalFacotry, string clientProvidedName)

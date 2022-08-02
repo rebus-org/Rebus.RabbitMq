@@ -1,3 +1,5 @@
+using System;
+
 namespace Rebus.RabbitMq.Tests;
 
 public class RabbitMqTransportFactoryWithPublisherConfirms : RabbitMqTransportFactory
@@ -5,7 +7,7 @@ public class RabbitMqTransportFactoryWithPublisherConfirms : RabbitMqTransportFa
     protected override RabbitMqTransport CreateRabbitMqTransport(string inputQueueAddress)
     {
         var transport = base.CreateRabbitMqTransport(inputQueueAddress);
-        transport.EnablePublisherConfirms();
+        transport.EnablePublisherConfirms(value: true, timeout: TimeSpan.FromSeconds(60));
         return transport;
     }
 }
