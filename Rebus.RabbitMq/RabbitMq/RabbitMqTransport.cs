@@ -62,6 +62,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     bool _declareInputQueue = true;
     bool _bindInputQueue = true;
     bool _publisherConfirmsEnabled = true;
+    TimeSpan _publisherConfirmsTimeout;
 
     string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
     string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
@@ -160,11 +161,27 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     }
 
     /// <summary>
-    /// Sets whether to use the publisher confirms protocol
+    /// Sets whether to use the publisher confirms protocol. Will wait up to 60 seconds for the confirmation from the broker.
     /// </summary>
     public void EnablePublisherConfirms(bool value = true)
     {
+        EnablePublisherConfirms(value, TimeSpan.FromSeconds(60));
+    }
+
+    /// <summary>
+    /// Sets whether to use the publisher confirms protocol. When <paramref name="value"/> is set to true,
+    /// the <paramref name="timeout"/> parameter indicates how long to wait for the confirmation from the broker. Use <code>TimeSpan.Zero</code>
+    /// for INFINITE timeout.
+    /// </summary>
+    public void EnablePublisherConfirms(bool value, TimeSpan timeout)
+    {
+        if (timeout < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException($"Cannot use publisher confirms timeout value {timeout} - the value must be a positive TimeSpan, or TimeSpan.Zero for inifinite timeout");
+        }
+
         _publisherConfirmsEnabled = value;
+        _publisherConfirmsTimeout = timeout;
     }
 
     /// <summary>
@@ -665,9 +682,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         if (_publisherConfirmsEnabled && !isExpress)
         {
-            var timeout = TimeSpan.FromSeconds(60);
-
-            model.WaitForConfirmsOrDie(timeout);
+            if (_publisherConfirmsTimeout == TimeSpan.Zero)
+            {
+                model.WaitForConfirmsOrDie();
+            }
+            else
+            {
+                model.WaitForConfirmsOrDie(_publisherConfirmsTimeout);
+            }
         }
     }
 
