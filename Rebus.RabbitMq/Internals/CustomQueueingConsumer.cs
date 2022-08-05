@@ -32,7 +32,7 @@ class CustomQueueingConsumer : DefaultBasicConsumer
     public override void OnCancel(params string[] consumerTags)
     {
         base.OnCancel(consumerTags);
-        Queue.Writer.Complete();
+        Queue.Writer.TryComplete();
     }
 
     public void Dispose()

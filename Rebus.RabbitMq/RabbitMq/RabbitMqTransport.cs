@@ -605,7 +605,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         try
         {
             model = CreateChannel();
-            model.BasicQos(0, _maxMessagesToPrefetch, false);
+            model.BasicQos(prefetchSize: 0, prefetchCount: _maxMessagesToPrefetch, global: false);
 
             var consumer = new CustomQueueingConsumer(model);
 
@@ -864,9 +864,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     public void Dispose()
     {
         _writerPool.Dispose();
-
         _consumer?.Dispose();
-
         _connectionManager.Dispose();
     }
 
