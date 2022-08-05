@@ -121,6 +121,9 @@
 ## 7.4.1
 * Make publisher confirms timeout configurable via an additional `EnablePublisherConfirms` overload
 
+## 7.4.2
+* Small optimizations to reduce the amount of work done when mapping headers
+
 ---
 
 [bzuu]: https://github.com/bzuu

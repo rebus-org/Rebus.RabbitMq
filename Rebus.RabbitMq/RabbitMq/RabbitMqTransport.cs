@@ -326,10 +326,39 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
 
     /// <inheritdoc />
-    protected override Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages,
-        ITransactionContext context)
+    protected override async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages, ITransactionContext context)
     {
-        return SendOutgoingMessages(outgoingMessages);
+        var messages = outgoingMessages.ToList();
+
+        if (!messages.Any()) return;
+
+        var model = _writerPool.Get();
+
+        try
+        {
+            var expressGroups = messages
+                .GroupBy(o => o.TransportMessage.Headers.ContainsKey(Headers.Express))
+                .OrderByDescending(g => g.Key); //< send express messages first
+
+            foreach (var expressGroup in expressGroups)
+            {
+                DoSend(expressGroup, model, isExpress: expressGroup.Key);
+            }
+
+            _writerPool.Return(model);
+        }
+        catch (Exception exception) when (exception is IOException || exception is SocketException || exception is AlreadyClosedException)
+        {
+            // if we come here, the connection is broken
+            try
+            {
+                model.Dispose();
+            }
+            catch { }
+
+            throw;
+        }
+
     }
 
     /// <summary>
@@ -602,35 +631,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages)
-    {
-        var model = _writerPool.Get();
-        try
-        {
-            var expressGroups = outgoingMessages
-                .GroupBy(o => o.TransportMessage.Headers.ContainsKey(Headers.Express))
-                .OrderByDescending(g => g.Key); //< send express messages first
-
-            foreach (var expressGroup in expressGroups)
-            {
-                DoSend(expressGroup, model, isExpress: expressGroup.Key);
-            }
-        }
-        catch (Exception exception) when (exception is IOException || exception is SocketException || exception is AlreadyClosedException)
-        {
-            // if we come here, the connection is broken
-            try
-            {
-                model.Dispose();
-            }
-            catch { }
-
-            throw;
-        }
-
-        _writerPool.Return(model);
-    }
-
     void DoSend(IEnumerable<OutgoingMessage> outgoingMessages, IModel model, bool isExpress)
     {
         if (_publisherConfirmsEnabled && !isExpress)
@@ -713,34 +713,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         if (headers.TryGetValue(RabbitMqHeaders.ContentType, out var contentTypeHeaderValue))
         {
-            var (contentType, charset) = ContentTypeHeadersToContentTypeAndCharsetMappings.GetOrAdd(contentTypeHeaderValue, input =>
-            {
-                var parts = input.Split(';');
-
-                var contentTypeResult = parts[0];
-                var charsetResult = default(string);
-
-                // if the MIME type has parameters, then we see if there's a charset in there...
-                if (parts.Length > 1)
-                {
-                    try
-                    {
-                        var parameters = parts.Skip(1)
-                            .Select(p => p.Split('='))
-                            .ToDictionary(p => p.First(), p => p.LastOrDefault());
-
-                        if (parameters.TryGetValue("charset", out var result))
-                        {
-                            charsetResult = result;
-                        }
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                return (contentTypeResult, charsetResult);
-            });
+            var (contentType, charset) = ContentTypeHeadersToContentTypeAndCharsetMappings.GetOrAdd(contentTypeHeaderValue, GetContentTypeAndEncodingValues);
 
             props.ContentType = contentType;
             props.ContentEncoding = charset;
@@ -817,6 +790,35 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
                 });
 
         return props;
+    }
+
+    static (string, string) GetContentTypeAndEncodingValues(string input)
+    {
+        var parts = input.Split(';');
+
+        var contentTypeResult = parts[0];
+        var charsetResult = default(string);
+
+        // if the MIME type has parameters, then we see if there's a charset in there...
+        if (parts.Length > 1)
+        {
+            try
+            {
+                var parameters = parts.Skip(1)
+                    .Select(p => p.Split('='))
+                    .ToDictionary(p => p.First(), p => p.LastOrDefault());
+
+                if (parameters.TryGetValue("charset", out var result))
+                {
+                    charsetResult = result;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return (contentTypeResult, charsetResult);
     }
 
     void EnsureQueueExists(FullyQualifiedRoutingKey routingKey, IModel model)

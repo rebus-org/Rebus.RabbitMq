@@ -25,14 +25,14 @@ public class TestRabbitExpress : FixtureBase
 
     protected override void SetUp()
     {
-        var queueName = TestConfig.GetName("expressperf");
+        var queueName = TestConfig.GetName("expressperf5");
 
         Using(new QueueDeleter(queueName));
 
         _activator = Using(new BuiltinHandlerActivator());
 
         _bus = Configure.With(_activator)
-            .Logging(l => l.ColoredConsole(LogLevel.Info))
+            .Logging(l => l.ColoredConsole(LogLevel.Warn))
             .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName))
             .Options(o => o.SetMaxParallelism(100))
             .Start();
@@ -77,9 +77,11 @@ public class TestRabbitExpress : FixtureBase
 
         while (Interlocked.Read(ref receivedMessages) < messageCount)
         {
-            Thread.Sleep(1000);
-            Console.WriteLine($"Got {Interlocked.Read(ref receivedMessages)} messages...");
+            Thread.Sleep(2000);
+            Console.Write($"Got {Interlocked.Read(ref receivedMessages)} msg... ");
         }
+
+        Console.WriteLine();
 
         var elapsedReceiving = stopwatch.Elapsed;
         var totalSecondsElapsedReceiving = elapsedReceiving.TotalSeconds;
