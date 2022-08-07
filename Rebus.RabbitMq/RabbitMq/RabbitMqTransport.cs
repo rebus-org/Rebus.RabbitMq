@@ -347,13 +347,12 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
             _writerPool.Return(model);
         }
-        catch (Exception exception) when (exception is IOException || exception is SocketException || exception is AlreadyClosedException)
+        catch (Exception)
         {
-            // if we come here, the connection is broken
+            // if anything goes wrong when using this IModel, just drop it
             model.SafeDrop();
             throw;
         }
-
     }
 
     /// <summary>
