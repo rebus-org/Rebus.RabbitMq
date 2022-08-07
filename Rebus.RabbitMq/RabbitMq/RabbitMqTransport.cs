@@ -350,12 +350,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         catch (Exception exception) when (exception is IOException || exception is SocketException || exception is AlreadyClosedException)
         {
             // if we come here, the connection is broken
-            try
-            {
-                model.Dispose();
-            }
-            catch { }
-
+            model.SafeDrop();
             throw;
         }
 
