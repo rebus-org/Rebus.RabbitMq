@@ -328,7 +328,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// <inheritdoc />
     protected override async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages, ITransactionContext context)
     {
-        var messages = outgoingMessages.ToList();
+        var messages = outgoingMessages
+            .Select(m => new { Message = m, IsExpress = m.TransportMessage.Headers.ContainsKey(Headers.Express) })
+            .ToList();
 
         if (!messages.Any()) return;
 
@@ -336,14 +338,12 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         try
         {
-            var expressGroups = messages
-                .GroupBy(o => o.TransportMessage.Headers.ContainsKey(Headers.Express))
-                .OrderByDescending(g => g.Key); //< send express messages first
+            var expressMessages = messages.Where(m => m.IsExpress).Select(m => m.Message).ToList();
+            var ordinaryMessages = messages.Where(m => !m.IsExpress).Select(m => m.Message).ToList();
 
-            foreach (var expressGroup in expressGroups)
-            {
-                DoSend(expressGroup, model, isExpress: expressGroup.Key);
-            }
+            DoSend(expressMessages, model, isExpress: true);
+            
+            DoSend(ordinaryMessages, model, isExpress: false);
 
             _writerPool.Return(model);
         }
@@ -603,9 +603,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
             var consumer = new CustomQueueingConsumer(model);
 
-            const bool autoAck = false;
-
-            model.BasicConsume(Address, autoAck, consumer);
+            model.BasicConsume(queue: Address, autoAck: false, consumer: consumer);
 
             _log.Info("Successfully initialized consumer for {queueName}", Address);
 
@@ -613,6 +611,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
         catch (OperationInterruptedException exception) when (exception.HasReplyCode(QueueDoesNotExist))
         {
+            model.SafeDrop();
             _log.Warn("Queue not found - attempting to recreate queue and restore subscriptions.");
             ReconnectQueue();
             return null;
@@ -620,7 +619,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         catch (Exception)
         {
             model.SafeDrop();
-
             throw;
         }
     }
