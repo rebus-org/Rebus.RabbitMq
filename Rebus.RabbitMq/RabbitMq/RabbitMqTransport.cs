@@ -304,23 +304,41 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
     void DeclareQueue(string address, IModel model)
     {
-        if (Address != null && Address.Equals(address))
+        using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+        while (true)
         {
-            // This is the input queue => we use the queue setting to create the queue
-            model.QueueDeclare(address,
-                exclusive: _inputQueueOptions.Exclusive,
-                durable: _inputQueueOptions.Durable,
-                autoDelete: _inputQueueOptions.AutoDelete,
-                arguments: _inputQueueOptions.Arguments);
-        }
-        else
-        {
-            // This is another queue, probably the error queue => we use the default queue options
-            model.QueueDeclare(address,
-                exclusive: _defaultQueueOptions.Exclusive,
-                durable: _defaultQueueOptions.Durable,
-                autoDelete: _defaultQueueOptions.AutoDelete,
-                arguments: _defaultQueueOptions.Arguments);
+            try
+            {
+                if (Address != null && Address.Equals(address))
+                {
+                    // This is the input queue => we use the queue setting to create the queue
+                    model.QueueDeclare(
+                        queue: address,
+                        exclusive: _inputQueueOptions.Exclusive,
+                        durable: _inputQueueOptions.Durable,
+                        autoDelete: _inputQueueOptions.AutoDelete,
+                        arguments: _inputQueueOptions.Arguments
+                    );
+                }
+                else
+                {
+                    // This is another queue, probably the error queue => we use the default queue options
+                    model.QueueDeclare(
+                        queue: address,
+                        exclusive: _defaultQueueOptions.Exclusive,
+                        durable: _defaultQueueOptions.Durable,
+                        autoDelete: _defaultQueueOptions.AutoDelete,
+                        arguments: _defaultQueueOptions.Arguments
+                    );
+                }
+
+                return;
+            }
+            catch (TimeoutException) when (!cancellationTokenSource.IsCancellationRequested)
+            {
+                // just keep trying some more
+            }
         }
     }
 
@@ -342,7 +360,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             var ordinaryMessages = messages.Where(m => !m.IsExpress).Select(m => m.Message).ToList();
 
             DoSend(expressMessages, model, isExpress: true);
-            
+
             DoSend(ordinaryMessages, model, isExpress: false);
 
             _writerPool.Return(model);
