@@ -124,6 +124,9 @@
 ## 7.4.2
 * Small optimizations to reduce the amount of work done when mapping headers
 
+## 7.4.3
+* Update RabbitMq.Client dependency to 6.4.0
+
 ---
 
 [bzuu]: https://github.com/bzuu
