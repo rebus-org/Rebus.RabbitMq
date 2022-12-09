@@ -2,7 +2,7 @@
 
 namespace Rebus.Internals;
 
-internal static class ModelExtensions
+static class ModelExtensions
 {
     /// <summary>
     /// Disposes the specific 

@@ -263,33 +263,47 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// </summary>
     public override void CreateQueue(string address)
     {
+        // bail out without creating a connection if there's no need for it
+        if (!_declareExchanges && !_declareInputQueue && !_bindInputQueue) return;
+
         var connection = _connectionManager.GetConnection();
 
         try
         {
-            using var model = connection.CreateModel();
+            using var cancellationTokenSource = new CancellationTokenSource(delay: TimeSpan.FromSeconds(60));
 
-            const bool durable = true;
-
-            if (_declareExchanges)
+            while (true)
             {
-                model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable,
-                    arguments: _inputExchangeOptions.DirectExchangeArguments);
-                model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable,
-                    arguments: _inputExchangeOptions.TopicExchangeArguments);
-            }
+                try
+                {
+                    using var model = connection.CreateModel();
 
-            if (_declareInputQueue)
-            {
-                DeclareQueue(address, model);
-            }
+                    const bool durable = true;
 
-            if (_bindInputQueue)
-            {
-                BindInputQueue(address, model);
-            }
+                    if (_declareExchanges)
+                    {
+                        DeclareExchanges(model, durable);
+                    }
 
-            model.Close();
+                    if (_declareInputQueue)
+                    {
+                        DeclareQueue(address, model);
+                    }
+
+                    if (_bindInputQueue)
+                    {
+                        BindInputQueue(address, model);
+                    }
+
+                    model.Close();
+                    return;
+                }
+                catch (Exception) when (!cancellationTokenSource.IsCancellationRequested)
+                {
+                    // keep trying a couple of times
+                    Thread.Sleep(1000);
+                }
+            }
         }
         catch (Exception exception)
         {
@@ -297,49 +311,51 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    void BindInputQueue(string address, IModel model)
+    void DeclareExchanges(IModel model, bool durable)
     {
-        model.QueueBind(address, _directExchangeName, address);
+        model.ExchangeDeclare(
+            exchange: _directExchangeName,
+            type: ExchangeType.Direct,
+            durable: durable,
+            arguments: _inputExchangeOptions.DirectExchangeArguments
+        );
+        model.ExchangeDeclare(
+            exchange: _topicExchangeName,
+            type: ExchangeType.Topic,
+            durable: durable,
+            arguments: _inputExchangeOptions.TopicExchangeArguments
+        );
     }
 
     void DeclareQueue(string address, IModel model)
     {
-        using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-
-        while (true)
+        if (Equals(address, Address))
         {
-            try
-            {
-                if (Address != null && Address.Equals(address))
-                {
-                    // This is the input queue => we use the queue setting to create the queue
-                    model.QueueDeclare(
-                        queue: address,
-                        exclusive: _inputQueueOptions.Exclusive,
-                        durable: _inputQueueOptions.Durable,
-                        autoDelete: _inputQueueOptions.AutoDelete,
-                        arguments: _inputQueueOptions.Arguments
-                    );
-                }
-                else
-                {
-                    // This is another queue, probably the error queue => we use the default queue options
-                    model.QueueDeclare(
-                        queue: address,
-                        exclusive: _defaultQueueOptions.Exclusive,
-                        durable: _defaultQueueOptions.Durable,
-                        autoDelete: _defaultQueueOptions.AutoDelete,
-                        arguments: _defaultQueueOptions.Arguments
-                    );
-                }
-
-                return;
-            }
-            catch (TimeoutException) when (!cancellationTokenSource.IsCancellationRequested)
-            {
-                // just keep trying some more
-            }
+            // This is the input queue => we use the queue setting to create the queue
+            model.QueueDeclare(
+                queue: address,
+                exclusive: _inputQueueOptions.Exclusive,
+                durable: _inputQueueOptions.Durable,
+                autoDelete: _inputQueueOptions.AutoDelete,
+                arguments: _inputQueueOptions.Arguments
+            );
         }
+        else
+        {
+            // This is another queue, probably the error queue => we use the default queue options
+            model.QueueDeclare(
+                queue: address,
+                exclusive: _defaultQueueOptions.Exclusive,
+                durable: _defaultQueueOptions.Durable,
+                autoDelete: _defaultQueueOptions.AutoDelete,
+                arguments: _defaultQueueOptions.Arguments
+            );
+        }
+    }
+
+    void BindInputQueue(string address, IModel model)
+    {
+        model.QueueBind(address, _directExchangeName, address);
     }
 
 

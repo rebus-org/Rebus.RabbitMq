@@ -127,6 +127,9 @@
 ## 7.4.3
 * Update RabbitMq.Client dependency to 6.4.0
 
+## 7.4.4
+* Avoid creating a RabbitMQ connection during initialization, if there's no need for it because all declarations have been disabled
+
 ---
 
 [bzuu]: https://github.com/bzuu
