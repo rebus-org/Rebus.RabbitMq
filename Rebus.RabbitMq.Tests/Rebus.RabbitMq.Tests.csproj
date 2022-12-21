@@ -23,5 +23,6 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Internals\" />
+		<Folder Include="Examples\" />
 	</ItemGroup>
 </Project>

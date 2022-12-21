@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
@@ -20,6 +19,7 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
+using System.Net;
 // ReSharper disable AccessToDisposedClosure
 
 // ReSharper disable EmptyGeneralCatchClause
@@ -36,7 +36,6 @@ namespace Rebus.RabbitMq;
 /// </summary>
 public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializable, ISubscriptionStorage
 {
-
     /// <summary>
     /// <see cref="ShutdownEventArgs.ReplyCode"/> value that indicates that a queue does not exist
     /// </summary>
@@ -308,6 +307,44 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         catch (Exception exception)
         {
             throw new RebusApplicationException(exception, $"Queue declaration for '{address}' failed");
+        }
+    }
+
+    public void DeclareDelayedMessageExchange(string exchangeName)
+    {
+        try
+        {
+            using var cancellationTokenSource = new CancellationTokenSource(delay: TimeSpan.FromSeconds(60));
+
+            while (true)
+            {
+                try
+                {
+                    var connection = _connectionManager.GetConnection();
+
+                    using var model = connection.CreateModel();
+
+                    model.ExchangeDeclare(
+                        exchange: exchangeName,
+                        type: "x-delayed-message",
+                        durable: true,
+                        autoDelete: false,
+                        arguments: new Dictionary<string, object> { ["x-delayed-type"] = "direct" }
+                    );
+
+                    model.Close();
+                    return;
+                }
+                catch (Exception) when (!cancellationTokenSource.IsCancellationRequested)
+                {
+                    // keep trying a couple of times
+                    Thread.Sleep(1000);
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            throw new RebusApplicationException(exception, $"Delayed message exchange declaration for '{exchangeName}' failed");
         }
     }
 
