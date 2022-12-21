@@ -266,8 +266,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         // bail out without creating a connection if there's no need for it
         if (!_declareExchanges && !_declareInputQueue && !_bindInputQueue) return;
 
-        var connection = _connectionManager.GetConnection();
-
         try
         {
             using var cancellationTokenSource = new CancellationTokenSource(delay: TimeSpan.FromSeconds(60));
@@ -276,6 +274,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             {
                 try
                 {
+                    var connection = _connectionManager.GetConnection();
+
                     using var model = connection.CreateModel();
 
                     const bool durable = true;

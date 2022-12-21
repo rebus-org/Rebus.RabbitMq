@@ -130,6 +130,9 @@
 ## 7.4.4
 * Avoid creating a RabbitMQ connection during initialization, if there's no need for it because all declarations have been disabled
 
+## 7.4.5
+* Enable retries when trying to create a queue
+
 ---
 
 [bzuu]: https://github.com/bzuu
