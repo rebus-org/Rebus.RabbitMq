@@ -133,6 +133,9 @@
 ## 7.4.5
 * Enable retries when trying to create a queue
 
+## 7.4.6
+* Add experimental support for sending deferred messages using the RabbitMQ Delayed Message Exchange plugin (use `.Timeouts(t => t.UseDelayedMessageExchange("RebusDelayed"))`)
+
 ---
 
 [bzuu]: https://github.com/bzuu
