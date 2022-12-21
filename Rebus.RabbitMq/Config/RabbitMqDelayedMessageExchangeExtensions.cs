@@ -22,7 +22,7 @@ public static class RabbitMqDelayedMessageExchangeExtensions
     /// <summary>
     /// Configures Rebus to use a delayed message exchange with the name <paramref name="exchangeName"/>. The exchange will be automatically declared.
     /// </summary>
-    public static void UseDelayedMessageExchange(this StandardConfigurer<ITimeoutManager> configurer, string exchangeName)
+    public static void UseDelayedMessageExchange(this StandardConfigurer<ITimeoutManager> configurer, string exchangeName, bool automaticallyDeclareExchange = true)
     {
         if (configurer == null) throw new ArgumentNullException(nameof(configurer));
         if (exchangeName == null) throw new ArgumentNullException(nameof(exchangeName));
@@ -42,54 +42,35 @@ public static class RabbitMqDelayedMessageExchangeExtensions
 
                 options.ExternalTimeoutManagerAddressOrNull = timeoutManagerAddress;
 
-                // force resolution to have its initializer executed
-                c.Get<DelayedMessageExchangeDeclarer>();
-
                 return options;
             });
 
-        configurer.OtherService<ITransport>()
-            .Decorate(c => new DelayedMessageExchangeTransportDecorator(c.Get<ITransport>(), c.Get<Options>()));
-
         configurer
-            .OtherService<DelayedMessageExchangeDeclarer>()
-            .Register(c => new DelayedMessageExchangeDeclarer(c.Get<IRebusLoggerFactory>(), c.Get<RabbitMqTransport>(), exchangeName, declareExchange: true));
+            .OtherService<ITransport>()
+            .Decorate(c => new DelayedMessageExchangeTransportDecorator(
+                rebusLoggerFactory: c.Get<IRebusLoggerFactory>(),
+                transport: c.Get<ITransport>(),
+                options: c.Get<Options>(),
+                rabbitMqTransport: c.Get<RabbitMqTransport>(),
+                declareExchange: automaticallyDeclareExchange
+            ));
     }
 
-    class DelayedMessageExchangeDeclarer : IInitializable
+    class DelayedMessageExchangeTransportDecorator : ITransport, IInitializable
     {
-        readonly RabbitMqTransport _transport;
+        readonly RabbitMqTransport _rabbitMqTransport;
+        readonly ITransport _transport;
         readonly string _exchangeName;
         readonly bool _declareExchange;
         readonly ILog _logger;
 
-        public DelayedMessageExchangeDeclarer(IRebusLoggerFactory rebusLoggerFactory, RabbitMqTransport transport, string exchangeName, bool declareExchange)
+        public DelayedMessageExchangeTransportDecorator(IRebusLoggerFactory rebusLoggerFactory, ITransport transport, Options options, RabbitMqTransport rabbitMqTransport, bool declareExchange)
         {
             if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
-            _logger = rebusLoggerFactory.GetLogger<DelayedMessageExchangeDeclarer>();
+            _logger = rebusLoggerFactory.GetLogger<DelayedMessageExchangeTransportDecorator>();
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
-            _exchangeName = exchangeName;
+            _rabbitMqTransport = rabbitMqTransport ?? throw new ArgumentNullException(nameof(rabbitMqTransport));
             _declareExchange = declareExchange;
-        }
-
-        public void Initialize()
-        {
-            if (!_declareExchange) return;
-
-            _logger.Info("Delaring delayed message exchange with name {exchangeName}", _exchangeName);
-
-            _transport.DeclareDelayedMessageExchange(_exchangeName);
-        }
-    }
-
-    class DelayedMessageExchangeTransportDecorator : ITransport
-    {
-        readonly ITransport _transport;
-        readonly string _exchangeName;
-
-        public DelayedMessageExchangeTransportDecorator(ITransport transport, Options options)
-        {
-            _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _exchangeName = options.ExternalTimeoutManagerAddressOrNull;
 
             if (!_exchangeName.StartsWith("@"))
@@ -102,6 +83,15 @@ public static class RabbitMqDelayedMessageExchangeExtensions
         public void CreateQueue(string address) => _transport.CreateQueue(address);
 
         public Task<TransportMessage> Receive(ITransactionContext context, CancellationToken cancellationToken) => _transport.Receive(context, cancellationToken);
+
+        public void Initialize()
+        {
+            if (!_declareExchange) return;
+
+            _logger.Info("Delaring delayed message exchange with name {exchangeName}", _exchangeName);
+
+            _rabbitMqTransport.DeclareDelayedMessageExchange(_exchangeName);
+        }
 
         public Task Send(string destinationAddress, TransportMessage message, ITransactionContext context)
         {
