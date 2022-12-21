@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Rebus.Bus;
 using Rebus.Exceptions;
+using Rebus.Extensions;
 using Rebus.Logging;
 using Rebus.Messages;
 using Rebus.RabbitMq;
@@ -103,9 +105,20 @@ public static class RabbitMqDelayedMessageExchangeExtensions
 
         public Task Send(string destinationAddress, TransportMessage message, ITransactionContext context)
         {
-            if (message.Headers.TryGetValue(Headers.DeferredRecipient, out var recipient) && message.Headers.TryGetValue(Headers.DeferredUntil, out var deferredUntil))
+            var headers = message.Headers;
+
+            if (headers.TryGetValue(Headers.DeferredRecipient, out var recipient) && headers.TryGetValue(Headers.DeferredUntil, out var deferredUntil))
             {
-                message.Headers.Remove(Headers.DeferredUntil);
+                headers.Remove(Headers.DeferredUntil);
+                headers.Remove(Headers.DeferredRecipient);
+
+                var receiveTime = deferredUntil.ToDateTimeOffset();
+                var delay = receiveTime - DateTimeOffset.Now;
+                var delayMs = (int)delay.TotalMilliseconds;
+
+                headers["x-delay"] = delayMs.ToString(CultureInfo.InvariantCulture);
+
+                return _transport.Send($"{recipient}{_exchangeName}", message, context);
             }
 
             return _transport.Send(destinationAddress, message, context);

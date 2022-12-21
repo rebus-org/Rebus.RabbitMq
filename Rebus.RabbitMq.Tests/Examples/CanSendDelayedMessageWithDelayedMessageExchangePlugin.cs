@@ -10,7 +10,6 @@ using Rebus.Config;
 using Rebus.Routing.TypeBased;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
-using Rebus.Timeouts;
 
 // ReSharper disable AccessToDisposedClosure
 #pragma warning disable CS1998
