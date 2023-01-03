@@ -16,7 +16,7 @@
 		<PackageIcon>little_rebusbus2_copy-500x500.png</PackageIcon>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="rebus" Version="[6, 7)" />
+		<PackageReference Include="rebus" Version="[7,8)" />
 		<PackageReference Include="RabbitMq.Client" Version="6.4.0" />
 	</ItemGroup>
 	<ItemGroup>

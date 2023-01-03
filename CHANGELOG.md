@@ -136,6 +136,9 @@
 ## 7.4.6
 * Add experimental support for sending deferred messages using the RabbitMQ Delayed Message Exchange plugin (use `.Timeouts(t => t.UseDelayedMessageExchange("RebusDelayed"))`)
 
+## 8.0.0
+* Update Rebus dependency to 7
+
 ---
 
 [bzuu]: https://github.com/bzuu
