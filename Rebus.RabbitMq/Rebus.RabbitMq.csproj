@@ -1,5 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
+﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
 	<PropertyGroup>
 		<RootNamespace>Rebus</RootNamespace>
 		<LangVersion>10</LangVersion>
@@ -10,7 +9,7 @@
 		<Copyright>Copyright Rebus FM ApS 2012</Copyright>
 		<PackageTags>rebus rabbitmq amqp</PackageTags>
 		<PackageDescription>Provides a RabbitMQ transport for Rebus</PackageDescription>
-		<RepositoryUrl>https://github.com/rebus-org/Rebus</RepositoryUrl>
+		<RepositoryUrl>https://github.com/rebus-org/Rebus.RabbitMq</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageIcon>little_rebusbus2_copy-500x500.png</PackageIcon>
