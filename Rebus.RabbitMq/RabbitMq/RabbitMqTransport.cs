@@ -397,7 +397,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
 
     /// <inheritdoc />
-    protected override async Task SendOutgoingMessages(IEnumerable<OutgoingMessage> outgoingMessages, ITransactionContext context)
+    protected override async Task SendOutgoingMessages(IEnumerable<OutgoingTransportMessage> outgoingMessages, ITransactionContext context)
     {
         var messages = outgoingMessages
             .Select(m => new { Message = m, IsExpress = m.TransportMessage.Headers.ContainsKey(Headers.Express) })
@@ -541,9 +541,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
             var deliveryTag = result.DeliveryTag;
 
-            context.OnCompleted(async _ => { _consumer.Model.BasicAck(deliveryTag, multiple: false); });
+            context.OnAck(async _ => _consumer.Model.BasicAck(deliveryTag, multiple: false));
 
-            context.OnAborted(_ =>
+            context.OnNack(async _ =>
             {
                 // we might not be able to do this, but it doesn't matter that much if it succeeds
                 try
@@ -694,7 +694,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    void DoSend(IEnumerable<OutgoingMessage> outgoingMessages, IModel model, bool isExpress)
+    void DoSend(IEnumerable<OutgoingTransportMessage> outgoingMessages, IModel model, bool isExpress)
     {
         if (_publisherConfirmsEnabled && !isExpress)
         {
@@ -935,7 +935,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// Gets "subscriber addresses" as one single magic "queue address", which will be interpreted
     /// as a proper pub/sub topic when the time comes to send to it
     /// </summary>
-    public async Task<string[]> GetSubscriberAddresses(string topic)
+    public async Task<IReadOnlyList<string>> GetSubscriberAddresses(string topic)
     {
         return topic.Contains('@')
             ? new[] { topic }

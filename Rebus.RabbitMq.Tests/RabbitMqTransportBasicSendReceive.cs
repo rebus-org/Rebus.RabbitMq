@@ -7,5 +7,4 @@ namespace Rebus.RabbitMq.Tests;
 [TestFixture]
 public class RabbitMqTransportBasicSendReceive : BasicSendReceive<RabbitMqTransportFactory>
 {
-    protected override TransportBehavior Behavior => new(ReturnsNullWhenQueueIsEmpty: true);
 }
