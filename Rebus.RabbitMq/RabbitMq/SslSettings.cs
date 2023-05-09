@@ -11,7 +11,7 @@ public class SslSettings
     /// <summary>
     /// Constructs an SslSettings 
     /// </summary>
-    public SslSettings(bool enabled, string serverName, string certificatePath = "", string certPassphrase = "", SslProtocols version = SslProtocols.Tls, SslPolicyErrors acceptablePolicyErrors = SslPolicyErrors.None)
+    public SslSettings(bool enabled, string serverName, string certificatePath = "", string certPassphrase = "", SslProtocols version = SslProtocols.None, SslPolicyErrors acceptablePolicyErrors = SslPolicyErrors.None)
     {
         Enabled = enabled;
         ServerName = serverName;
