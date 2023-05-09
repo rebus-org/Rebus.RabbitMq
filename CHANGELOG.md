@@ -139,8 +139,9 @@
 ## 8.0.0
 * Update Rebus dependency to 7
 
-## 9.0.0-alpha01
+## 9.0.0-alpha02
 * Update to Rebus 8
+* Change SSL protocol default to NONE (i.e. leave it to the .NET framework or the operating system) - thanks [MrAdam]
 
 ---
 
@@ -153,6 +154,7 @@
 [marcoariboni]: https://github.com/marcoariboni
 [mathiasnohall]: https://github.com/mathiasnohall
 [michalsteyn]: https://github.com/michalsteyn
+[MrAdam]: https://github.com/MrAdam
 [nebelx]: https://github.com/nebelx
 [pjh1974]: https://github.com/pjh1974
 [ronnyek]: https://github.com/ronnyek
