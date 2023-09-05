@@ -139,6 +139,9 @@
 ## 8.0.0
 * Update Rebus dependency to 7
 
+## 8.1.0
+* Correct how hostnames are passed to RabbitMQ's connection factory to enable proper failover
+
 ## 9.0.0-alpha03
 * Update to Rebus 8
 * Change SSL protocol default to NONE (i.e. leave it to the .NET framework or the operating system) - thanks [MrAdam]
