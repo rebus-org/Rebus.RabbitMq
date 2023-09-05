@@ -60,19 +60,7 @@ class ConnectionManager : IDisposable
 
         var uri = endpoints.First().ConnectionUri;
 
-        _connectionFactory = new ConnectionFactory
-        {
-            Uri = uri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials, VirtualHost (if any)
-            AutomaticRecoveryEnabled = true,
-            NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
-            ClientProperties = CreateClientProperties(inputQueueAddress)
-        };
-
-        if (uri.TryGetCredentials(out var credentials))
-        {
-            _connectionFactory.UserName = credentials.UserName;
-            _connectionFactory.Password = credentials.Password;
-        }
+        _connectionFactory = CreateConnectionFactory(uri, inputQueueAddress);
 
         if (customizer != null)
         {
@@ -125,19 +113,7 @@ class ConnectionManager : IDisposable
 
         var uri = new Uri(uriStrings.First());
 
-        _connectionFactory = new ConnectionFactory
-        {
-            Uri = uri, //Use the first URI in the list for ConnectionFactory to pick the AMQP credentials (if any)
-            AutomaticRecoveryEnabled = true,
-            NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
-            ClientProperties = CreateClientProperties(inputQueueAddress)
-        };
-
-        if (uri.TryGetCredentials(out var credentials))
-        {
-            _connectionFactory.UserName = credentials.UserName;
-            _connectionFactory.Password = credentials.Password;
-        }
+        _connectionFactory = CreateConnectionFactory(uri, inputQueueAddress);
 
         if (customizer != null)
         {
@@ -202,6 +178,26 @@ class ConnectionManager : IDisposable
                 throw;
             }
         }
+    }
+
+    ConnectionFactory CreateConnectionFactory(Uri uri, string inputQueueAddress)
+    {
+        var connectionFactory = new ConnectionFactory
+        {
+            AutomaticRecoveryEnabled = true,
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
+            ClientProperties = CreateClientProperties(inputQueueAddress),
+            
+            VirtualHost = uri.LocalPath
+        };
+
+        if (uri.TryGetCredentials(out var credentials))
+        {
+            connectionFactory.UserName = credentials.UserName;
+            connectionFactory.Password = credentials.Password;
+        }
+
+        return connectionFactory;
     }
 
     public void Dispose()
