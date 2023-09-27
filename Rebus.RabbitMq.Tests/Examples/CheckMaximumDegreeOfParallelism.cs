@@ -41,7 +41,7 @@ public class CheckMaximumDegreeOfParallelism : FixtureBase
 
         activator.Handle<string>(async _ =>
         {
-            await Task.Delay(millisecondsDelay: 50);
+            await Task.Delay(millisecondsDelay: 150);
             counter.Decrement();
         });
 
