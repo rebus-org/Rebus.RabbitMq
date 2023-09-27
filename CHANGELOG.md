@@ -142,6 +142,11 @@
 ## 8.1.0
 * Correct how hostnames are passed to RabbitMQ's connection factory to enable proper failover
 
+## 8.1.1
+* Make 1/100th as many defensive calls to `QueueDeclarePassive` in the transport's `Receive` method
+
+
+
 ---
 
 [bzuu]: https://github.com/bzuu

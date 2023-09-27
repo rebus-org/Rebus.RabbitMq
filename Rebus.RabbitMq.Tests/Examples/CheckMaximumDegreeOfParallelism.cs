@@ -31,7 +31,7 @@ public class CheckMaximumDegreeOfParallelism : FixtureBase
 
         Using(new QueueDeleter(queueName));
 
-        var messageCount = maxParallelism * 2;
+        var messageCount = maxParallelism * 5;
 
         using var counter = new SharedCounter(initialValue: messageCount);
 
@@ -41,7 +41,7 @@ public class CheckMaximumDegreeOfParallelism : FixtureBase
 
         activator.Handle<string>(async _ =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(1));
+            await Task.Delay(millisecondsDelay: 50);
             counter.Decrement();
         });
 
@@ -50,7 +50,7 @@ public class CheckMaximumDegreeOfParallelism : FixtureBase
             .Transport(t =>
             {
                 t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName)
-                    .Prefetch(maxNumberOfMessagesToPrefetch: 2 * maxParallelism);
+                    .Prefetch(maxNumberOfMessagesToPrefetch: 3 * maxParallelism);
             })
             .Options(o =>
             {
