@@ -144,7 +144,7 @@ class ConnectionManager : IDisposable
             NetworkRecoveryInterval = TimeSpan.FromSeconds(30),
             ClientProperties = CreateClientProperties(inputQueueAddress),
             
-            VirtualHost = uri.LocalPath
+            VirtualHost = GetVirtualHostPath()
         };
 
         if (uri.TryGetCredentials(out var credentials))
@@ -154,6 +154,13 @@ class ConnectionManager : IDisposable
         }
 
         return connectionFactory;
+
+        string GetVirtualHostPath()
+        {
+            return uri.LocalPath == "/"
+                ? uri.LocalPath
+                : uri.LocalPath.Substring(1);
+        }
     }
 
     public IConnection GetConnection()

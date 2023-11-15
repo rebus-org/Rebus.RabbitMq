@@ -38,7 +38,7 @@ public class AutomaticallyCreatesErrorQueue : FixtureBase
                 // pretend we didn't customize it
                 if (errorQueueName == "error") return;
 
-                o.SimpleRetryStrategy(errorQueueAddress: errorQueueName);
+                o.RetryStrategy(errorQueueName: errorQueueName);
             })
             .Start();
 

@@ -356,6 +356,18 @@ public class RabbitMqOptionsBuilder
             set { _decoratedFactory.Password = value; }
         }
 
+        public ICredentialsProvider CredentialsProvider
+        {
+            get { return _decoratedFactory.CredentialsProvider; }
+            set { _decoratedFactory.CredentialsProvider = value; }
+        }
+
+        public ICredentialsRefresher CredentialsRefresher
+        {
+            get { return _decoratedFactory.CredentialsRefresher;}
+            set { _decoratedFactory.CredentialsRefresher = value; }
+        }
+
         public ushort RequestedChannelMax
         {
             get { return _decoratedFactory.RequestedChannelMax; }

@@ -54,7 +54,7 @@ public class RabbitMqRecovery : FixtureBase
             {
                 o.SetNumberOfWorkers(0);
                 o.SetMaxParallelism(1);
-                o.SimpleRetryStrategy(maxDeliveryAttempts: 1);
+                o.RetryStrategy(maxDeliveryAttempts: 1);
             })
             .Start();
 

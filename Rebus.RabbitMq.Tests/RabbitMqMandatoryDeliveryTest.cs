@@ -129,7 +129,7 @@ public class RabbitMqMandatoryDeliveryTest : FixtureBase
         Configure.With(activator)
             .Logging(l => l.Console(minLevel: LogLevel.Warn))
             .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName))
-            .Options(o => o.SimpleRetryStrategy(maxDeliveryAttempts:1))
+            .Options(o => o.RetryStrategy(maxDeliveryAttempts: 1))
             .Start();
 
         return activator;
