@@ -19,9 +19,7 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
-using System.Net;
 // ReSharper disable AccessToDisposedClosure
-
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
 // ReSharper disable ArgumentsStyleNamedExpression
@@ -70,6 +68,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     RabbitMqQueueOptionsBuilder _inputQueueOptions = new();
     RabbitMqQueueOptionsBuilder _defaultQueueOptions = new();
     RabbitMqExchangeOptionsBuilder _inputExchangeOptions = new();
+
+    long _queueDeclarePassiveCounter;
 
     RabbitMqTransport(IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch, string inputQueueAddress) :
         base(inputQueueAddress)
@@ -480,7 +480,11 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
                 // Applied this logic to recreate the queue only if the transport is configure initially to create the queue if it doesnt exists.
                 if (_declareInputQueue)
                 {
-                    _consumer?.Model.QueueDeclarePassive(Address);
+                    // avoid hammering the QueueDeclarePassive method
+                    if (Interlocked.Increment(ref _queueDeclarePassiveCounter) % 100 == 0)
+                    {
+                        _consumer?.Model.QueueDeclarePassive(Address);
+                    }
                 }
             }
             catch

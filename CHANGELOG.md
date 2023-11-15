@@ -146,6 +146,7 @@
 * Update to Rebus 8
 * Change SSL protocol default to NONE (i.e. leave it to the .NET framework or the operating system) - thanks [MrAdam]
 * Don't set URI on RabbitMQ's own connection factory to have it correctly be able to fail over when running with multiple nodes
+* Make 1/100th as many defensive calls to `QueueDeclarePassive` in the transport's `Receive` method
 * Fix bug that would accidentally use a /-prefixed virtual host when a virtual host was actually specified in the URI
 * Update RabbitMq.Client to 6.6.0
 
