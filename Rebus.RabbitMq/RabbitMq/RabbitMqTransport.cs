@@ -61,6 +61,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     bool _publisherConfirmsEnabled = true;
     TimeSpan _publisherConfirmsTimeout;
 
+    string _consumerTag = null;
+
     string _directExchangeName = RabbitMqOptionsBuilder.DefaultDirectExchangeName;
     string _topicExchangeName = RabbitMqOptionsBuilder.DefaultTopicExchangeName;
 
@@ -245,6 +247,11 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     public void SetMaxWriterPoolSize(int poolSize)
     {
         _writerPool.SetMaxEntries(poolSize);
+    }
+
+    public void SetConsumerTag(string consumerTag)
+    {
+        _consumerTag = consumerTag;
     }
 
     /// <summary>
@@ -678,7 +685,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
             var consumer = new CustomQueueingConsumer(model);
 
-            model.BasicConsume(queue: Address, autoAck: false, consumer: consumer);
+            model.BasicConsume(queue: Address, autoAck: false, consumer: consumer, 
+                consumerTag: _consumerTag != null ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}" : ""
+                );
 
             _log.Info("Successfully initialized consumer for {queueName}", Address);
 
