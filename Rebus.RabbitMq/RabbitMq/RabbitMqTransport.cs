@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -629,6 +630,13 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         if (basicProperties.IsCorrelationIdPresent())
         {
             headers[RabbitMqHeaders.CorrelationId] = basicProperties.CorrelationId;
+        }
+
+        if (basicProperties.Headers?.TryGetValue("x-delivery-count", out var deliveryCountObj) == true)
+        {
+            var deliveryCount = Convert.ToInt32(deliveryCountObj);
+
+            headers[Headers.DeliveryCount] = deliveryCount.ToString(CultureInfo.InvariantCulture);
         }
 
         return new TransportMessage(headers, body);

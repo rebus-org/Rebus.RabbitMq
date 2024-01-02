@@ -14,10 +14,10 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="rabbitmq.client" Version="6.6.0" />
+		<PackageReference Include="rabbitmq.client" Version="6.8.1" />
 		<PackageReference Include="rebus.fleetmanager" Version="6.2.0" />
 		<PackageReference Include="rebus.serviceprovider" Version="10.0.0" />
-		<PackageReference Include="rebus.tests.contracts" Version="8.0.1" />
+		<PackageReference Include="rebus.tests.contracts" Version="8.2.0-alpha01" />
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Internals\" />

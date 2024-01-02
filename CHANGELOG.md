@@ -150,6 +150,10 @@
 * Fix bug that would accidentally use a /-prefixed virtual host when a virtual host was actually specified in the URI
 * Update RabbitMq.Client to 6.6.0
 
+## 9.1.0-alpha01
+* Update to Rebus 8.2.0-alpha01 and implement support for providing the delivery count from `x-delivery-count` when available (which is is on quorum queues)
+
+
 ---
 
 [bzuu]: https://github.com/bzuu
