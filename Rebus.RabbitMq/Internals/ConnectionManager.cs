@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -126,7 +126,8 @@ class ConnectionManager : IDisposable
             {
                 try
                 {
-                    return new AmqpTcpEndpoint(new Uri(uriString));
+                    var uri = new Uri(uriString);
+                    return new AmqpTcpEndpoint(uri, uri.Scheme == "amqps" ? new SslOption(uri.Host, enabled: true) : null);
                 }
                 catch (Exception exception)
                 {
