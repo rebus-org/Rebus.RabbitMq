@@ -242,6 +242,15 @@ public class RabbitMqOptionsBuilder
         return this;
     }
 
+    /// <summary>
+    /// Sets the consumer tag. The actual tag will include a random string to guarantee uniqueness. 
+    /// </summary>
+    public RabbitMqOptionsBuilder SetConsumerTag(string consumerTag)
+    {
+        ConsumerTag = consumerTag;
+        return this;
+    }
+
     internal bool? DeclareExchanges { get; private set; }
     internal bool? DeclareInputQueue { get; private set; }
     internal bool? BindInputQueue { get; private set; }
@@ -250,6 +259,8 @@ public class RabbitMqOptionsBuilder
 
     internal string DirectExchangeName { get; private set; }
     internal string TopicExchangeName { get; private set; }
+    
+    internal string ConsumerTag { get; private set; }
 
     internal int? MaxNumberOfMessagesToPrefetch { get; private set; }
 
@@ -322,6 +333,7 @@ public class RabbitMqOptionsBuilder
         transport.SetDefaultQueueOptions(DefaultQueueOptionsBuilder);
         transport.SetExchangeOptions(ExchangeOptions);
         transport.SetMaxWriterPoolSize(MaxWriterPoolSize);
+        transport.SetConsumerTag(ConsumerTag);
     }
 
     /// This is temporary decorator-fix, until Rebus is upgraded to a version 6+ of RabbitMQ.Client wich has new signature:
