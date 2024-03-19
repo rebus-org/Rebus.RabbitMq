@@ -16,7 +16,7 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="rebus" Version="8.2.0-alpha01" />
+		<PackageReference Include="rebus" Version="8.2.2" />
 		<PackageReference Include="RabbitMq.Client" Version="6.8.1" />
 	</ItemGroup>
 	<ItemGroup>
