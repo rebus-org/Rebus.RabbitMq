@@ -150,8 +150,9 @@
 * Fix bug that would accidentally use a /-prefixed virtual host when a virtual host was actually specified in the URI
 * Update RabbitMq.Client to 6.6.0
 
-## 9.1.0-alpha01
+## 9.1.0
 * Update to Rebus 8.2.0-alpha01 and implement support for providing the delivery count from `x-delivery-count` when available (which is is on quorum queues)
+* Fix passing of SSL options - thanks [yuriyostapenko]
 
 
 ---
@@ -171,4 +172,6 @@
 [ronnyek]: https://github.com/ronnyek
 [rsivanov]: https://github.com/rsivanov
 [samartzidis]: https://github.com/samartzidis
+[yuriyostapenko]: https://github.com/yuriyostapenko
 [zlepper]: https://github.com/zlepper
+
