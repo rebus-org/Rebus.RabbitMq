@@ -151,8 +151,9 @@
 * Update RabbitMq.Client to 6.6.0
 
 ## 9.1.0
-* Update to Rebus 8.2.0-alpha01 and implement support for providing the delivery count from `x-delivery-count` when available (which is is on quorum queues)
+* Implement support for providing the delivery count from `x-delivery-count` when available (which is is on quorum queues)
 * Fix passing of SSL options - thanks [yuriyostapenko]
+* Update to Rebus 8.2.2
 
 
 ---
