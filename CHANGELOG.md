@@ -155,6 +155,8 @@
 * Fix passing of SSL options - thanks [yuriyostapenko]
 * Update to Rebus 8.2.2
 
+## 9.2.0
+* Add optional batching, which can be enabled by calling `.SetBatchSize(n)` on the RabbitMQ configuration builder
 
 ---
 
