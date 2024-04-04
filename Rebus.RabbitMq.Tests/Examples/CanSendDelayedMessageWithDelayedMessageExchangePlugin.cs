@@ -19,9 +19,20 @@ namespace Rebus.RabbitMq.Tests.Examples;
 [TestFixture]
 public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
 {
+    string _connectionString;
+
     protected override void SetUp()
     {
         base.SetUp();
+
+        var container = RabbitMqTestContainerManager.GetCustomContainer(
+            builder => builder
+                .WithImage("heidiks/rabbitmq-delayed-message-exchange:latest")
+        );
+
+        _connectionString = container.ConnnectionString;
+
+        Using(container);
     }
 
     [Test]
@@ -42,7 +53,7 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
         });
 
         Configure.With(receiver)
-            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, "receiver"))
+            .Transport(t => t.UseRabbitMq(_connectionString, "receiver"))
             .Routing(r => r.TypeBased().Map<string>("receiver"))
             .Timeouts(t => t.UseDelayedMessageExchange("RebusDelayed"))
             .Start();
@@ -76,7 +87,7 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
         });
 
         Configure.With(receiver)
-            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, "receiver"))
+            .Transport(t => t.UseRabbitMq(_connectionString, "receiver"))
             .Routing(r => r.TypeBased().Map<string>("receiver@RebusDelayed"))
             .Start();
 
@@ -91,9 +102,9 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
         Assert.That(elapsed, Is.GreaterThan(TimeSpan.FromSeconds(5)));
     }
 
-    static void DeclareDelayedMessageExchange(string exchangeName)
+    void DeclareDelayedMessageExchange(string exchangeName)
     {
-        var connectionFactory = new ConnectionFactory { Uri = new(RabbitMqTransportFactory.ConnectionString) };
+        var connectionFactory = new ConnectionFactory { Uri = new(_connectionString) };
         using var connection = connectionFactory.CreateConnection();
         using var model = connection.CreateModel();
 
