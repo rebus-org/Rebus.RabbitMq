@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using RabbitMQ.Client;
 using Rebus.RabbitMq;
+using Rebus.Transport;
 
 namespace Rebus.Config;
 
@@ -242,11 +244,27 @@ public class RabbitMqOptionsBuilder
         return this;
     }
 
+    /// <summary>
+    /// Sets the maximum message batch size. Defaults to 1, which means that batching is disabled. When set to values greater than 1,
+    /// the RabbitMQ driver's native ability to batch commands will be used when possible. With Rebus, messages are batched when they're sent/published
+    /// from a Rebus handler or within a <see cref="RebusTransactionScope"/>.
+    /// </summary>
+    public RabbitMqOptionsBuilder SetBatchSize(int batchSize)
+    {
+        if (batchSize < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(batchSize), batchSize, "Message batch size cannot be less than 1");
+        }
+        BatchSize = batchSize;
+        return this;
+    }
+
     internal bool? DeclareExchanges { get; private set; }
     internal bool? DeclareInputQueue { get; private set; }
     internal bool? BindInputQueue { get; private set; }
     internal bool? PublisherConfirmsEnabled { get; private set; }
     internal TimeSpan? PublisherConfirmsTimeout { get; private set; }
+    internal int BatchSize { get; private set; }
 
     internal string DirectExchangeName { get; private set; }
     internal string TopicExchangeName { get; private set; }
@@ -322,6 +340,7 @@ public class RabbitMqOptionsBuilder
         transport.SetDefaultQueueOptions(DefaultQueueOptionsBuilder);
         transport.SetExchangeOptions(ExchangeOptions);
         transport.SetMaxWriterPoolSize(MaxWriterPoolSize);
+        transport.SetBatchSize(BatchSize);
     }
 
     /// This is temporary decorator-fix, until Rebus is upgraded to a version 6+ of RabbitMQ.Client wich has new signature:
@@ -364,7 +383,7 @@ public class RabbitMqOptionsBuilder
 
         public ICredentialsRefresher CredentialsRefresher
         {
-            get { return _decoratedFactory.CredentialsRefresher;}
+            get { return _decoratedFactory.CredentialsRefresher; }
             set { _decoratedFactory.CredentialsRefresher = value; }
         }
 
