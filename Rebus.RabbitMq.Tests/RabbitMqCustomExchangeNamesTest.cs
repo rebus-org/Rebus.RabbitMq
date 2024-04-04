@@ -19,7 +19,7 @@ public class RabbitMqCustomExchangeNamesTest : FixtureBase
     [Test]
     public async Task CanUseCustomExchangeName()
     {
-        const string connectionString = RabbitMqTransportFactory.ConnectionString;
+        var connectionString = RabbitMqTransportFactory.ConnectionString;
 
         const string customDirectExchangeName = "Dingo";
         const string customTopicExchangeName = "Topico";
@@ -58,7 +58,7 @@ public class RabbitMqCustomExchangeNamesTest : FixtureBase
     [Test]
     public async Task CanUseAlternateCustomExchangeName()
     {
-        const string connectionString = RabbitMqTransportFactory.ConnectionString;
+        var connectionString = RabbitMqTransportFactory.ConnectionString;
             
         var rabbitMqTransport = new RabbitMqTransport(connectionString, "inputQueue", new ConsoleLoggerFactory(false));
         rabbitMqTransport.SetBlockOnReceive(blockOnReceive: false);

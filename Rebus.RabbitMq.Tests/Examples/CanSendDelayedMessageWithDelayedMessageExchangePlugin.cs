@@ -19,6 +19,11 @@ namespace Rebus.RabbitMq.Tests.Examples;
 [TestFixture]
 public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
 {
+    protected override void SetUp()
+    {
+        base.SetUp();
+    }
+
     [Test]
     public async Task ShowHowItIsDone_TimeoutManager()
     {
