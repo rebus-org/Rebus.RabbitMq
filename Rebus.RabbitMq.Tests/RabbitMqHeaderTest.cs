@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -10,6 +11,7 @@ using Rebus.Extensions;
 using Rebus.Logging;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
+// ReSharper disable AccessToDisposedClosure
 
 namespace Rebus.RabbitMq.Tests;
 
@@ -26,8 +28,8 @@ public class RabbitMqHeaderTest : FixtureBase
     [Test]
     public async Task Headers()
     {
+        using var gotCallback = new ManualResetEvent(false);
         var messageId = Guid.NewGuid();
-        var gotCallback = new ManualResetEvent(false);
 
         var headersFromCallback = new Dictionary<string, string>();
 
@@ -47,7 +49,7 @@ public class RabbitMqHeaderTest : FixtureBase
             [RabbitMqHeaders.MessageId] = messageId.ToString(),
             [RabbitMqHeaders.AppId] = Guid.NewGuid().ToString(),
             [RabbitMqHeaders.CorrelationId] = Guid.NewGuid().ToString(),
-            [RabbitMqHeaders.UserId] = "guest",
+            [RabbitMqHeaders.UserId] = GetUsernameFromConnectionString(RabbitMqTransportFactory.ConnectionString),
             [RabbitMqHeaders.ContentType] = "text/plain", // NOTE: Gets overridden by JsonSerializer in Rebus
             [RabbitMqHeaders.ContentEncoding] = "none",
             [RabbitMqHeaders.DeliveryMode] = "1",
@@ -98,6 +100,14 @@ public class RabbitMqHeaderTest : FixtureBase
         //Assert.AreEqual(headers[RabbitMqHeaders.Timestamp], ConvertUnixTimeStamp(basicProperties.Timestamp.UnixTime.ToString()).ToString("s"), RabbitMqHeaders.Timestamp);
 
         //Assert.AreEqual("custom", basicProperties.Headers["Custom-header"], "custom-header");
+    }
+
+    string GetUsernameFromConnectionString(string connectionString)
+    {
+        var uri = new Uri(connectionString);
+        var userInfo = uri.UserInfo;
+        var username = userInfo.Split(":").First();
+        return username; 
     }
 
     IBus StartOneWayClient(Action<object, BasicReturnEventArgs> basicReturnCallback)
