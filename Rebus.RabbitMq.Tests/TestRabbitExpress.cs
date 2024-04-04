@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
-using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Messages;
@@ -47,7 +46,7 @@ public class TestRabbitExpress : FixtureBase
 
         var bus = Configure.With(activator)
             .Logging(l => l.ColoredConsole(LogLevel.Warn))
-            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _queueName).SetBatchSize(100))
+            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _queueName).SetBatchSize(enableBatching ? 100 : 1))
             .Options(o => o.SetMaxParallelism(100))
             .Start();
 
