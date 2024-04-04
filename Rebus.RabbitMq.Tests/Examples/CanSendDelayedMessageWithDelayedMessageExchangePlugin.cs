@@ -25,14 +25,13 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
     {
         base.SetUp();
 
-        var container = RabbitMqTestContainerManager.GetCustomContainer(
+        var container = Using(RabbitMqTestContainerManager.GetCustomContainer(
+            // https://github.com/heidiks/rabbitmq-delayed-message-exchange
             builder => builder
                 .WithImage("heidiks/rabbitmq-delayed-message-exchange:latest")
-        );
+        ));
 
         _connectionString = container.ConnnectionString;
-
-        Using(container);
     }
 
     [Test]
