@@ -94,7 +94,7 @@ public class RabbitMqReceiveSubscriptionTests : FixtureBase
         await publisher.Publish(message);
 
         var result = receivedEvent.WaitOne(TimeSpan.FromSeconds(2));
-        Assert.IsFalse(result);
+        Assert.That(result, Is.False);
     }
 
     IBus StartBus(string queueName, Func<string, Task> handlerMethod = null, bool autoDeclareQueue = true, bool autoDeclareBindQueue = true)
