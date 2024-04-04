@@ -39,9 +39,9 @@ public class RabbitMqPriorityQueueTest : FixtureBase
             var connectionFactory = new ConnectionFactory { Uri = new Uri(RabbitMqTransportFactory.ConnectionString) };
 
             using var connection = connectionFactory.CreateConnection();
-            
+
             using var model = connection.CreateModel();
-            
+
             // Throws exception if queue paramters differ
             model.QueueDeclare(_priorityQueueName,
                 exclusive: false,
@@ -186,8 +186,8 @@ public class RabbitMqPriorityQueueTest : FixtureBase
             last = prio;
         }
 
-        Assert.AreEqual(expectedMessageCount, handledSequence.Count, $"Expected {expectedMessageCount} messages");
-        Assert.False(error, "Sequence is out of order");
+        Assert.That(handledSequence.Count, Is.EqualTo(expectedMessageCount), $"Expected {expectedMessageCount} messages");
+        Assert.That(error, Is.False, "Sequence is out of order");
     }
 
     BuiltinHandlerActivator StartServer(string queueName, int maxPriority)

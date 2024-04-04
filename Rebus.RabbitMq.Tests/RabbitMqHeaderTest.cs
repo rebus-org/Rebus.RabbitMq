@@ -43,13 +43,14 @@ public class RabbitMqHeaderTest : FixtureBase
         }
 
         var timestamp = DateTime.Now;
+        var userId = GetUsernameFromConnectionString(RabbitMqTransportFactory.ConnectionString);
         var headers = new Dictionary<string, string>
         {
             [RabbitMqHeaders.Mandatory] = bool.TrueString, // set in order to have callback
             [RabbitMqHeaders.MessageId] = messageId.ToString(),
             [RabbitMqHeaders.AppId] = Guid.NewGuid().ToString(),
             [RabbitMqHeaders.CorrelationId] = Guid.NewGuid().ToString(),
-            [RabbitMqHeaders.UserId] = GetUsernameFromConnectionString(RabbitMqTransportFactory.ConnectionString),
+            [RabbitMqHeaders.UserId] = userId,
             [RabbitMqHeaders.ContentType] = "text/plain", // NOTE: Gets overridden by JsonSerializer in Rebus
             [RabbitMqHeaders.ContentEncoding] = "none",
             [RabbitMqHeaders.DeliveryMode] = "1",
@@ -85,24 +86,10 @@ public class RabbitMqHeaderTest : FixtureBase
         var contentType = headersFromCallback.GetValue(RabbitMqHeaders.ContentType);
 
         Assert.That(contentType, Is.Not.Empty);
-
-
-        //Assert.AreEqual(headers[RabbitMqHeaders.MessageId], basicProperties.MessageId, RabbitMqHeaders.MessageId);
-        //Assert.AreEqual(headers[RabbitMqHeaders.AppId], basicProperties.AppId, RabbitMqHeaders.AppId);
-        //Assert.AreEqual(headers[RabbitMqHeaders.CorrelationId], basicProperties.CorrelationId, RabbitMqHeaders.CorrelationId);
-        //Assert.AreEqual(headers[RabbitMqHeaders.UserId], basicProperties.UserId, RabbitMqHeaders.UserId);
-        //Assert.AreEqual(headers[RabbitMqHeaders.ContentType], basicProperties.ContentType);
-        //Assert.AreEqual(headers[RabbitMqHeaders.ContentEncoding], basicProperties.ContentEncoding, RabbitMqHeaders.ContentEncoding);
-        //Assert.AreEqual(headers[RabbitMqHeaders.DeliveryMode], basicProperties.DeliveryMode.ToString(), RabbitMqHeaders.DeliveryMode);
-        //Assert.AreEqual(headers[RabbitMqHeaders.Type], basicProperties.Type, RabbitMqHeaders.Type);
-
-        //Assert.AreEqual(TimeSpan.FromMinutes(2).TotalMilliseconds.ToString(), basicProperties.Expiration, RabbitMqHeaders.Expiration);
-        //Assert.AreEqual(headers[RabbitMqHeaders.Timestamp], ConvertUnixTimeStamp(basicProperties.Timestamp.UnixTime.ToString()).ToString("s"), RabbitMqHeaders.Timestamp);
-
-        //Assert.AreEqual("custom", basicProperties.Headers["Custom-header"], "custom-header");
+        Assert.That(headersFromCallback.GetValueOrDefault(RabbitMqHeaders.UserId), Is.EqualTo(userId));
     }
 
-    string GetUsernameFromConnectionString(string connectionString)
+    static string GetUsernameFromConnectionString(string connectionString)
     {
         var uri = new Uri(connectionString);
         var userInfo = uri.UserInfo;
@@ -119,10 +106,5 @@ public class RabbitMqHeaderTest : FixtureBase
             .Transport(t => t.UseRabbitMqAsOneWayClient(RabbitMqTransportFactory.ConnectionString)
                 .Mandatory(basicReturnCallback))
             .Start();
-    }
-
-    public static DateTime ConvertUnixTimeStamp(string unixTimeStamp)
-    {
-        return new DateTime(1970, 1, 1, 0, 0, 0).AddMilliseconds(Convert.ToInt64(unixTimeStamp));
     }
 }
