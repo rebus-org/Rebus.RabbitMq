@@ -16,13 +16,13 @@ public class RabbitMqCreateQueueTest : FixtureBase
     [Test]
     public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_False_AND_TTL0_THEN_BusCanStart_()
     {
-        using var testScope = new QeueuNameTestScope();
+        using var testScope = new QueueNameTestScope();
         using var activator = new BuiltinHandlerActivator();
 
         var configurer = Configure.With(activator)
             .Transport(t =>
             {
-                t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QueueName)
                     .InputQueueOptions(o => o.SetAutoDelete(false))
                     .AddClientProperties(new Dictionary<string, string> {
                         { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
@@ -31,24 +31,24 @@ public class RabbitMqCreateQueueTest : FixtureBase
 
         using (var bus = configurer.Start())
         {
-            Assert.IsTrue(bus.Advanced.Workers.Count > 0);
+            Assert.That(bus.Advanced.Workers.Count, Is.GreaterThan(0));
         }
 
         Thread.Sleep(5000);
-        Assert.IsTrue(RabbitMqTransportFactory.QueueExists(testScope.QeueuName));
+        Assert.That(RabbitMqTransportFactory.QueueExists(testScope.QueueName), Is.True, $"The queue '{testScope.QueueName}' does not exist");
     }
 
     [Test]
     public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_True_THEN_BusCanStart()
     {
-        using var testScope = new QeueuNameTestScope();
+        using var testScope = new QueueNameTestScope();
 
         using var activator = new BuiltinHandlerActivator();
 
         var configurer = Configure.With(activator)
             .Transport(t =>
             {
-                t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QueueName)
                     .InputQueueOptions(o => o.SetAutoDelete(true))
                     .AddClientProperties(new Dictionary<string, string> {
                         { "description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs" }
@@ -57,13 +57,13 @@ public class RabbitMqCreateQueueTest : FixtureBase
 
         var bus = configurer.Start();
 
-        Assert.IsTrue(bus.Advanced.Workers.Count > 0);
+        Assert.That(bus.Advanced.Workers.Count, Is.GreaterThan(0));
     }
 
     [Test]
     public void Test_CreateQueue_WHEN_InputQueueOptions_SetQueueTTL_0_THEN_ArgumentException()
     {
-        using var testScope = new QeueuNameTestScope();
+        using var testScope = new QueueNameTestScope();
 
         using var activator = new BuiltinHandlerActivator();
 
@@ -73,7 +73,7 @@ public class RabbitMqCreateQueueTest : FixtureBase
                 .With(activator)
                 .Transport(t =>
                 {
-                    t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                    t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QueueName)
                         .InputQueueOptions(o => o.SetQueueTTL(0).SetDurable(false))
                         .AddClientProperties(new Dictionary<string, string>
                             {{"description", "CreateQueue_With_AutoDelete test in RabbitMqCreateQueueTest.cs"}});
@@ -86,14 +86,14 @@ public class RabbitMqCreateQueueTest : FixtureBase
     [Test]
     public void Test_CreateQueue_WHEN_InputQueueOptions_SetQueueTTL_5000_THEN_QueueIsDeleted_WHEN_5000msAfterConnectionClosed()
     {
-        using var testScope = new QeueuNameTestScope();
+        using var testScope = new QueueNameTestScope();
 
         using (var activator = new BuiltinHandlerActivator())
         {
             var configurer = Configure.With(activator)
                 .Transport(t =>
                 {
-                    t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QeueuName)
+                    t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, testScope.QueueName)
                         .InputQueueOptions(o => o.SetQueueTTL(100))
                         .AddClientProperties(new Dictionary<string, string>
                         {
@@ -103,26 +103,18 @@ public class RabbitMqCreateQueueTest : FixtureBase
 
             var bus = configurer.Start();
 
-            Assert.IsTrue(bus.Advanced.Workers.Count > 0);
+            Assert.That(bus.Advanced.Workers.Count, Is.GreaterThan(0));
         }
 
 
         Thread.Sleep(5000);
-        Assert.IsFalse(RabbitMqTransportFactory.QueueExists(testScope.QeueuName));
+        Assert.That(RabbitMqTransportFactory.QueueExists(testScope.QueueName), Is.False, $"The queue '{testScope.QueueName}' was still there");
     }
 
-    class QeueuNameTestScope : IDisposable
+    class QueueNameTestScope : IDisposable
     {
-        public string QeueuName { get; }
+        public string QueueName { get; } = Guid.NewGuid().ToString();
 
-        public QeueuNameTestScope()
-        {
-            QeueuName = Guid.NewGuid().ToString();
-        }
-
-        public void Dispose()
-        {
-            RabbitMqTransportFactory.DeleteQueue(QeueuName);
-        }
+        public void Dispose() => RabbitMqTransportFactory.DeleteQueue(QueueName);
     }
 }

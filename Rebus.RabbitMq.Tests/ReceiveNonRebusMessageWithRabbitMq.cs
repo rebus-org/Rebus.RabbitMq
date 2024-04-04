@@ -21,7 +21,8 @@ namespace Rebus.RabbitMq.Tests;
 [TestFixture]
 public class ReceiveNonRebusMessageWithRabbitMq : FixtureBase
 {
-    const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
+    string ConnectionString => RabbitMqTestContainerManager.GetConnectionString();
+    
     readonly string _inputQueueName = TestConfig.GetName("custom-msg");
     BuiltinHandlerActivator _activator;
     IBusStarter _starter;

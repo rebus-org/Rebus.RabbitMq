@@ -19,7 +19,7 @@ public class WorksWithoutHighAvailabilityFlag : FixtureBase
     [Test]
     public async Task CanWorkWithEmptyArguments()
     {
-        const string connectionString = RabbitMqTransportFactory.ConnectionString;
+        var connectionString = RabbitMqTransportFactory.ConnectionString;
 
         var queueName = TestConfig.GetName("empty-args-test");
 

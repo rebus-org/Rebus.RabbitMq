@@ -15,7 +15,7 @@ namespace Rebus.RabbitMq.Tests;
 [TestFixture]
 public class RabbitMqPublisherConfirmsPublishPerformanceTest : FixtureBase
 {
-    const string ConnectionString = RabbitMqTransportFactory.ConnectionString;
+    string ConnectionString => RabbitMqTestContainerManager.GetConnectionString();
 
     /// <summary>
     /// Without confirms: 15508.5 msg/s

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,7 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
+using System.Text.RegularExpressions;
 // ReSharper disable AccessToDisposedClosure
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
@@ -59,6 +61,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     bool _declareInputQueue = true;
     bool _bindInputQueue = true;
     bool _publisherConfirmsEnabled = true;
+    int _batchSize = 1;
+
     TimeSpan _publisherConfirmsTimeout;
 
     string _consumerTag = null;
@@ -135,6 +139,18 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     public void SetSslSettings(SslSettings sslSettings)
     {
         _connectionManager.SetSslOptions(sslSettings);
+    }
+
+    /// <summary>
+    /// Sets the maximum message batch size. Defaults to 1 (i.e. batching is disabled).
+    /// </summary>
+    public void SetBatchSize(int batchSize)
+    {
+        if (batchSize < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(batchSize), batchSize, "Message batch size cannot be less than 1");
+        }
+        _batchSize = batchSize;
     }
 
     /// <summary>
@@ -638,6 +654,13 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             headers[RabbitMqHeaders.CorrelationId] = basicProperties.CorrelationId;
         }
 
+        if (basicProperties.Headers?.TryGetValue("x-delivery-count", out var deliveryCountObj) == true)
+        {
+            var deliveryCount = Convert.ToInt32(deliveryCountObj);
+
+            headers[Headers.DeliveryCount] = deliveryCount.ToString(CultureInfo.InvariantCulture);
+        }
+
         return new TransportMessage(headers, body);
     }
 
@@ -707,45 +730,22 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    void DoSend(IEnumerable<OutgoingTransportMessage> outgoingMessages, IModel model, bool isExpress)
+    void DoSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IModel model, bool isExpress)
     {
+        if (!outgoingMessages.Any()) return;
+
         if (_publisherConfirmsEnabled && !isExpress)
         {
             model.ConfirmSelect();
         }
 
-        foreach (var outgoingMessage in outgoingMessages)
+        if (_batchSize == 1)
         {
-            var destinationAddress = outgoingMessage.DestinationAddress;
-            var message = outgoingMessage.TransportMessage;
-            var props = CreateBasicProperties(model, message.Headers);
-
-            var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
-            if (mandatory && !_callbackOptions.HasMandatoryCallback)
-            {
-                throw new MandatoryDeliveryException(
-                    "Mandatory delivery is not allowed without registering a handler for BasicReturn in RabbitMqOptions.");
-            }
-
-            var routingKey = new FullyQualifiedRoutingKey(destinationAddress);
-            var exchange = routingKey.ExchangeName ?? _directExchangeName;
-
-            var isPointToPoint = message.Headers.TryGetValue(Headers.Intent, out var intent)
-                                 && intent == Headers.IntentOptions.PointToPoint;
-
-            // when we're sending point-to-point, we want to be sure that we are never sending the message out into nowhere
-            if (isPointToPoint && !_callbackOptions.HasMandatoryCallback)
-            {
-                EnsureQueueExists(routingKey, model);
-            }
-
-            model.BasicPublish(
-                exchange: exchange,
-                routingKey: routingKey.RoutingKey,
-                mandatory: mandatory,
-                basicProperties: props,
-                body: message.Body
-            );
+            DoNormalSend(outgoingMessages, model);
+        }
+        else
+        {
+            DoBatchedSend(outgoingMessages, model, _batchSize);
         }
 
         if (_publisherConfirmsEnabled && !isExpress)
@@ -760,6 +760,88 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             }
         }
     }
+
+    void DoBatchedSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IModel model, int batchSize)
+    {
+        foreach (var outgoingMessageBatch in outgoingMessages.Batch(batchSize))
+        {
+            var batch = model.CreateBasicPublishBatch();
+
+            foreach (var outgoingMessage in outgoingMessageBatch)
+            {
+                var info = GetPublishInfo(model, outgoingMessage);
+
+                batch.Add(
+                    exchange: info.Exchange,
+                    routingKey: info.RoutingKey,
+                    mandatory: info.Mandatory,
+                    properties: info.Properties,
+                    body: info.Body
+                );
+            }
+
+            batch.Publish();
+        }
+    }
+
+    void DoNormalSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IModel model)
+    {
+        foreach (var outgoingMessage in outgoingMessages)
+        {
+            var info = GetPublishInfo(model, outgoingMessage);
+
+            model.BasicPublish(
+                exchange: info.Exchange,
+                routingKey: info.RoutingKey,
+                mandatory: info.Mandatory,
+                basicProperties: info.Properties,
+                body: info.Body
+            );
+        }
+    }
+
+    RabbitMqPublishInfo GetPublishInfo(IModel model, OutgoingTransportMessage outgoingMessage)
+    {
+        var destinationAddress = outgoingMessage.DestinationAddress;
+        var message = outgoingMessage.TransportMessage;
+        var props = CreateBasicProperties(model, message.Headers);
+
+        var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
+        if (mandatory && !_callbackOptions.HasMandatoryCallback)
+        {
+            throw new MandatoryDeliveryException(
+                "Mandatory delivery is not allowed without registering a handler for BasicReturn in RabbitMqOptions.");
+        }
+
+        var fullyQualifiedRoutingKey = new FullyQualifiedRoutingKey(destinationAddress);
+        var exchange = fullyQualifiedRoutingKey.ExchangeName ?? _directExchangeName;
+
+        var isPointToPoint = message.Headers.TryGetValue(Headers.Intent, out var intent)
+                             && intent == Headers.IntentOptions.PointToPoint;
+
+        // when we're sending point-to-point, we want to be sure that we are never sending the message out into nowhere
+        if (isPointToPoint && !_callbackOptions.HasMandatoryCallback)
+        {
+            EnsureQueueExists(fullyQualifiedRoutingKey, model);
+        }
+
+        var routingKey = fullyQualifiedRoutingKey.RoutingKey;
+
+        return new RabbitMqPublishInfo(
+            Exchange: exchange,
+            RoutingKey: routingKey,
+            Mandatory: mandatory,
+            Properties: props,
+            Body: new ReadOnlyMemory<byte>(message.Body)
+        );
+    }
+
+    record struct RabbitMqPublishInfo(
+        string Exchange,
+        string RoutingKey,
+        bool Mandatory,
+        IBasicProperties Properties,
+        ReadOnlyMemory<byte> Body);
 
     static readonly ConcurrentDictionary<string, (string, string)> ContentTypeHeadersToContentTypeAndCharsetMappings = new();
 

@@ -19,6 +19,53 @@ namespace Rebus.RabbitMq.Tests.Examples;
 [TestFixture]
 public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
 {
+    string _connectionString;
+
+    protected override void SetUp()
+    {
+        base.SetUp();
+
+        var container = Using(RabbitMqTestContainerManager.GetCustomContainer(
+            // https://github.com/heidiks/rabbitmq-delayed-message-exchange
+            builder => builder
+                .WithImage("heidiks/rabbitmq-delayed-message-exchange:latest")
+        ));
+
+        _connectionString = container.ConnnectionString;
+    }
+
+    [Test]
+    public async Task ShowHowItIsDone_TimeoutManager_AutomaticDeclaration()
+    {
+        using var gotTheMessage = new ManualResetEvent(initialState: false);
+
+        var stopwatch = new Stopwatch();
+
+        using var receiver = new BuiltinHandlerActivator();
+
+        receiver.Handle<string>(async _ =>
+        {
+            stopwatch.Stop();
+            gotTheMessage.Set();
+        });
+
+        Configure.With(receiver)
+            .Transport(t => t.UseRabbitMq(_connectionString, "receiver"))
+            .Routing(r => r.TypeBased().Map<string>("receiver"))
+            .Timeouts(t => t.UseDelayedMessageExchange("RebusDelayed"))
+            .Start();
+
+
+        stopwatch.Start();
+        await receiver.Bus.Defer(TimeSpan.FromSeconds(5), "HEJ MED DIG");
+
+        gotTheMessage.WaitOrDie(timeout: TimeSpan.FromSeconds(10));
+
+        var elapsed = stopwatch.Elapsed;
+
+        Assert.That(elapsed, Is.GreaterThan(TimeSpan.FromSeconds(5)));
+    }
+
     [Test]
     public async Task ShowHowItIsDone_TimeoutManager()
     {
@@ -37,7 +84,7 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
         });
 
         Configure.With(receiver)
-            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, "receiver"))
+            .Transport(t => t.UseRabbitMq(_connectionString, "receiver"))
             .Routing(r => r.TypeBased().Map<string>("receiver"))
             .Timeouts(t => t.UseDelayedMessageExchange("RebusDelayed"))
             .Start();
@@ -71,7 +118,7 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
         });
 
         Configure.With(receiver)
-            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, "receiver"))
+            .Transport(t => t.UseRabbitMq(_connectionString, "receiver"))
             .Routing(r => r.TypeBased().Map<string>("receiver@RebusDelayed"))
             .Start();
 
@@ -86,9 +133,9 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
         Assert.That(elapsed, Is.GreaterThan(TimeSpan.FromSeconds(5)));
     }
 
-    static void DeclareDelayedMessageExchange(string exchangeName)
+    void DeclareDelayedMessageExchange(string exchangeName)
     {
-        var connectionFactory = new ConnectionFactory { Uri = new(RabbitMqTransportFactory.ConnectionString) };
+        var connectionFactory = new ConnectionFactory { Uri = new(_connectionString) };
         using var connection = connectionFactory.CreateConnection();
         using var model = connection.CreateModel();
 

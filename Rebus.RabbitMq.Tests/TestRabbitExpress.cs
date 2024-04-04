@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
-using Rebus.Bus;
 using Rebus.Config;
 using Rebus.Logging;
 using Rebus.Messages;
@@ -20,47 +19,50 @@ namespace Rebus.RabbitMq.Tests;
 [TestFixture]
 public class TestRabbitExpress : FixtureBase
 {
-    BuiltinHandlerActivator _activator;
-    IBus _bus;
+    string _queueName;
 
     protected override void SetUp()
     {
-        var queueName = TestConfig.GetName("expressperf5");
+        _queueName = TestConfig.GetName("expressperf5");
 
-        Using(new QueueDeleter(queueName));
-
-        _activator = Using(new BuiltinHandlerActivator());
-
-        _bus = Configure.With(_activator)
-            .Logging(l => l.ColoredConsole(LogLevel.Warn))
-            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName))
-            .Options(o => o.SetMaxParallelism(100))
-            .Start();
+        Using(new QueueDeleter(_queueName));
     }
 
-    [TestCase(10, true)]
-    [TestCase(10, false)]
-    [TestCase(10000, true)]
-    [TestCase(10000, false)]
-    public async Task TestPerformance(int messageCount, bool express)
+    [TestCase(100, true, false)]
+    [TestCase(100, false, false)]
+    [TestCase(1000, true, false)]
+    [TestCase(1000, false, false)]
+    [TestCase(100, true, true)]
+    [TestCase(100, false, true)]
+    [TestCase(1000, true, true)]
+    [TestCase(1000, false, true)]
+    public async Task TestPerformance(int messageCount, bool express, bool enableBatching)
     {
         var receivedMessages = 0L;
-            
-        _bus.Advanced.Workers.SetNumberOfWorkers(0);
-            
-        _activator.Handle<object>(async _ => Interlocked.Increment(ref receivedMessages));
 
+        using var activator = new BuiltinHandlerActivator();
+
+        activator.Handle<object>(async _ => Interlocked.Increment(ref receivedMessages));
+
+        var bus = Configure.With(activator)
+            .Logging(l => l.ColoredConsole(LogLevel.Warn))
+            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _queueName).SetBatchSize(enableBatching ? 100 : 1))
+            .Options(o => o.SetMaxParallelism(100))
+            .Start();
+
+        bus.Advanced.Workers.SetNumberOfWorkers(0);
+        
         var stopwatch = Stopwatch.StartNew();
 
-        var messages = Enumerable.Range(0, messageCount).Select(i => express ? (object) new ExpressMessage() : new NormalMessage());
+        var messages = Enumerable.Range(0, messageCount).Select(i => express ? (object)new ExpressMessage() : new NormalMessage());
 
         foreach (var batch in messages.Batch(100))
         {
             using var scope = new RebusTransactionScope();
-                
+
             foreach (var msg in batch)
             {
-                await _bus.SendLocal(msg);
+                await bus.SendLocal(msg);
             }
 
             await scope.CompleteAsync();
@@ -73,7 +75,7 @@ public class TestRabbitExpress : FixtureBase
 
         Console.WriteLine("Sent {0} messages in {1:0.0} s - that's {2:0.0} msg/s", messageCount, totalSecondsElapsedSending, messageCount / totalSecondsElapsedSending);
 
-        _bus.Advanced.Workers.SetNumberOfWorkers(5);
+        bus.Advanced.Workers.SetNumberOfWorkers(5);
 
         while (Interlocked.Read(ref receivedMessages) < messageCount)
         {

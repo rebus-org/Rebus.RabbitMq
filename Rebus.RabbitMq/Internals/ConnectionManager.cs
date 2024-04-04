@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -112,9 +112,9 @@ class ConnectionManager : IDisposable
             _log.Info("RabbitMQ transport has {count} connection strings available", uriStrings.Length);
         }
 
-        var uri = new Uri(uriStrings.First());
+        var firstUri = new Uri(uriStrings.First());
 
-        _connectionFactory = CreateConnectionFactory(uri, inputQueueAddress);
+        _connectionFactory = CreateConnectionFactory(firstUri, inputQueueAddress);
 
         if (customizer != null)
         {
@@ -126,7 +126,10 @@ class ConnectionManager : IDisposable
             {
                 try
                 {
-                    return new AmqpTcpEndpoint(new Uri(uriString));
+                    var uri = new Uri(uriString);
+                    var sslEnabled = string.Equals(uri.Scheme, "amqps", StringComparison.OrdinalIgnoreCase);
+
+                    return new AmqpTcpEndpoint(uri, new SslOption(uri.Host, enabled: sslEnabled));
                 }
                 catch (Exception exception)
                 {

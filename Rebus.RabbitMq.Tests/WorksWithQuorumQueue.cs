@@ -23,7 +23,7 @@ public class WorksWithQuorumQueue : FixtureBase
     [Test]
     public async Task CanDoAllThisWithQuorumQueue()
     {
-        const string connectionString = RabbitMqTransportFactory.ConnectionString;
+        var connectionString = RabbitMqTransportFactory.ConnectionString;
 
         var queueName = TestConfig.GetName("quorum-test");
 

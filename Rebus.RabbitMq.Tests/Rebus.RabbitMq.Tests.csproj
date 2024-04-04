@@ -8,16 +8,17 @@
 		<ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="microsoft.net.test.sdk" Version="17.8.0" />
+		<PackageReference Include="microsoft.net.test.sdk" Version="17.9.0" />
 		<PackageReference Include="nunit" Version="3.14.0" />
 		<PackageReference Include="NUnit3TestAdapter" Version="4.5.0">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="rabbitmq.client" Version="6.6.0" />
+		<PackageReference Include="rabbitmq.client" Version="6.8.1" />
 		<PackageReference Include="rebus.fleetmanager" Version="6.2.0" />
 		<PackageReference Include="rebus.serviceprovider" Version="10.0.0" />
-		<PackageReference Include="rebus.tests.contracts" Version="8.0.1" />
+		<PackageReference Include="rebus.tests.contracts" Version="8.2.6" />
+		<PackageReference Include="Testcontainers.RabbitMq" Version="3.8.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Internals\" />

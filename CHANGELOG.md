@@ -150,6 +150,17 @@
 * Fix bug that would accidentally use a /-prefixed virtual host when a virtual host was actually specified in the URI
 * Update RabbitMq.Client to 6.6.0
 
+## 9.1.0
+* Implement support for providing the delivery count from `x-delivery-count` when available (which is is on quorum queues)
+* Fix passing of SSL options - thanks [yuriyostapenko]
+* Update to Rebus 8.2.2
+
+## 9.2.0
+* Add optional batching, which can be enabled by calling `.SetBatchSize(n)` on the RabbitMQ configuration builder
+
+## 9.2.1
+* Fix bug that would accidentally use the `@`-prefixed exchange name when declaring it
+
 ---
 
 [bzuu]: https://github.com/bzuu
@@ -167,4 +178,6 @@
 [ronnyek]: https://github.com/ronnyek
 [rsivanov]: https://github.com/rsivanov
 [samartzidis]: https://github.com/samartzidis
+[yuriyostapenko]: https://github.com/yuriyostapenko
 [zlepper]: https://github.com/zlepper
+

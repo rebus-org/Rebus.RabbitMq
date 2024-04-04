@@ -88,9 +88,11 @@ public static class RabbitMqDelayedMessageExchangeExtensions
         {
             if (!_declareExchange) return;
 
-            _logger.Info("Delaring delayed message exchange with name {exchangeName}", _exchangeName);
+            var exchangeName = _exchangeName.Substring(1); //< skip the @ prefix
 
-            _rabbitMqTransport.DeclareDelayedMessageExchange(_exchangeName);
+            _logger.Info("Delaring delayed message exchange with name {exchangeName}", exchangeName);
+
+            _rabbitMqTransport.DeclareDelayedMessageExchange(exchangeName);
         }
 
         public Task Send(string destinationAddress, TransportMessage message, ITransactionContext context)
