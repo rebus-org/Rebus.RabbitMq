@@ -264,7 +264,7 @@ public class RabbitMqOptionsBuilder
     internal bool? BindInputQueue { get; private set; }
     internal bool? PublisherConfirmsEnabled { get; private set; }
     internal TimeSpan? PublisherConfirmsTimeout { get; private set; }
-    internal int BatchSize { get; private set; }
+    internal int BatchSize { get; private set; } = 1;
 
     internal string DirectExchangeName { get; private set; }
     internal string TopicExchangeName { get; private set; }
