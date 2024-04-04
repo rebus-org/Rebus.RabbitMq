@@ -706,12 +706,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    void DoSend(IEnumerable<OutgoingTransportMessage> outgoingMessages, IModel model, bool isExpress)
+    void DoSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IModel model, bool isExpress)
     {
         if (_publisherConfirmsEnabled && !isExpress)
         {
             model.ConfirmSelect();
         }
+
+        var batch = model.CreateBasicPublishBatch();
 
         foreach (var outgoingMessage in outgoingMessages)
         {
@@ -738,14 +740,16 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
                 EnsureQueueExists(routingKey, model);
             }
 
-            model.BasicPublish(
+            batch.Add(
                 exchange: exchange,
                 routingKey: routingKey.RoutingKey,
                 mandatory: mandatory,
-                basicProperties: props,
-                body: message.Body
+                properties: props,
+                body: new ReadOnlyMemory<byte>(message.Body)
             );
         }
+
+        batch.Publish();
 
         if (_publisherConfirmsEnabled && !isExpress)
         {
