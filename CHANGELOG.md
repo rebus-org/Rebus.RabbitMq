@@ -158,6 +158,9 @@
 ## 9.2.0
 * Add optional batching, which can be enabled by calling `.SetBatchSize(n)` on the RabbitMQ configuration builder
 
+## 9.2.1
+* Fix bug that would accidentally use the `@`-prefixed exchange name when declaring it
+
 ---
 
 [bzuu]: https://github.com/bzuu

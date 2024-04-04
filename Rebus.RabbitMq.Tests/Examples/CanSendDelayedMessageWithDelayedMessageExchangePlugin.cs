@@ -35,6 +35,38 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
     }
 
     [Test]
+    public async Task ShowHowItIsDone_TimeoutManager_AutomaticDeclaration()
+    {
+        using var gotTheMessage = new ManualResetEvent(initialState: false);
+
+        var stopwatch = new Stopwatch();
+
+        using var receiver = new BuiltinHandlerActivator();
+
+        receiver.Handle<string>(async _ =>
+        {
+            stopwatch.Stop();
+            gotTheMessage.Set();
+        });
+
+        Configure.With(receiver)
+            .Transport(t => t.UseRabbitMq(_connectionString, "receiver"))
+            .Routing(r => r.TypeBased().Map<string>("receiver"))
+            .Timeouts(t => t.UseDelayedMessageExchange("RebusDelayed"))
+            .Start();
+
+
+        stopwatch.Start();
+        await receiver.Bus.Defer(TimeSpan.FromSeconds(5), "HEJ MED DIG");
+
+        gotTheMessage.WaitOrDie(timeout: TimeSpan.FromSeconds(10));
+
+        var elapsed = stopwatch.Elapsed;
+
+        Assert.That(elapsed, Is.GreaterThan(TimeSpan.FromSeconds(5)));
+    }
+
+    [Test]
     public async Task ShowHowItIsDone_TimeoutManager()
     {
         DeclareDelayedMessageExchange("RebusDelayed");
