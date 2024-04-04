@@ -245,6 +245,15 @@ public class RabbitMqOptionsBuilder
     }
 
     /// <summary>
+    /// Sets the consumer tag. The actual tag will include a random string to guarantee uniqueness. 
+    /// </summary>
+    public RabbitMqOptionsBuilder SetConsumerTag(string consumerTag)
+    {
+        ConsumerTag = consumerTag;
+        return this;
+    }
+  
+    /// <summary>
     /// Sets the maximum message batch size. Defaults to 1, which means that batching is disabled. When set to values greater than 1,
     /// the RabbitMQ driver's native ability to batch commands will be used when possible. With Rebus, messages are batched when they're sent/published
     /// from a Rebus handler or within a <see cref="RebusTransactionScope"/>.
@@ -268,6 +277,8 @@ public class RabbitMqOptionsBuilder
 
     internal string DirectExchangeName { get; private set; }
     internal string TopicExchangeName { get; private set; }
+    
+    internal string ConsumerTag { get; private set; }
 
     internal int? MaxNumberOfMessagesToPrefetch { get; private set; }
 
@@ -340,6 +351,7 @@ public class RabbitMqOptionsBuilder
         transport.SetDefaultQueueOptions(DefaultQueueOptionsBuilder);
         transport.SetExchangeOptions(ExchangeOptions);
         transport.SetMaxWriterPoolSize(MaxWriterPoolSize);
+        transport.SetConsumerTag(ConsumerTag);
         transport.SetBatchSize(BatchSize);
     }
 
