@@ -161,6 +161,9 @@
 ## 9.2.1
 * Fix bug that would accidentally use the `@`-prefixed exchange name when declaring it
 
+## 9.3.0
+* Enable setting the consumer tag - thanks [savissimo]
+
 ---
 
 [bzuu]: https://github.com/bzuu
@@ -178,6 +181,7 @@
 [ronnyek]: https://github.com/ronnyek
 [rsivanov]: https://github.com/rsivanov
 [samartzidis]: https://github.com/samartzidis
+[savissimo]: https://github.com/savissimo
 [yuriyostapenko]: https://github.com/yuriyostapenko
 [zlepper]: https://github.com/zlepper
 
