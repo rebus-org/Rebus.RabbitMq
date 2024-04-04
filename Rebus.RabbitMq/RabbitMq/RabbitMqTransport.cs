@@ -20,6 +20,7 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
+using System.Text.RegularExpressions;
 // ReSharper disable AccessToDisposedClosure
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
@@ -713,43 +714,46 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             model.ConfirmSelect();
         }
 
-        var batch = model.CreateBasicPublishBatch();
-
-        foreach (var outgoingMessage in outgoingMessages)
+        foreach (var outgoingMessageBatch in outgoingMessages.Batch(maxBatchSize: 100))
         {
-            var destinationAddress = outgoingMessage.DestinationAddress;
-            var message = outgoingMessage.TransportMessage;
-            var props = CreateBasicProperties(model, message.Headers);
+            var batch = model.CreateBasicPublishBatch();
 
-            var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
-            if (mandatory && !_callbackOptions.HasMandatoryCallback)
+            foreach (var outgoingMessage in outgoingMessageBatch)
             {
-                throw new MandatoryDeliveryException(
-                    "Mandatory delivery is not allowed without registering a handler for BasicReturn in RabbitMqOptions.");
+                var destinationAddress = outgoingMessage.DestinationAddress;
+                var message = outgoingMessage.TransportMessage;
+                var props = CreateBasicProperties(model, message.Headers);
+
+                var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
+                if (mandatory && !_callbackOptions.HasMandatoryCallback)
+                {
+                    throw new MandatoryDeliveryException(
+                        "Mandatory delivery is not allowed without registering a handler for BasicReturn in RabbitMqOptions.");
+                }
+
+                var routingKey = new FullyQualifiedRoutingKey(destinationAddress);
+                var exchange = routingKey.ExchangeName ?? _directExchangeName;
+
+                var isPointToPoint = message.Headers.TryGetValue(Headers.Intent, out var intent)
+                                     && intent == Headers.IntentOptions.PointToPoint;
+
+                // when we're sending point-to-point, we want to be sure that we are never sending the message out into nowhere
+                if (isPointToPoint && !_callbackOptions.HasMandatoryCallback)
+                {
+                    EnsureQueueExists(routingKey, model);
+                }
+
+                batch.Add(
+                    exchange: exchange,
+                    routingKey: routingKey.RoutingKey,
+                    mandatory: mandatory,
+                    properties: props,
+                    body: new ReadOnlyMemory<byte>(message.Body)
+                );
             }
 
-            var routingKey = new FullyQualifiedRoutingKey(destinationAddress);
-            var exchange = routingKey.ExchangeName ?? _directExchangeName;
-
-            var isPointToPoint = message.Headers.TryGetValue(Headers.Intent, out var intent)
-                                 && intent == Headers.IntentOptions.PointToPoint;
-
-            // when we're sending point-to-point, we want to be sure that we are never sending the message out into nowhere
-            if (isPointToPoint && !_callbackOptions.HasMandatoryCallback)
-            {
-                EnsureQueueExists(routingKey, model);
-            }
-
-            batch.Add(
-                exchange: exchange,
-                routingKey: routingKey.RoutingKey,
-                mandatory: mandatory,
-                properties: props,
-                body: new ReadOnlyMemory<byte>(message.Body)
-            );
+            batch.Publish();
         }
-
-        batch.Publish();
 
         if (_publisherConfirmsEnabled && !isExpress)
         {
