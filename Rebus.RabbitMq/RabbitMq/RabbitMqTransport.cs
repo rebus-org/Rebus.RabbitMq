@@ -658,7 +658,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         {
             if (deliveryCountObj is byte[] bytes)
             {
-                var deliveryCount = BitConverter.ToInt32(bytes, startIndex: 0);
+                var deliveryCount = bytes.Length > 0 ? BitConverter.ToInt32(bytes, startIndex: 0) : 0;
 
                 headers[Headers.DeliveryCount] = deliveryCount.ToString(CultureInfo.InvariantCulture);
             }
@@ -717,7 +717,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
             var consumer = new CustomQueueingConsumer(model);
 
-            model.BasicConsume(queue: Address, autoAck: false, consumer: consumer, 
+            model.BasicConsume(queue: Address, autoAck: false, consumer: consumer,
                 consumerTag: _consumerTag != null ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}" : ""
                 );
 

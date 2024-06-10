@@ -170,6 +170,9 @@
 ## 9.3.2
 * Ensure that RabbitMQ's built-in quorum queue header `x-delivery-count` is cleared when a message is dead-lettered
 
+## 9.3.3
+* Fix handling of built-in delivery count when the value is an empty array
+
 ---
 
 [bzuu]: https://github.com/bzuu
