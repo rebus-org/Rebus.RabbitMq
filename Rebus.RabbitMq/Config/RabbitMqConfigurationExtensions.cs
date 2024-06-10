@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using Rebus.Injection;
+using Rebus.Internals;
 using Rebus.Logging;
 using Rebus.RabbitMq;
+using Rebus.Retry;
 using Rebus.Subscriptions;
 using Rebus.Transport;
 // ReSharper disable ExpressionIsAlwaysNull
@@ -59,7 +61,7 @@ public static class RabbitMqConfigurationExtensions
         return BuildInternal(configurer, false, (context, options) => new RabbitMqTransport(endpoints, inputQueueName, context.Get<IRebusLoggerFactory>(), customizer: options.ConnectionFactoryCustomizer));
     }
 
-    private static RabbitMqOptionsBuilder BuildInternal(StandardConfigurer<ITransport> configurer, bool oneway, Func<IResolutionContext, RabbitMqOptionsBuilder, RabbitMqTransport> rabbitMqTransportBuilder)
+    static RabbitMqOptionsBuilder BuildInternal(StandardConfigurer<ITransport> configurer, bool oneway, Func<IResolutionContext, RabbitMqOptionsBuilder, RabbitMqTransport> rabbitMqTransportBuilder)
     {
         if (configurer == null) throw new ArgumentNullException(nameof(configurer));
 
@@ -84,6 +86,13 @@ public static class RabbitMqConfigurationExtensions
         {
             OneWayClientBackdoor.ConfigureOneWayClient(configurer);
         }
+        else
+        {
+            // ensure that the x-delivery-count header is cleared when messages are moved to the error queue
+            configurer.OtherService<IErrorHandler>()
+                .Decorate(c => new RabbitMqErrorHandlerDecorator(c.Get<IErrorHandler>()));
+        }
+
         return options;
     }
 }

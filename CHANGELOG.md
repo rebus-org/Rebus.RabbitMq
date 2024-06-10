@@ -167,6 +167,9 @@
 ## 9.3.1
 * Get delivery count with `BitConverter` if the header value is `byte[]`
 
+## 9.3.2
+* Ensure that RabbitMQ's built-in quorum queue header `x-delivery-count` is cleared when a message is dead-lettered
+
 ---
 
 [bzuu]: https://github.com/bzuu

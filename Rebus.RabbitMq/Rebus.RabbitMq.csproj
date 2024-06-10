@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
 	<PropertyGroup>
 		<RootNamespace>Rebus</RootNamespace>
-		<LangVersion>10</LangVersion>
+		<LangVersion>12</LangVersion>
 		<AssemblyName>Rebus.RabbitMq</AssemblyName>
 		<TargetFrameworks>netstandard2.0</TargetFrameworks>
 		<Authors>mookid8000</Authors>
