@@ -656,9 +656,18 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         if (basicProperties.Headers?.TryGetValue("x-delivery-count", out var deliveryCountObj) == true)
         {
-            var deliveryCount = Convert.ToInt32(deliveryCountObj);
+            if (deliveryCountObj is byte[] bytes)
+            {
+                var deliveryCount = BitConverter.ToInt32(bytes, startIndex: 0);
 
-            headers[Headers.DeliveryCount] = deliveryCount.ToString(CultureInfo.InvariantCulture);
+                headers[Headers.DeliveryCount] = deliveryCount.ToString(CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                var deliveryCount = Convert.ToInt32(deliveryCountObj);
+
+                headers[Headers.DeliveryCount] = deliveryCount.ToString(CultureInfo.InvariantCulture);
+            }
         }
 
         return new TransportMessage(headers, body);

@@ -164,6 +164,9 @@
 ## 9.3.0
 * Enable setting the consumer tag - thanks [savissimo]
 
+## 9.3.1
+* Get delivery count with `BitConverter` if the header value is `byte[]`
+
 ---
 
 [bzuu]: https://github.com/bzuu
