@@ -173,6 +173,9 @@
 ## 9.3.3
 * Fix handling of built-in delivery count when the value is an empty array
 
+## 9.3.4
+* Add support for even more ways of interpreting a `byte[]` as an `Int32`
+ 
 ---
 
 [bzuu]: https://github.com/bzuu

@@ -658,7 +658,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         {
             if (deliveryCountObj is byte[] bytes)
             {
-                var deliveryCount = bytes.Length > 0 ? BitConverter.ToInt32(bytes, startIndex: 0) : 0;
+                var deliveryCount = bytes.GetInt32();
 
                 headers[Headers.DeliveryCount] = deliveryCount.ToString(CultureInfo.InvariantCulture);
             }
