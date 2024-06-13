@@ -20,7 +20,7 @@ using Rebus.Config;
 using Rebus.Exceptions;
 using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
-using System.Text.RegularExpressions;
+
 // ReSharper disable AccessToDisposedClosure
 // ReSharper disable EmptyGeneralCatchClause
 // ReSharper disable ArgumentsStyleOther
