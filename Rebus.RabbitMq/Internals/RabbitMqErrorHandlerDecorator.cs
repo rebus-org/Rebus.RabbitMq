@@ -13,7 +13,8 @@ class RabbitMqErrorHandlerDecorator(IErrorHandler errorHandler) : IErrorHandler
         var clone = transportMessage.Clone();
 
         clone.Headers.Remove("x-delivery-count");
+        clone.Headers.Remove(Headers.DeliveryCount);
 
-        await errorHandler.HandlePoisonMessage(transportMessage, transactionContext, exception);
+        await errorHandler.HandlePoisonMessage(clone, transactionContext, exception);
     }
 }
