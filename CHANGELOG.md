@@ -167,9 +167,10 @@
 ## 9.3.1
 * Get delivery count with `BitConverter` if the header value is `byte[]`
 
-## 9.3.5
+## 9.3.6
 * Interpret delivery count header value as ASCII text with a number, when the type encountered is `byte[]`
 * Ensure that RabbitMQ's built-in quorum queue header `x-delivery-count` is cleared when a message is dead-lettered
+
 
 ---
 
