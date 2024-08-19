@@ -41,6 +41,11 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// </summary>
     const int QueueDoesNotExist = 404;
 
+    /// <summary>
+    /// Defines how many attempts to make at sending outgoung messages before letting exceptions bubble out
+    /// </summary>
+    const int WriterAttempts = 3;
+
     static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
     readonly SemaphoreSlim _consumerLock = new(1, 1);
@@ -54,7 +59,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     readonly SemaphoreSlim _subscriptionSemaphore = new(1, 1);
     readonly ConnectionManager _connectionManager;
     readonly ILog _log;
-
+    
     ushort _maxMessagesToPrefetch;
 
     bool _declareExchanges = true;
@@ -62,7 +67,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     bool _bindInputQueue = true;
     bool _publisherConfirmsEnabled = true;
     int _batchSize = 1;
-
+    
     TimeSpan _publisherConfirmsTimeout;
 
     string _consumerTag = null;
@@ -428,24 +433,46 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         if (!messages.Any()) return;
 
-        var model = _writerPool.Get();
+        var expressMessages = messages.Where(m => m.IsExpress).Select(m => m.Message).ToList();
+        var ordinaryMessages = messages.Where(m => !m.IsExpress).Select(m => m.Message).ToList();
 
-        try
+        var attempt = 0;
+
+        while (true)
         {
-            var expressMessages = messages.Where(m => m.IsExpress).Select(m => m.Message).ToList();
-            var ordinaryMessages = messages.Where(m => !m.IsExpress).Select(m => m.Message).ToList();
+            var model = _writerPool.Get();
 
-            DoSend(expressMessages, model, isExpress: true);
+            try
+            {
+                // if the model is not fit, discard it and try a new one
+                if (model.IsClosed)
+                {
+                    model.SafeDrop();
+                    continue;
+                }
 
-            DoSend(ordinaryMessages, model, isExpress: false);
+                // otherwise, count this as an attempt and try to do it
+                attempt++;
 
-            _writerPool.Return(model);
-        }
-        catch (Exception)
-        {
-            // if anything goes wrong when using this IModel, just drop it
-            model.SafeDrop();
-            throw;
+                DoSend(expressMessages, model, isExpress: true);
+                DoSend(ordinaryMessages, model, isExpress: false);
+                
+                // remember to return the model
+                _writerPool.Return(model);
+                
+                return; //< success - we're done!
+            }
+            catch (Exception)
+            {
+                // if anything goes wrong when using this IModel, asummed it's faulted and drop it
+                model.SafeDrop();
+
+                // if the built-in number of retries has been exceeded, let the error bubble out
+                if (attempt > WriterAttempts)
+                {
+                    throw;
+                }
+            }
         }
     }
 

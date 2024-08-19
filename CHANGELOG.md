@@ -171,6 +171,8 @@
 * Interpret delivery count header value as ASCII text with a number, when the type encountered is `byte[]`
 * Ensure that RabbitMQ's built-in quorum queue header `x-delivery-count` is cleared when a message is dead-lettered
 
+## 9.4.0
+* Screen the `IModel` for fitness before trying to send with it, and perform send operations with up to 3 attempts to hopefully better overcome transient errors
 
 ---
 

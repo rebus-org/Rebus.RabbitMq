@@ -7,7 +7,6 @@ static class ModelExtensions
     /// <summary>
     /// Disposes the specific 
     /// </summary>
-    /// <param name="model"></param>
     internal static void SafeDrop(this IModel model)
     {
         if (model == null)
