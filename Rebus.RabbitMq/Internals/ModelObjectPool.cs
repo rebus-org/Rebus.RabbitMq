@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using RabbitMQ.Client;
 
 namespace Rebus.Internals;
@@ -14,6 +15,7 @@ class ModelObjectPool : IDisposable
     readonly WriterModelPoolPolicy _policy;
 
     int _maxEntries;
+    int _currentCount = 0; 
 
     public ModelObjectPool(WriterModelPoolPolicy policy, int maxEntries)
     {
@@ -26,12 +28,22 @@ class ModelObjectPool : IDisposable
         _maxEntries = maxEntries;
     }
 
-    public IModel Get() => _availableObjects.TryTake(out var model) ? model : _policy.Create();
+    public IModel Get()
+    {
+        if (_availableObjects.TryTake(out var model))
+        {
+            Interlocked.Decrement(ref _currentCount);
+            return model;
+        }
+
+        return _policy.Create();
+    }
 
     public void Return(IModel model)
     {
-        if (_availableObjects.Count >= _maxEntries)
+        if (Interlocked.Increment(ref _currentCount) > _maxEntries)
         {
+            Interlocked.Decrement(ref _currentCount);
             model.SafeDrop();
         }
         else

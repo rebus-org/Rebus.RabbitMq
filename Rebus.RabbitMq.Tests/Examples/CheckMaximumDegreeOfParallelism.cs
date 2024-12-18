@@ -50,7 +50,8 @@ public class CheckMaximumDegreeOfParallelism : FixtureBase
             .Transport(t =>
             {
                 t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, queueName)
-                    .Prefetch(maxNumberOfMessagesToPrefetch: 3 * maxParallelism);
+                    .Prefetch(maxNumberOfMessagesToPrefetch: 3 * maxParallelism)
+                    .SetPublisherConfirms(false);
             })
             .Options(o =>
             {
