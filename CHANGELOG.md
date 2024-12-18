@@ -174,6 +174,9 @@
 ## 9.4.0
 * Screen the `IModel` for fitness before trying to send with it, and perform send operations with up to 3 attempts to hopefully better overcome transient errors
 
+## 9.4.1
+* Fix potential race condition in ModelObjectPool - thanks [mksergiy]
+
 ---
 
 [bzuu]: https://github.com/bzuu
@@ -185,6 +188,7 @@
 [marcoariboni]: https://github.com/marcoariboni
 [mathiasnohall]: https://github.com/mathiasnohall
 [michalsteyn]: https://github.com/michalsteyn
+[mksergiy]: https://github.com/mksergiy
 [MrAdam]: https://github.com/MrAdam
 [nebelx]: https://github.com/nebelx
 [pjh1974]: https://github.com/pjh1974
@@ -194,4 +198,3 @@
 [savissimo]: https://github.com/savissimo
 [yuriyostapenko]: https://github.com/yuriyostapenko
 [zlepper]: https://github.com/zlepper
-
