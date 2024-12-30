@@ -72,6 +72,37 @@ namespace Rebus.Config
             return this;
         }
 
+        public bool IsConsistentHashExchangeUsed() => !string.IsNullOrWhiteSpace(ConsistentHashExchangeName);
+
+        public void UseConsistentHashExchange(int numberOfQueues, string exchangeName = "RebusConsistentHash")
+        {
+            if (numberOfQueues < 2)
+            {
+                throw new ArgumentException("Number of queues for consistent hash exchange should be at least 2", nameof(numberOfQueues));
+            }
+
+            if (string.IsNullOrWhiteSpace(exchangeName))
+            {
+                ConsistentHashExchangeName = null;
+                NumberOfConsistentHashQueues = 0;
+                return;
+            }
+
+            NumberOfConsistentHashQueues = numberOfQueues;
+
+            if (exchangeName == DirectExchangeName)
+            {
+                throw new ArgumentException($"Exchange names for DIRECT and X-CONSISTENT-HASH are both set to '{DirectExchangeName}' - they must be different!");
+            }
+
+            if (exchangeName == TopicExchangeName)
+            {
+                throw new ArgumentException($"Exchange names for TOPIC and X-CONSISTENT-HASH are both set to '{TopicExchangeName}' - they must be different!");
+            }
+
+            ConsistentHashExchangeName = exchangeName;
+        }
+
         /// <summary>
         /// Adds the given custom properties to be added to the RabbitMQ client connection when it is established
         /// </summary>
@@ -157,7 +188,7 @@ namespace Rebus.Config
 
         internal string DirectExchangeName { get; private set; }
         internal string TopicExchangeName { get; private set; }
-
+        public string ConsistentHashExchangeName { get; private set; }
         internal int? MaxNumberOfMessagesToPrefetch { get; private set; }
         
         internal SslSettings SslSettings { get; private set; }
@@ -165,6 +196,7 @@ namespace Rebus.Config
         internal RabbitMqCallbackOptionsBuilder CallbackOptionsBuilder { get; } = new RabbitMqCallbackOptionsBuilder();
 
         internal RabbitMqQueueOptionsBuilder QueueOptions { get; } = new RabbitMqQueueOptionsBuilder();
+        public int NumberOfConsistentHashQueues { get; private set; } = 0;
 
         internal void Configure(RabbitMqTransport transport)
         {
@@ -183,6 +215,11 @@ namespace Rebus.Config
             if (DeclareInputQueue.HasValue)
             {
                 transport.SetDeclareInputQueue(DeclareInputQueue.Value);
+            }
+
+            if (NumberOfConsistentHashQueues > 1)
+            {
+                transport.SetNumberOfConsistentHashQueues(NumberOfConsistentHashQueues);
             }
 
             if (BindInputQueue.HasValue)

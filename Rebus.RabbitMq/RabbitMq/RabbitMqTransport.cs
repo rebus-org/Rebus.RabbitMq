@@ -52,6 +52,8 @@ namespace Rebus.RabbitMq
 
         RabbitMqCallbackOptionsBuilder _callbackOptions = new RabbitMqCallbackOptionsBuilder();
         RabbitMqQueueOptionsBuilder _inputQueueOptions = new RabbitMqQueueOptionsBuilder();
+        private int _numberOfConsistentHashQueues = 0;
+        private string _consistentHashExchangeName;
 
         /// <summary>
         /// Constructs the RabbitMQ transport with multiple connection endpoints. They will be tryed in random order until working one is found
@@ -123,6 +125,8 @@ namespace Rebus.RabbitMq
             _declareInputQueue = value;
         }
 
+        internal void SetNumberOfConsistentHashQueues(int value) => _numberOfConsistentHashQueues = value;
+
         /// <summary>
         /// Sets whether a binding for the input queue should be declared
         /// </summary>
@@ -145,6 +149,14 @@ namespace Rebus.RabbitMq
         public void SetTopicExchangeName(string topicExchangeName)
         {
             _topicExchangeName = topicExchangeName;
+        }
+
+        /// <summary>
+        /// Sets the name of the exchange used to send parallel messages
+        /// </summary>
+        public void SetConsistentHashExchangeName(string consistentHashExchangeName)
+        {
+            _consistentHashExchangeName = consistentHashExchangeName;
         }
 
         /// <summary>
@@ -175,6 +187,8 @@ namespace Rebus.RabbitMq
             _inputQueueOptions = inputQueueOptions;
         }
 
+        public bool IsConsistentHashExchangeUsed() => _numberOfConsistentHashQueues > 1;
+
         /// <summary>
         /// Initializes the transport by creating the input queue
         /// </summary>
@@ -182,7 +196,34 @@ namespace Rebus.RabbitMq
         {
             if (Address == null) { return; }
 
-            CreateQueue(Address);
+            if (!IsConsistentHashExchangeUsed())
+            {
+                CreateQueue(Address);
+            }
+            else
+            {
+                CreateConsistentHashExchangeAndMultipleQueues();
+            }
+        }
+
+        private void CreateConsistentHashExchangeAndMultipleQueues()
+        {
+            var connection = _connectionManager.GetConnection();
+            try
+            {
+                using (var model = connection.CreateModel())
+                {
+                    CreateExchanges(model);
+                    for (int i = 0; i < _numberOfConsistentHashQueues; ++i)
+                    {
+                        CreateQueue($"{Address}_{i}");
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                throw new RebusApplicationException(exception, $"RabbitMQ Transport initialization using consistent hash exchange failed");
+            }
         }
 
         /// <summary>
@@ -196,28 +237,40 @@ namespace Rebus.RabbitMq
             {
                 using (var model = connection.CreateModel())
                 {
-                    const bool durable = true;
-
-                    if (_declareExchanges)
-                    {
-                        model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, durable);
-                        model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, durable);
-                    }
-
-                    if (_declareInputQueue)
-                    {
-                        DeclareQueue(address, model);
-                    }
-
-                    if (_bindInputQueue)
-                    {
-                        BindInputQueue(address, model);
-                    }
+                    CreateExchanges(model);
+                    CreateQueue(address, model);
                 }
             }
             catch (Exception exception)
             {
                 throw new RebusApplicationException(exception, $"Queue declaration for '{address}' failed");
+            }
+        }
+
+        private void CreateExchanges(IModel model)
+        {
+            if (_declareExchanges)
+            {
+                model.ExchangeDeclare(_directExchangeName, ExchangeType.Direct, true);
+                model.ExchangeDeclare(_topicExchangeName, ExchangeType.Topic, true);
+            }
+
+            if (IsConsistentHashExchangeUsed())
+            {
+                model.ExchangeDeclare(_consistentHashExchangeName, "x-consistent-hash", true);
+            }
+        }
+
+        private void CreateQueue(string address, IModel model)
+        {
+            if (_declareInputQueue)
+            {
+                DeclareQueue(address, model);
+            }
+
+            if (_bindInputQueue)
+            {
+                BindInputQueue(address, model);
             }
         }
 
@@ -231,6 +284,7 @@ namespace Rebus.RabbitMq
             if (Address != null && Address.Equals(address))
             {
                 // This is the input queue => we use the queue setting to create the queue
+
                 model.QueueDeclare(address,
                     exclusive: _inputQueueOptions.Exclusive,
                     durable: _inputQueueOptions.Durable,
