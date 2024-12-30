@@ -214,9 +214,18 @@ namespace Rebus.RabbitMq
                 using (var model = connection.CreateModel())
                 {
                     CreateExchanges(model);
-                    for (int i = 0; i < _numberOfConsistentHashQueues; ++i)
+                    for (int i = 1; i <= _numberOfConsistentHashQueues; ++i)
                     {
-                        CreateQueue($"{Address}_{i}");
+                        var address = $"{Address}_{i}";
+                        if (_declareInputQueue)
+                        {
+                            DeclareQueue(address, model);
+                        }
+
+                        if (_bindInputQueue)
+                        {
+                            model.QueueBind(address, _consistentHashExchangeName, i.ToString());
+                        }
                     }
                 }
             }
