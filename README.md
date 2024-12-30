@@ -17,6 +17,11 @@ Build and run your RabbitMQ with management console, with the following shell co
 docker run -d --hostname my-rabbit --name some-rabbit -p 5672:5672 -p 8080:15672 rabbitmq:3-management
 ```
 
+In the docker desktop, exec the following shell command:
+```
+rabbitmq-plugins enable rabbitmq_consistent_hash_exchange
+```
+
 From your web brower, navigate to the RabbitMQ management console,
 
 ```
@@ -30,5 +35,10 @@ password: guest
 In Visual Studio 2017, run All Tests form the menus: Tests -> Run -> All Tests. While test are running, switch back to the management console, and watch:
 
 ![](https://github.com/jonmat/Rebus.RabbitMq/blob/master/rabbit-mgmt-console.png)
+
+## Supported out of the box RabbitMQ exchange types
+* Direct
+* Topic
+* [Consistent Hash](https://github.com/rabbitmq/rabbitmq-server/blob/main/deps/rabbitmq_consistent_hash_exchange/README.md): requires enabling the corresponding plugin by running the command `rabbitmq-plugins enable rabbitmq_consistent_hash_exchange`
 
 
