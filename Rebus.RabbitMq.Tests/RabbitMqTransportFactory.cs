@@ -109,5 +109,24 @@ namespace Rebus.RabbitMq.Tests
                 }
             }
         }
+
+        public static bool QueueExists(string name)
+        {
+            var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
+
+            using (var connection = connectionFactory.CreateConnection())
+            using (var model = connection.CreateModel())
+            {
+                try
+                {
+                    model.QueueDeclarePassive(name);
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }    
     }
 }
