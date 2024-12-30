@@ -247,6 +247,12 @@ namespace Rebus.Config
                 transport.SetCallbackOptions(CallbackOptionsBuilder);
             }
 
+            if (ConsistentHashExchangeName != null)
+            {
+                transport.SetConsistentHashExchangeName(ConsistentHashExchangeName);
+                transport.SetNumberOfConsistentHashQueues(NumberOfConsistentHashQueues);
+            }
+
             transport.SetInputQueueOptions(QueueOptions);
         }
     }
