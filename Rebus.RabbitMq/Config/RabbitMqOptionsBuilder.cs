@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Threading;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Rebus.RabbitMq;
 using Rebus.Transport;
@@ -134,7 +136,35 @@ public class RabbitMqOptionsBuilder
     /// </summary>
     public RabbitMqOptionsBuilder Mandatory(Action<object, BasicReturnEventArgs> basicReturnCallback)
     {
-        CallbackOptionsBuilder.BasicReturn(basicReturnCallback);
+        if (basicReturnCallback == null)
+        {
+            return this;
+        }
+        return Mandatory((o, e) =>
+        {
+            basicReturnCallback(o, e);
+            return Task.CompletedTask;
+        });
+    }
+    
+    /// <summary>
+    /// Configure mandatory delivery. 
+    /// This configuration tells the server how to react if the message cannot be routed to a queue. 
+    /// If this configuration is set, the server will return an unroutable message with a Return method. 
+    /// If this configuration is not used, the server silently drops the message
+    /// </summary>
+    public RabbitMqOptionsBuilder Mandatory(Func<object, BasicReturnEventArgs, Task> basicReturnCallback)
+    {
+        if (basicReturnCallback == null)
+        {
+            return this;
+        }
+        
+        CallbackOptionsBuilder.BasicReturn((o, e) =>
+        {
+            basicReturnCallback(o, e);
+            return Task.CompletedTask;
+        });
 
         return this;
     }
@@ -227,24 +257,6 @@ public class RabbitMqOptionsBuilder
     }
 
     /// <summary>
-    /// Sets the max amount of writers that are available kept around for writing messages back
-    /// to rabbitmq. Reducing this number uses less resource, while increasing it might increase
-    /// performance on high-rate systems. We would recommend at least as many as you have
-    /// MaxParallel set to, and probably a bit more if you send messages from a webapi through
-    /// Rebus.
-    /// </summary>
-    public RabbitMqOptionsBuilder SetMaxWriterPoolSize(int size)
-    {
-        if (size < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(size), size, "MaxWriterPoolSize cannot be less than 1");
-        }
-
-        MaxWriterPoolSize = size;
-        return this;
-    }
-
-    /// <summary>
     /// Sets the consumer tag. The actual tag will include a random string to guarantee uniqueness. 
     /// </summary>
     public RabbitMqOptionsBuilder SetConsumerTag(string consumerTag)
@@ -253,27 +265,11 @@ public class RabbitMqOptionsBuilder
         return this;
     }
   
-    /// <summary>
-    /// Sets the maximum message batch size. Defaults to 1, which means that batching is disabled. When set to values greater than 1,
-    /// the RabbitMQ driver's native ability to batch commands will be used when possible. With Rebus, messages are batched when they're sent/published
-    /// from a Rebus handler or within a <see cref="RebusTransactionScope"/>.
-    /// </summary>
-    public RabbitMqOptionsBuilder SetBatchSize(int batchSize)
-    {
-        if (batchSize < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(batchSize), batchSize, "Message batch size cannot be less than 1");
-        }
-        BatchSize = batchSize;
-        return this;
-    }
-
     internal bool? DeclareExchanges { get; private set; }
     internal bool? DeclareInputQueue { get; private set; }
     internal bool? BindInputQueue { get; private set; }
     internal bool? PublisherConfirmsEnabled { get; private set; }
     internal TimeSpan? PublisherConfirmsTimeout { get; private set; }
-    internal int BatchSize { get; private set; } = 1;
 
     internal string DirectExchangeName { get; private set; }
     internal string TopicExchangeName { get; private set; }
@@ -291,8 +287,6 @@ public class RabbitMqOptionsBuilder
     internal RabbitMqQueueOptionsBuilder DefaultQueueOptionsBuilder { get; } = new();
 
     internal RabbitMqExchangeOptionsBuilder ExchangeOptions { get; } = new();
-
-    internal int MaxWriterPoolSize { get; private set; } = 10;
 
     internal Func<IConnectionFactory, IConnectionFactory> ConnectionFactoryCustomizer;
 
@@ -350,9 +344,7 @@ public class RabbitMqOptionsBuilder
         transport.SetInputQueueOptions(InputQueueOptionsBuilder);
         transport.SetDefaultQueueOptions(DefaultQueueOptionsBuilder);
         transport.SetExchangeOptions(ExchangeOptions);
-        transport.SetMaxWriterPoolSize(MaxWriterPoolSize);
         transport.SetConsumerTag(ConsumerTag);
-        transport.SetBatchSize(BatchSize);
     }
 
     /// This is temporary decorator-fix, until Rebus is upgraded to a version 6+ of RabbitMQ.Client wich has new signature:
@@ -375,6 +367,12 @@ public class RabbitMqOptionsBuilder
             set { _decoratedFactory.ContinuationTimeout = value; }
         }
 
+        public ushort ConsumerDispatchConcurrency
+        {
+            get => _decoratedFactory.ConsumerDispatchConcurrency;
+            set => _decoratedFactory.ConsumerDispatchConcurrency = value;
+        }
+
         public TimeSpan HandshakeContinuationTimeout
         {
             get { return _decoratedFactory.HandshakeContinuationTimeout; }
@@ -391,12 +389,6 @@ public class RabbitMqOptionsBuilder
         {
             get { return _decoratedFactory.CredentialsProvider; }
             set { _decoratedFactory.CredentialsProvider = value; }
-        }
-
-        public ICredentialsRefresher CredentialsRefresher
-        {
-            get { return _decoratedFactory.CredentialsRefresher; }
-            set { _decoratedFactory.CredentialsRefresher = value; }
         }
 
         public ushort RequestedChannelMax
@@ -423,12 +415,6 @@ public class RabbitMqOptionsBuilder
             set { _decoratedFactory.Uri = value; }
         }
 
-        public bool UseBackgroundThreadsForIO
-        {
-            get { return _decoratedFactory.UseBackgroundThreadsForIO; }
-            set { _decoratedFactory.UseBackgroundThreadsForIO = value; }
-        }
-
         public string UserName
         {
             get { return _decoratedFactory.UserName; }
@@ -453,39 +439,41 @@ public class RabbitMqOptionsBuilder
             _clientProvidedName = clientProvidedName;
         }
 
-        public IAuthMechanismFactory AuthMechanismFactory(IList<string> mechanismNames)
+        public IAuthMechanismFactory AuthMechanismFactory(IEnumerable<string> mechanismNames)
         {
             return _decoratedFactory.AuthMechanismFactory(mechanismNames);
         }
 
-        public IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints)
+        public Task<IConnection> CreateConnectionAsync(CancellationToken cancellationToken = default)
         {
-            return (_decoratedFactory as RabbitMQ.Client.ConnectionFactory).CreateConnection(new DefaultEndpointResolver(endpoints), _clientProvidedName);
+            return _decoratedFactory.CreateConnectionAsync(cancellationToken);
         }
 
-        public IConnection CreateConnection()
+        public Task<IConnection> CreateConnectionAsync(string clientProvidedName, CancellationToken cancellationToken = default)
         {
-            return _decoratedFactory.CreateConnection(_clientProvidedName);
+            return _decoratedFactory.CreateConnectionAsync(clientProvidedName, cancellationToken);
         }
 
-        public IConnection CreateConnection(string clientProvidedName)
+        public Task<IConnection> CreateConnectionAsync(IEnumerable<string> hostnames, CancellationToken cancellationToken = default)
         {
-            return _decoratedFactory.CreateConnection(clientProvidedName);
+            return _decoratedFactory.CreateConnectionAsync(hostnames, cancellationToken);
         }
 
-        public IConnection CreateConnection(IList<string> hostnames)
+        public Task<IConnection> CreateConnectionAsync(IEnumerable<string> hostnames, string clientProvidedName,
+            CancellationToken cancellationToken = default)
         {
-            return _decoratedFactory.CreateConnection(hostnames, _clientProvidedName);
+            return _decoratedFactory.CreateConnectionAsync(hostnames, clientProvidedName, cancellationToken);
         }
 
-        public IConnection CreateConnection(IList<string> hostnames, string clientProvidedName)
+        public Task<IConnection> CreateConnectionAsync(IEnumerable<AmqpTcpEndpoint> endpoints, CancellationToken cancellationToken = default)
         {
-            return _decoratedFactory.CreateConnection(hostnames, clientProvidedName);
+            return _decoratedFactory.CreateConnectionAsync(endpoints, cancellationToken);
         }
 
-        public IConnection CreateConnection(IList<AmqpTcpEndpoint> endpoints, string clientProvidedName)
+        public Task<IConnection> CreateConnectionAsync(IEnumerable<AmqpTcpEndpoint> endpoints, string clientProvidedName,
+            CancellationToken cancellationToken = default)
         {
-            return (_decoratedFactory as RabbitMQ.Client.ConnectionFactory).CreateConnection(new DefaultEndpointResolver(endpoints), clientProvidedName);
+            return _decoratedFactory.CreateConnectionAsync(endpoints, clientProvidedName, cancellationToken);
         }
     }
 }

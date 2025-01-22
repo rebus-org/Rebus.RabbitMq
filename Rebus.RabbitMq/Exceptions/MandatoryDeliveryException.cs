@@ -24,12 +24,4 @@ public class MandatoryDeliveryException : Exception
         : base(message, innerException)
     {
     }
-
-    /// <summary>
-    /// Constructs the exception
-    /// </summary>
-    public MandatoryDeliveryException(SerializationInfo info, StreamingContext context)
-        : base(info, context)
-    {
-    }
 }

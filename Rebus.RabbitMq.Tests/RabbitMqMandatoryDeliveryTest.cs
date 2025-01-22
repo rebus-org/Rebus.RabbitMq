@@ -22,8 +22,8 @@ public class RabbitMqMandatoryDeliveryTest : FixtureBase
 
     protected override void SetUp()
     {
-        RabbitMqTransportFactory.DeleteQueue(_noneExistingQueueName);
-        RabbitMqTransportFactory.DeleteQueue(_mandatoryQueue);
+        RabbitMqTransportFactory.DeleteQueue(_noneExistingQueueName).GetAwaiter().GetResult();
+        RabbitMqTransportFactory.DeleteQueue(_mandatoryQueue).GetAwaiter().GetResult();
     }
 
     [Test]
@@ -56,11 +56,14 @@ public class RabbitMqMandatoryDeliveryTest : FixtureBase
 
         var bus = StartOneWayClient(Callback);
 
-        await bus.Advanced.Routing.Send(_noneExistingQueueName, "I'm mandatory", new Dictionary<string, string>
+        try
         {
-            [RabbitMqHeaders.MessageId] = messageId.ToString(),
-            [RabbitMqHeaders.Mandatory] = bool.TrueString,
-        });
+            await bus.Advanced.Routing.Send(_noneExistingQueueName, "I'm mandatory", new Dictionary<string, string>
+            {
+                [RabbitMqHeaders.MessageId] = messageId.ToString(),
+                [RabbitMqHeaders.Mandatory] = bool.TrueString,
+            });
+        } catch(RebusApplicationException){}
 
         gotCallback.WaitOrDie(TimeSpan.FromSeconds(2));
     }

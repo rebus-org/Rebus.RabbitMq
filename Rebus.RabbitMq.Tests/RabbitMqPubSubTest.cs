@@ -22,9 +22,9 @@ public class RabbitMqPubSubTest : FixtureBase
 
     protected override void SetUp()
     {
-        RabbitMqTransportFactory.DeleteQueue(_publisherQueueName);
-        RabbitMqTransportFactory.DeleteQueue(_subscriber1QueueName);
-        RabbitMqTransportFactory.DeleteQueue(_subscriber2QueueName);
+        RabbitMqTransportFactory.DeleteQueue(_publisherQueueName).GetAwaiter().GetResult();
+        RabbitMqTransportFactory.DeleteQueue(_subscriber1QueueName).GetAwaiter().GetResult();
+        RabbitMqTransportFactory.DeleteQueue(_subscriber2QueueName).GetAwaiter().GetResult();
 
         _publisher = GetBus(_publisherQueueName);
     }

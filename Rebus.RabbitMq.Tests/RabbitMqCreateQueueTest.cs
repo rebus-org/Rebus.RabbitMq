@@ -5,6 +5,8 @@ using Rebus.Tests.Contracts;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
+
 // ReSharper disable AccessToDisposedClosure
 // ReSharper disable UnusedVariable
 
@@ -14,7 +16,7 @@ namespace Rebus.RabbitMq.Tests;
 public class RabbitMqCreateQueueTest : FixtureBase
 {
     [Test]
-    public void Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_False_AND_TTL0_THEN_BusCanStart_()
+    public async Task Test_CreateQueue_WHEN_InputQueueOptions_AutoDelete_False_AND_TTL0_THEN_BusCanStart_()
     {
         using var testScope = new QueueNameTestScope();
         using var activator = new BuiltinHandlerActivator();
@@ -35,7 +37,7 @@ public class RabbitMqCreateQueueTest : FixtureBase
         }
 
         Thread.Sleep(5000);
-        Assert.That(RabbitMqTransportFactory.QueueExists(testScope.QueueName), Is.True, $"The queue '{testScope.QueueName}' does not exist");
+        Assert.That(await RabbitMqTransportFactory.QueueExists(testScope.QueueName), Is.True, $"The queue '{testScope.QueueName}' does not exist");
     }
 
     [Test]
@@ -84,7 +86,7 @@ public class RabbitMqCreateQueueTest : FixtureBase
     }
 
     [Test]
-    public void Test_CreateQueue_WHEN_InputQueueOptions_SetQueueTTL_5000_THEN_QueueIsDeleted_WHEN_5000msAfterConnectionClosed()
+    public async Task Test_CreateQueue_WHEN_InputQueueOptions_SetQueueTTL_5000_THEN_QueueIsDeleted_WHEN_5000msAfterConnectionClosed()
     {
         using var testScope = new QueueNameTestScope();
 
@@ -108,13 +110,13 @@ public class RabbitMqCreateQueueTest : FixtureBase
 
 
         Thread.Sleep(5000);
-        Assert.That(RabbitMqTransportFactory.QueueExists(testScope.QueueName), Is.False, $"The queue '{testScope.QueueName}' was still there");
+        Assert.That(await RabbitMqTransportFactory.QueueExists(testScope.QueueName), Is.False, $"The queue '{testScope.QueueName}' was still there");
     }
 
     class QueueNameTestScope : IDisposable
     {
         public string QueueName { get; } = Guid.NewGuid().ToString();
 
-        public void Dispose() => RabbitMqTransportFactory.DeleteQueue(QueueName);
+        public void Dispose() => RabbitMqTransportFactory.DeleteQueue(QueueName).GetAwaiter().GetResult();
     }
 }

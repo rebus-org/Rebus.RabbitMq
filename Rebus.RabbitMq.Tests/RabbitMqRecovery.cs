@@ -1,28 +1,30 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
-using Rebus.Exceptions;
 using Rebus.Logging;
 using Rebus.Retry.Simple;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
+using Testcontainers.RabbitMq;
 
 namespace Rebus.RabbitMq.Tests;
 
 [TestFixture]
 public class RabbitMqRecovery : FixtureBase
 {
-    static readonly string ConnectionString = RabbitMqTransportFactory.ConnectionString;
     static readonly string QueueName = TestConfig.GetName("recoverytest");
 
-    [Test, Ignore("Only meant to be run manually, with Administrator priviledges")]
-    public void VerifyThatEndpointCanRecoverAfterLosingRabbitMqConnection()
+    // This seems to be the same as TestRabbitMqReconnection.WeGetAllMessagesEvenThoughRabbitMqRestarts or am I
+    // missing something?
+    [Test]
+    public async Task VerifyThatEndpointCanRecoverAfterLosingRabbitMqConnection()
     {
+        var rabbitMqContainer = new RabbitMqBuilder().WithPortBinding(25673, 5672).Build();
+        await rabbitMqContainer.StartAsync();
         const int numberOfMessages = 100;
         const int millisecondsDelay = 300;
 
@@ -49,7 +51,7 @@ public class RabbitMqRecovery : FixtureBase
 
         Configure.With(activator)
             .Logging(l => l.Console(LogLevel.Warn))
-            .Transport(t => t.UseRabbitMq(ConnectionString, QueueName))
+            .Transport(t => t.UseRabbitMq(rabbitMqContainer.GetConnectionString(), QueueName))
             .Options(o =>
             {
                 o.SetNumberOfWorkers(0);
@@ -75,7 +77,7 @@ public class RabbitMqRecovery : FixtureBase
 
         Console.WriteLine("Stopping RabbitMQ service");
 
-        Execute("net stop rabbitmq");
+        await rabbitMqContainer.StopAsync();
 
         Console.WriteLine("Waiting a short while");
 
@@ -83,30 +85,10 @@ public class RabbitMqRecovery : FixtureBase
 
         Console.WriteLine("Starting RabbitMQ service");
 
-        Execute("net start rabbitmq");
+        await rabbitMqContainer.StartAsync();
 
         Console.WriteLine("Waiting for the last messages");
 
         allMessagesReceived.WaitOrDie(TimeSpan.FromMinutes(5));
-    }
-
-    static void Execute(string shellCommand)
-    {
-        try
-        {
-            Console.WriteLine($"C:\\> {shellCommand}");
-
-            var parts = shellCommand.Split(' ');
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = parts.First(),
-                Arguments = string.Join(" ", parts.Skip(1))
-            });
-        }
-        catch (Exception exception)
-        {
-            throw new RebusApplicationException(exception, $"Could not execute shell command '{shellCommand}'");
-        }
     }
 }

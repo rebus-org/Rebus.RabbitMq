@@ -28,15 +28,11 @@ public class TestRabbitExpress : FixtureBase
         Using(new QueueDeleter(_queueName));
     }
 
-    [TestCase(100, true, false)]
-    [TestCase(100, false, false)]
-    [TestCase(1000, true, false)]
-    [TestCase(1000, false, false)]
-    [TestCase(100, true, true)]
-    [TestCase(100, false, true)]
-    [TestCase(1000, true, true)]
-    [TestCase(1000, false, true)]
-    public async Task TestPerformance(int messageCount, bool express, bool enableBatching)
+    [TestCase(100, true)]
+    [TestCase(100, false)]
+    [TestCase(1000, true)]
+    [TestCase(1000, false)]
+    public async Task TestPerformance(int messageCount, bool express)
     {
         var receivedMessages = 0L;
 
@@ -46,7 +42,7 @@ public class TestRabbitExpress : FixtureBase
 
         var bus = Configure.With(activator)
             .Logging(l => l.ColoredConsole(LogLevel.Warn))
-            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _queueName).SetBatchSize(enableBatching ? 100 : 1))
+            .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, _queueName))
             .Options(o => o.SetMaxParallelism(100))
             .Start();
 

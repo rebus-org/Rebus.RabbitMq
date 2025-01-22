@@ -69,7 +69,7 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
     [Test]
     public async Task ShowHowItIsDone_TimeoutManager()
     {
-        DeclareDelayedMessageExchange("RebusDelayed");
+        await DeclareDelayedMessageExchange("RebusDelayed");
 
         using var gotTheMessage = new ManualResetEvent(initialState: false);
 
@@ -103,7 +103,7 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
     [Test]
     public async Task ShowHowItIsDone_Manual()
     {
-        DeclareDelayedMessageExchange("RebusDelayed");
+        await DeclareDelayedMessageExchange("RebusDelayed");
 
         using var gotTheMessage = new ManualResetEvent(initialState: false);
 
@@ -133,13 +133,13 @@ public class CanSendDelayedMessageWithDelayedMessageExchangePlugin : FixtureBase
         Assert.That(elapsed, Is.GreaterThan(TimeSpan.FromSeconds(5)));
     }
 
-    void DeclareDelayedMessageExchange(string exchangeName)
+    async Task DeclareDelayedMessageExchange(string exchangeName)
     {
         var connectionFactory = new ConnectionFactory { Uri = new(_connectionString) };
-        using var connection = connectionFactory.CreateConnection();
-        using var model = connection.CreateModel();
+        await using var connection = await connectionFactory.CreateConnectionAsync();
+        await using var model = await connection.CreateChannelAsync();
 
-        model.ExchangeDeclare(
+        await model.ExchangeDeclareAsync(
             exchange: exchangeName,
             type: "x-delayed-message",
             durable: true,

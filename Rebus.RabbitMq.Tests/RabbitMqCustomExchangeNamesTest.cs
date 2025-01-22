@@ -24,10 +24,10 @@ public class RabbitMqCustomExchangeNamesTest : FixtureBase
         const string customDirectExchangeName = "Dingo";
         const string customTopicExchangeName = "Topico";
 
-        RabbitMqTransportFactory.DeleteExchange(RabbitMqOptionsBuilder.DefaultDirectExchangeName);
-        RabbitMqTransportFactory.DeleteExchange(RabbitMqOptionsBuilder.DefaultTopicExchangeName);
-        RabbitMqTransportFactory.DeleteExchange(customDirectExchangeName);
-        RabbitMqTransportFactory.DeleteExchange(customTopicExchangeName);
+        await RabbitMqTransportFactory.DeleteExchange(RabbitMqOptionsBuilder.DefaultDirectExchangeName);
+        await RabbitMqTransportFactory.DeleteExchange(RabbitMqOptionsBuilder.DefaultTopicExchangeName);
+        await RabbitMqTransportFactory.DeleteExchange(customDirectExchangeName);
+        await RabbitMqTransportFactory.DeleteExchange(customTopicExchangeName);
 
         using (var activator = new BuiltinHandlerActivator())
         {
@@ -49,10 +49,10 @@ public class RabbitMqCustomExchangeNamesTest : FixtureBase
             gotString.WaitOrDie(TimeSpan.FromSeconds(3));
         }
 
-        Assert.That(RabbitMqTransportFactory.ExchangeExists(RabbitMqOptionsBuilder.DefaultDirectExchangeName), Is.False);
-        Assert.That(RabbitMqTransportFactory.ExchangeExists(RabbitMqOptionsBuilder.DefaultTopicExchangeName), Is.False);
-        Assert.That(RabbitMqTransportFactory.ExchangeExists(customDirectExchangeName), Is.True);
-        Assert.That(RabbitMqTransportFactory.ExchangeExists(customTopicExchangeName), Is.True);
+        Assert.That(await RabbitMqTransportFactory.ExchangeExists(RabbitMqOptionsBuilder.DefaultDirectExchangeName), Is.False);
+        Assert.That(await RabbitMqTransportFactory.ExchangeExists(RabbitMqOptionsBuilder.DefaultTopicExchangeName), Is.False);
+        Assert.That(await RabbitMqTransportFactory.ExchangeExists(customDirectExchangeName), Is.True);
+        Assert.That(await RabbitMqTransportFactory.ExchangeExists(customTopicExchangeName), Is.True);
     }
         
     [Test]
