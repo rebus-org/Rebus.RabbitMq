@@ -25,7 +25,7 @@ public class RabbitMqRecovery : FixtureBase
     {
         var rabbitMqContainer = new RabbitMqBuilder().WithPortBinding(25673, 5672).Build();
         await rabbitMqContainer.StartAsync();
-        const int numberOfMessages = 100;
+        int numberOfMessages = 100;
         const int millisecondsDelay = 300;
 
         var expectedTestDuration = TimeSpan.FromMilliseconds(numberOfMessages * millisecondsDelay);
@@ -90,5 +90,14 @@ public class RabbitMqRecovery : FixtureBase
         Console.WriteLine("Waiting for the last messages");
 
         allMessagesReceived.WaitOrDie(TimeSpan.FromMinutes(5));
+        allMessagesReceived.Reset();
+
+        receivedMessages = 0;
+        numberOfMessages = 1;
+        
+        await activator.Bus.SendLocal("A test after recovery");
+        
+        allMessagesReceived.WaitOrDie(TimeSpan.FromSeconds(5));
+        
     }
 }

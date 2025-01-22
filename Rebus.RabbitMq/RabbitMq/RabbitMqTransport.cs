@@ -481,7 +481,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
             throw new InvalidOperationException("This RabbitMQ transport does not have an input queue - therefore, it is not possible to receive anything");
         }
 
-        _log.Info("Attempting to receive message");
         try
         {
             if (_consumer == null)
