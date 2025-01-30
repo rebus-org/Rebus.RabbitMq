@@ -16,7 +16,7 @@ class QueueDeleter : IDisposable
     {
         try
         {
-            RabbitMqTransportFactory.DeleteQueue(_queueName);
+            RabbitMqTransportFactory.DeleteQueue(_queueName).GetAwaiter().GetResult();
 
             Console.WriteLine($"Queue '{_queueName}' deleted");
         }

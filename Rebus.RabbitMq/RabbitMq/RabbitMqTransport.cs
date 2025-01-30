@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
@@ -34,7 +36,7 @@ namespace Rebus.RabbitMq;
 /// <summary>
 /// Implementation of <see cref="ITransport"/> that uses RabbitMQ to send/receive messages
 /// </summary>
-public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializable, ISubscriptionStorage
+public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisposable, IInitializable, ISubscriptionStorage
 {
     /// <summary>
     /// <see cref="ShutdownEventArgs.ReplyCode"/> value that indicates that a queue does not exist
@@ -49,11 +51,13 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
     readonly SemaphoreSlim _consumerLock = new(1, 1);
-    readonly ModelObjectPool _writerPool;
 
     CustomQueueingConsumer _consumer;
 
-    readonly ConcurrentDictionary<FullyQualifiedRoutingKey, bool> _verifiedQueues = new();
+    private (IChannel expressPublisher, IChannel confirmedPublisher)? _publishers;
+    private SemaphoreSlim _publisherInitLock = new(1, 1);
+
+    readonly ConcurrentDictionary<FullyQualifiedRoutingKey, Task<bool>> _verifiedQueues = new();
 
     readonly List<Subscription> _registeredSubscriptions = new();
     readonly SemaphoreSlim _subscriptionSemaphore = new(1, 1);
@@ -66,7 +70,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     bool _declareInputQueue = true;
     bool _bindInputQueue = true;
     bool _publisherConfirmsEnabled = true;
-    int _batchSize = 1;
     
     TimeSpan _publisherConfirmsTimeout;
 
@@ -94,8 +97,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         _maxMessagesToPrefetch = (ushort)maxMessagesToPrefetch;
 
         _log = rebusLoggerFactory.GetLogger<RabbitMqTransport>();
-
-        _writerPool = new ModelObjectPool(new WriterModelPoolPolicy(this), 5);
     }
 
     /// <summary>
@@ -144,18 +145,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     public void SetSslSettings(SslSettings sslSettings)
     {
         _connectionManager.SetSslOptions(sslSettings);
-    }
-
-    /// <summary>
-    /// Sets the maximum message batch size. Defaults to 1 (i.e. batching is disabled).
-    /// </summary>
-    public void SetBatchSize(int batchSize)
-    {
-        if (batchSize < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(batchSize), batchSize, "Message batch size cannot be less than 1");
-        }
-        _batchSize = batchSize;
     }
 
     /// <summary>
@@ -260,16 +249,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             inputExchangeOptions ?? throw new ArgumentNullException(nameof(inputExchangeOptions));
     }
 
-    /// <summary>
-    /// Sets the max amount of writers that are available kept around for writing messages back
-    /// to rabbitmq. Reducing this number uses less resource, while increasing it might increase
-    /// performance on high-rate systems. 
-    /// </summary>
-    public void SetMaxWriterPoolSize(int poolSize)
-    {
-        _writerPool.SetMaxEntries(poolSize);
-    }
-
     public void SetConsumerTag(string consumerTag)
     {
         _consumerTag = consumerTag;
@@ -290,6 +269,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// </summary>
     public override void CreateQueue(string address)
     {
+        CreateQueueAsync(address).GetAwaiter().GetResult();
+    }
+    
+    /// <summary>
+    /// Creates a queue with the given name and binds it to a topic with the same name in the direct exchange
+    /// </summary>
+    public async Task CreateQueueAsync(string address)
+    {
         // bail out without creating a connection if there's no need for it
         if (!_declareExchanges && !_declareInputQueue && !_bindInputQueue) return;
 
@@ -301,34 +288,34 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             {
                 try
                 {
-                    var connection = _connectionManager.GetConnection();
+                    var connection = await _connectionManager.GetConnection(cancellationTokenSource.Token);
 
-                    using var model = connection.CreateModel();
+                    await using var model = await connection.CreateChannelAsync(cancellationToken: cancellationTokenSource.Token);
 
                     const bool durable = true;
 
                     if (_declareExchanges)
                     {
-                        DeclareExchanges(model, durable);
+                        await DeclareExchanges(model, durable);
                     }
 
                     if (_declareInputQueue)
                     {
-                        DeclareQueue(address, model);
+                        await DeclareQueue(address, model);
                     }
 
                     if (_bindInputQueue)
                     {
-                        BindInputQueue(address, model);
+                        await BindInputQueue(address, model);
                     }
 
-                    model.Close();
+                    await model.CloseAsync(cancellationToken: cancellationTokenSource.Token);
                     return;
                 }
                 catch (Exception) when (!cancellationTokenSource.IsCancellationRequested)
                 {
                     // keep trying a couple of times
-                    Thread.Sleep(1000);
+                    await Task.Delay(1000, cancellationTokenSource.Token);
                 }
             }
         }
@@ -338,7 +325,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    public void DeclareDelayedMessageExchange(string exchangeName)
+    public async Task DeclareDelayedMessageExchange(string exchangeName)
     {
         try
         {
@@ -348,25 +335,24 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             {
                 try
                 {
-                    var connection = _connectionManager.GetConnection();
+                    var connection = await _connectionManager.GetConnection(cancellationTokenSource.Token);
 
-                    using var model = connection.CreateModel();
+                    await using var model = await connection.CreateChannelAsync(cancellationToken: cancellationTokenSource.Token);
 
-                    model.ExchangeDeclare(
+                    await model.ExchangeDeclareAsync(
                         exchange: exchangeName,
                         type: "x-delayed-message",
                         durable: true,
                         autoDelete: false,
-                        arguments: new Dictionary<string, object> { ["x-delayed-type"] = "direct" }
-                    );
+                        arguments: new Dictionary<string, object> { ["x-delayed-type"] = "direct" }, cancellationToken: cancellationTokenSource.Token);
 
-                    model.Close();
+                    await model.CloseAsync(cancellationToken: cancellationTokenSource.Token);
                     return;
                 }
                 catch (Exception) when (!cancellationTokenSource.IsCancellationRequested)
                 {
                     // keep trying a couple of times
-                    Thread.Sleep(1000);
+                    await Task.Delay(1000, cancellationTokenSource.Token);
                 }
             }
         }
@@ -376,15 +362,15 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    void DeclareExchanges(IModel model, bool durable)
+    async Task DeclareExchanges(IChannel model, bool durable)
     {
-        model.ExchangeDeclare(
+        await model.ExchangeDeclareAsync(
             exchange: _directExchangeName,
             type: ExchangeType.Direct,
             durable: durable,
             arguments: _inputExchangeOptions.DirectExchangeArguments
         );
-        model.ExchangeDeclare(
+        await model.ExchangeDeclareAsync(
             exchange: _topicExchangeName,
             type: ExchangeType.Topic,
             durable: durable,
@@ -392,12 +378,12 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         );
     }
 
-    void DeclareQueue(string address, IModel model)
+    async Task DeclareQueue(string address, IChannel model)
     {
         if (Equals(address, Address))
         {
             // This is the input queue => we use the queue setting to create the queue
-            model.QueueDeclare(
+            await model.QueueDeclareAsync(
                 queue: address,
                 exclusive: _inputQueueOptions.Exclusive,
                 durable: _inputQueueOptions.Durable,
@@ -408,7 +394,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         else
         {
             // This is another queue, probably the error queue => we use the default queue options
-            model.QueueDeclare(
+            await model.QueueDeclareAsync(
                 queue: address,
                 exclusive: _defaultQueueOptions.Exclusive,
                 durable: _defaultQueueOptions.Durable,
@@ -418,9 +404,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    void BindInputQueue(string address, IModel model)
+    async Task BindInputQueue(string address, IChannel model)
     {
-        model.QueueBind(address, _directExchangeName, address);
+        await model.QueueBindAsync(address, _directExchangeName, address);
     }
 
 
@@ -440,33 +426,23 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         while (true)
         {
-            var model = _writerPool.Get();
+            var (expressChannel, confirmedChannel) = await GetPublisherChannels();
 
             try
             {
-                // if the model is not fit, discard it and try a new one
-                if (model.IsClosed)
-                {
-                    model.SafeDrop();
-                    continue;
-                }
-
                 // otherwise, count this as an attempt and try to do it
                 attempt++;
 
-                DoSend(expressMessages, model, isExpress: true);
-                DoSend(ordinaryMessages, model, isExpress: false);
-                
-                // remember to return the model
-                _writerPool.Return(model);
+                // Should we consider rewriting this to iterate messages and then delegate to express vs confirmed based 
+                // on `Message.IsExpress`? It would avoid creating the temporary lists above, however it would make retrying
+                // strange i think.
+                await DoSend(expressMessages, expressChannel, isExpress: true);
+                await DoSend(ordinaryMessages, confirmedChannel, isExpress: false);
                 
                 return; //< success - we're done!
             }
             catch (Exception)
             {
-                // if anything goes wrong when using this IModel, asummed it's faulted and drop it
-                model.SafeDrop();
-
                 // if the built-in number of retries has been exceeded, let the error bubble out
                 if (attempt > WriterAttempts)
                 {
@@ -479,15 +455,15 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// <summary>
     /// Deletes all messages from the queue
     /// </summary>
-    public void PurgeInputQueue()
+    public async Task PurgeInputQueue()
     {
-        var connection = _connectionManager.GetConnection();
+        var connection = await _connectionManager.GetConnection();
 
-        using var model = connection.CreateModel();
+        await using var model = await connection.CreateChannelAsync();
 
         try
         {
-            model.QueuePurge(Address);
+            await model.QueuePurgeAsync(Address);
         }
         catch (OperationInterruptedException exception) when (exception.HasReplyCode(QueueDoesNotExist))
         {
@@ -512,7 +488,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
                 await _consumerLock.WaitAsync(cancellationToken);
                 try
                 {
-                    _consumer ??= InitializeConsumer();
+                    _consumer ??= await InitializeConsumer(cancellationToken);
                 }
                 finally
                 {
@@ -522,7 +498,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
             try
             {
-                // When a consumer is dequeued from the the "consumers" pool, it might be bound to a queue, which does not exist anymore,
+                // When a consumer is dequeued from the "consumers" pool, it might be bound to a queue, which does not exist anymore,
                 // eg. expired and deleted by RabittMQ server policy). In this case this calling QueueDeclarePassive will result in 
                 // an OperationInterruptedException and "consumer.Model.IsOpen" will be set to false (this is handled later in the code by 
                 // disposing this consumer). There is no need to handle this exception. The logic of InitializeConsumer() will make sure 
@@ -533,7 +509,10 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
                     // avoid hammering the QueueDeclarePassive method
                     if (Interlocked.Increment(ref _queueDeclarePassiveCounter) % 100 == 0)
                     {
-                        _consumer?.Model.QueueDeclarePassive(Address);
+                        if (_consumer is { } c)
+                        {
+                            await c.Channel.QueueDeclarePassiveAsync(Address, cancellationToken);
+                        }
                     }
                 }
             }
@@ -547,9 +526,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
                 return null;
             }
 
-            if (!_consumer.Model.IsOpen)
+            if (!_consumer.Channel.IsOpen)
             {
-                _consumer.Dispose();
+                await _consumer.DisposeAsync();
                 _consumer = null;
                 return null;
             }
@@ -581,8 +560,11 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
             catch (ChannelClosedException)
             {
                 _log.Warn("Closed channel detected - consumer will be disposed");
-                _consumer?.Dispose();
-                _consumer = null;
+                if (_consumer is { } c)
+                {
+                    _consumer = null;
+                    await c.DisposeAsync();
+                }
                 return null;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -595,14 +577,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
             var deliveryTag = result.DeliveryTag;
 
-            context.OnAck(async _ => _consumer.Model.BasicAck(deliveryTag, multiple: false));
+            context.OnAck(async _ => await _consumer.Channel.BasicAckAsync(deliveryTag, multiple: false, cancellationToken: cancellationToken));
 
             context.OnNack(async _ =>
             {
                 // we might not be able to do this, but it doesn't matter that much if it succeeds
                 try
                 {
-                    _consumer.Model.BasicNack(deliveryTag, multiple: false, requeue: true);
+                    await _consumer.Channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, cancellationToken: cancellationToken);
                 }
                 catch
                 {
@@ -618,8 +600,12 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         catch (ChannelClosedException)
         {
             _log.Warn("Though it was possible to receive, but the channel turned out to be closed... it will be renewed after a short wait");
-            _consumer?.Dispose();
-            _consumer = null;
+            if (_consumer is { } c)
+            {
+                _consumer = null;
+                await c.DisposeAsync();
+            }
+
             await Task.Delay(30000, cancellationToken);
             return null;
         }
@@ -632,15 +618,15 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
     }
 
-    void ReconnectQueue()
+    async ValueTask ReconnectQueue()
     {
-        CreateQueue(Address);
+        await CreateQueueAsync(Address);
 
         var subscriptionTasks = _registeredSubscriptions
             .Select(x => RegisterSubscriber(x.Topic, x.QueueName))
             .ToArray();
 
-        Task.WaitAll(subscriptionTasks);
+        await Task.WhenAll(subscriptionTasks);
     }
 
     /// <summary>
@@ -649,7 +635,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// <param name="basicProperties"></param>
     /// <param name="body"></param>
     /// <returns>the TransportMessage</returns>
-    internal static TransportMessage CreateTransportMessage(IBasicProperties basicProperties, byte[] body)
+    internal static TransportMessage CreateTransportMessage(IReadOnlyBasicProperties basicProperties, byte[] body)
     {
         string GetStringValue(KeyValuePair<string, object> kvp)
         {
@@ -701,7 +687,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         return new TransportMessage(headers, body);
     }
 
-    static void AddMessageId(IDictionary<string, string> headers, IBasicProperties basicProperties, byte[] body)
+    static void AddMessageId(IDictionary<string, string> headers, IReadOnlyBasicProperties basicProperties, byte[] body)
     {
         if (basicProperties.IsMessageIdPresent())
         {
@@ -723,31 +709,79 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         return $"knuth-{Knuth.CalculateHash(base64String)}";
     }
 
-    internal IModel CreateChannel()
+    internal async ValueTask<IChannel> CreateChannel(CancellationToken cancellationToken = default)
     {
-        var connection = _connectionManager.GetConnection();
+        var connection = await _connectionManager.GetConnection(cancellationToken);
 
-        var channel = connection.CreateModel();
-        _callbackOptions.ConfigureEvents(channel);
-        return channel;
+        var createChannelOptions = new CreateChannelOptions(publisherConfirmationsEnabled: _publisherConfirmsEnabled, publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled);
+        try
+        {
+            var channel = await connection.CreateChannelAsync(createChannelOptions, cancellationToken);
+            _callbackOptions.ConfigureEvents(channel, _log);
+            return channel;
+        }
+        catch (ChannelAllocationException e)
+        {
+            Console.WriteLine($"Max channels allocated: {e}");
+            throw;
+        }
+    }
+    
+    
+    private async ValueTask<(IChannel expressPublisher, IChannel confirmedPublisher)> GetPublisherChannels(CancellationToken cancellationToken = default)
+    {
+        // `IModel`/`IChannel` is now thread-safe as per https://github.com/rabbitmq/rabbitmq-dotnet-client/issues/1722
+        // So no reason to use one per publish, just keep it around.
+        
+        var connection = await _connectionManager.GetConnection(cancellationToken);
+
+        if (_publishers is {} currentPublishers)
+        {
+            if (currentPublishers.confirmedPublisher.IsClosed == false &&
+                currentPublishers.expressPublisher.IsClosed == false)
+            {
+                return currentPublishers;
+            }
+            
+            await currentPublishers.confirmedPublisher.SafeDropAsync();
+            await currentPublishers.expressPublisher.SafeDropAsync();
+        }
+
+        await _publisherInitLock.WaitAsync(cancellationToken);
+        try
+        {
+            var expressPublisher = await connection.CreateChannelAsync(
+                new CreateChannelOptions(publisherConfirmationsEnabled: false,
+                    publisherConfirmationTrackingEnabled: false), CancellationToken.None);
+            _callbackOptions.ConfigureEvents(expressPublisher, _log);
+            var confirmedPublisher = await connection.CreateChannelAsync(
+                new CreateChannelOptions(publisherConfirmationsEnabled: _publisherConfirmsEnabled,
+                    publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled), CancellationToken.None);
+            _callbackOptions.ConfigureEvents(confirmedPublisher, _log);
+            _publishers = (expressPublisher, confirmedPublisher);
+            return _publishers.Value;
+        }
+        finally
+        {
+            _publisherInitLock.Release();
+        }
     }
 
     /// <summary>
     /// Creates the consumer.
     /// </summary>
-    CustomQueueingConsumer InitializeConsumer()
+    async ValueTask<CustomQueueingConsumer> InitializeConsumer(CancellationToken cancellationToken = default)
     {
-        IModel model = null;
+        IChannel model = null;
         try
         {
-            model = CreateChannel();
-            model.BasicQos(prefetchSize: 0, prefetchCount: _maxMessagesToPrefetch, global: false);
+            model = await CreateChannel(cancellationToken);
+            await model.BasicQosAsync(prefetchSize: 0, prefetchCount: _maxMessagesToPrefetch, global: false, cancellationToken: cancellationToken);
 
             var consumer = new CustomQueueingConsumer(model);
 
-            model.BasicConsume(queue: Address, autoAck: false, consumer: consumer,
-                consumerTag: _consumerTag != null ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}" : ""
-                );
+            await model.BasicConsumeAsync(queue: Address, autoAck: false, consumer: consumer,
+                consumerTag: _consumerTag != null ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}" : "", cancellationToken: cancellationToken);
 
             _log.Info("Successfully initialized consumer for {queueName}", Address);
 
@@ -755,93 +789,51 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         }
         catch (OperationInterruptedException exception) when (exception.HasReplyCode(QueueDoesNotExist))
         {
-            model.SafeDrop();
+            await model.SafeDropAsync();
             _log.Warn("Queue not found - attempting to recreate queue and restore subscriptions.");
-            ReconnectQueue();
+            await ReconnectQueue();
             return null;
         }
         catch (Exception)
         {
-            model.SafeDrop();
+            await model.SafeDropAsync();
             throw;
         }
     }
 
-    void DoSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IModel model, bool isExpress)
+    async ValueTask DoSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IChannel model, bool isExpress)
     {
         if (!outgoingMessages.Any()) return;
 
-        if (_publisherConfirmsEnabled && !isExpress)
+        // TODO: figure out how the handle express messages under publisher confirms
+        // As that functionality has changed drastically and might require manual management.
+        // see this PR: https://github.com/rabbitmq/rabbitmq-dotnet-client/pull/1687
+        foreach (var outgoingMessage in outgoingMessages)
         {
-            model.ConfirmSelect();
-        }
+            var info = await GetPublishInfo(model, outgoingMessage);
 
-        if (_batchSize == 1)
-        {
-            DoNormalSend(outgoingMessages, model);
-        }
-        else
-        {
-            DoBatchedSend(outgoingMessages, model, _batchSize);
-        }
-
-        if (_publisherConfirmsEnabled && !isExpress)
-        {
-            if (_publisherConfirmsTimeout == TimeSpan.Zero)
+            try
             {
-                model.WaitForConfirmsOrDie();
-            }
-            else
-            {
-                model.WaitForConfirmsOrDie(_publisherConfirmsTimeout);
-            }
-        }
-    }
-
-    void DoBatchedSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IModel model, int batchSize)
-    {
-        foreach (var outgoingMessageBatch in outgoingMessages.Batch(batchSize))
-        {
-            var batch = model.CreateBasicPublishBatch();
-
-            foreach (var outgoingMessage in outgoingMessageBatch)
-            {
-                var info = GetPublishInfo(model, outgoingMessage);
-
-                batch.Add(
+                await model.BasicPublishAsync(
                     exchange: info.Exchange,
                     routingKey: info.RoutingKey,
                     mandatory: info.Mandatory,
-                    properties: info.Properties,
+                    basicProperties: info.Properties,
                     body: info.Body
                 );
             }
-
-            batch.Publish();
+            catch (PublishException e) when (info.Mandatory)
+            {
+                throw new RebusApplicationException(e, $"Failed to publish message to exchange '{info.Exchange}' with routing key '{info.RoutingKey}'. IsReturn {e.IsReturn}, PublishSequenceNumber: {e.PublishSequenceNumber}");
+            }
         }
     }
 
-    void DoNormalSend(IReadOnlyList<OutgoingTransportMessage> outgoingMessages, IModel model)
-    {
-        foreach (var outgoingMessage in outgoingMessages)
-        {
-            var info = GetPublishInfo(model, outgoingMessage);
-
-            model.BasicPublish(
-                exchange: info.Exchange,
-                routingKey: info.RoutingKey,
-                mandatory: info.Mandatory,
-                basicProperties: info.Properties,
-                body: info.Body
-            );
-        }
-    }
-
-    RabbitMqPublishInfo GetPublishInfo(IModel model, OutgoingTransportMessage outgoingMessage)
+    async ValueTask<RabbitMqPublishInfo> GetPublishInfo(IChannel model, OutgoingTransportMessage outgoingMessage)
     {
         var destinationAddress = outgoingMessage.DestinationAddress;
         var message = outgoingMessage.TransportMessage;
-        var props = CreateBasicProperties(model, message.Headers);
+        var props = CreateBasicProperties(message.Headers);
 
         var mandatory = message.Headers.ContainsKey(RabbitMqHeaders.Mandatory);
         if (mandatory && !_callbackOptions.HasMandatoryCallback)
@@ -859,7 +851,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         // when we're sending point-to-point, we want to be sure that we are never sending the message out into nowhere
         if (isPointToPoint && !_callbackOptions.HasMandatoryCallback)
         {
-            EnsureQueueExists(fullyQualifiedRoutingKey, model);
+            await EnsureQueueExists(fullyQualifiedRoutingKey, model);
         }
 
         var routingKey = fullyQualifiedRoutingKey.RoutingKey;
@@ -877,14 +869,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         string Exchange,
         string RoutingKey,
         bool Mandatory,
-        IBasicProperties Properties,
+        BasicProperties Properties,
         ReadOnlyMemory<byte> Body);
 
     static readonly ConcurrentDictionary<string, (string, string)> ContentTypeHeadersToContentTypeAndCharsetMappings = new();
 
-    static IBasicProperties CreateBasicProperties(IModel model, Dictionary<string, string> headers)
+    static BasicProperties CreateBasicProperties(Dictionary<string, string> headers)
     {
-        var props = model.CreateBasicProperties();
+        var props = new BasicProperties();
 
         if (headers.TryGetValue(RabbitMqHeaders.MessageId, out var messageId))
         {
@@ -923,7 +915,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         {
             if (byte.TryParse(deliveryModeVal, out var deliveryMode) && deliveryMode > 0 && deliveryMode <= 2)
             {
-                props.DeliveryMode = deliveryMode;
+                props.DeliveryMode = (DeliveryModes)deliveryMode;
             }
         }
 
@@ -1016,20 +1008,20 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         return (contentTypeResult, charsetResult);
     }
 
-    void EnsureQueueExists(FullyQualifiedRoutingKey routingKey, IModel model)
+    async ValueTask EnsureQueueExists(FullyQualifiedRoutingKey routingKey, IChannel model)
     {
-        _verifiedQueues
+        await _verifiedQueues
             .GetOrAdd(routingKey, _ => CheckQueueExistence(routingKey, model));
     }
 
-    bool CheckQueueExistence(FullyQualifiedRoutingKey routingKey, IModel model)
+    async Task<bool> CheckQueueExistence(FullyQualifiedRoutingKey routingKey, IChannel model)
     {
         var queueName = routingKey.RoutingKey;
 
         try
         {
             // Checks if queue exists, throws if the queue doesn't exist
-            model.QueueDeclarePassive(queueName);
+            await model.QueueDeclarePassiveAsync(queueName);
         }
         catch (Exception e)
         {
@@ -1040,7 +1032,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
 
         try
         {
-            model.ExchangeDeclarePassive(exchange);
+            await model.ExchangeDeclarePassiveAsync(exchange);
         }
         catch (Exception e)
         {
@@ -1050,7 +1042,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
         // since we can't check whether a binding exists, we need
         // to proactively declare it, so we don't risk sending a message
         // "into the void":
-        model.QueueBind(queueName, exchange, routingKey.RoutingKey);
+        await model.QueueBindAsync(queueName, exchange, routingKey.RoutingKey);
 
         return true;
     }
@@ -1058,9 +1050,16 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// <inheritdoc />
     public void Dispose()
     {
-        _writerPool.Dispose();
-        _consumer?.Dispose();
-        _connectionManager.Dispose();
+        DisposeAsync().GetAwaiter().GetResult();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_consumer is { } c)
+        {
+            await c.DisposeAsync();
+        }
+        await _connectionManager.DisposeAsync();
     }
 
     /// <summary>
@@ -1079,14 +1078,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// </summary>
     public async Task RegisterSubscriber(string topic, string subscriberAddress)
     {
-        var connection = _connectionManager.GetConnection();
+        var connection = await _connectionManager.GetConnection();
         var subscription = ParseSubscription(topic, subscriberAddress);
 
         _log.Debug("Registering subscriber {subscription}", subscription);
 
-        using (var model = connection.CreateModel())
+        await using (var model = await connection.CreateChannelAsync())
         {
-            model.QueueBind(subscription.QueueName, subscription.Exchange, subscription.Topic);
+            await model.QueueBindAsync(subscription.QueueName, subscription.Exchange, subscription.Topic);
         }
 
         await _subscriptionSemaphore.WaitAsync();
@@ -1108,14 +1107,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IDisposable, IInitializ
     /// </summary>
     public async Task UnregisterSubscriber(string topic, string subscriberAddress)
     {
-        var connection = _connectionManager.GetConnection();
+        var connection = await _connectionManager.GetConnection();
         var subscription = ParseSubscription(topic, subscriberAddress);
 
         _log.Debug("Unregistering subscriber {subscription}", subscription);
 
-        using (var model = connection.CreateModel())
+        await using (var model = await connection.CreateChannelAsync())
         {
-            model.QueueUnbind(subscription.QueueName, subscription.Exchange, subscription.Topic,
+            await model.QueueUnbindAsync(subscription.QueueName, subscription.Exchange, subscription.Topic,
                 new Dictionary<string, object>());
         }
 

@@ -1,4 +1,5 @@
-﻿using RabbitMQ.Client;
+﻿using System.Threading.Tasks;
+using RabbitMQ.Client;
 
 namespace Rebus.Internals;
 
@@ -7,7 +8,7 @@ static class ModelExtensions
     /// <summary>
     /// Disposes the specific 
     /// </summary>
-    internal static void SafeDrop(this IModel model)
+    internal static async ValueTask SafeDropAsync(this IChannel model)
     {
         if (model == null)
         {
@@ -16,8 +17,8 @@ static class ModelExtensions
             
         try
         {
-            model.Close();
-            model.Dispose();
+            await model.CloseAsync();
+            await model.DisposeAsync();
         }
         catch 
         {

@@ -22,8 +22,8 @@ public class RabbitMqReceiveSubscriptionTests : FixtureBase
     protected override void TearDown()
     {
         base.TearDown();
-        RabbitMqTransportFactory.DeleteQueue(_publisherQueueName);
-        RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+        RabbitMqTransportFactory.DeleteQueue(_publisherQueueName).GetAwaiter().GetResult();
+        RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName).GetAwaiter().GetResult();
     }
 
     [Test]
@@ -48,7 +48,7 @@ public class RabbitMqReceiveSubscriptionTests : FixtureBase
         await subscriber.Subscribe<string>();
 
         // remove the input queue
-        RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+        await RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
 
         // wait a short while
         await Task.Delay(TimeSpan.FromSeconds(60));
@@ -80,12 +80,12 @@ public class RabbitMqReceiveSubscriptionTests : FixtureBase
         using var subscriber = StartBus(_subscriberQueueName, HandlerMethod, false, false);
             
         // create the input queue
-        RabbitMqTransportFactory.CreateQueue(_subscriberQueueName);
+        await RabbitMqTransportFactory.CreateQueue(_subscriberQueueName);
 
         await subscriber.Subscribe<string>();
 
         // remove the input queue
-        RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
+        await RabbitMqTransportFactory.DeleteQueue(_subscriberQueueName);
 
         // wait a short while
         await Task.Delay(5000);

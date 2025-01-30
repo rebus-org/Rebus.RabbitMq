@@ -92,7 +92,7 @@ public static class RabbitMqDelayedMessageExchangeExtensions
 
             _logger.Info("Delaring delayed message exchange with name {exchangeName}", exchangeName);
 
-            _rabbitMqTransport.DeclareDelayedMessageExchange(exchangeName);
+            _rabbitMqTransport.DeclareDelayedMessageExchange(exchangeName).GetAwaiter().GetResult();
         }
 
         public Task Send(string destinationAddress, TransportMessage message, ITransactionContext context)

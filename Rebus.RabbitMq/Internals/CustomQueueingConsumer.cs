@@ -1,43 +1,47 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
+using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace Rebus.Internals;
 
-class CustomQueueingConsumer : DefaultBasicConsumer
+sealed class CustomQueueingConsumer : AsyncDefaultBasicConsumer, IAsyncDisposable
 {
-    public Channel<BasicDeliverEventArgs> Queue { get; } = Channel.CreateUnbounded<BasicDeliverEventArgs>();
+    public Channel<BasicDeliverEventArgs> Queue { get; } = System.Threading.Channels.Channel.CreateUnbounded<BasicDeliverEventArgs>();
         
-    public CustomQueueingConsumer(IModel model) : base(model)
+    public CustomQueueingConsumer(IChannel model) : base(model)
     {
     }
 
-    public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
+    public override Task HandleBasicDeliverAsync(string consumerTag, ulong deliveryTag, bool redelivered, string exchange,
+        string routingKey, IReadOnlyBasicProperties properties, ReadOnlyMemory<byte> body,
+        CancellationToken cancellationToken = default)
     {
-        Queue.Writer.TryWrite(new BasicDeliverEventArgs
-        {
-            ConsumerTag = consumerTag,
-            DeliveryTag = deliveryTag,
-            Redelivered = redelivered,
-            Exchange = exchange,
-            RoutingKey = routingKey,
-            BasicProperties = properties,
-                
+        Queue.Writer.TryWrite(new BasicDeliverEventArgs(
+            consumerTag: consumerTag,
+            deliveryTag: deliveryTag,
+            redelivered: redelivered,
+            exchange: exchange,
+            routingKey: routingKey,
+            properties: properties,
             //      \/- it's important to take a copy of the message body here, because the memory area pointed to by the body reference will be mutated later
-            Body = body.ToArray()
-        });
+            // Also the underlying ReadOnlyMemory<byte> is not guaranteed to be valid after the method returns
+            body: body.ToArray(), cancellationToken: cancellationToken));
+        return base.HandleBasicDeliverAsync(consumerTag, deliveryTag, redelivered, exchange, routingKey, properties, body, cancellationToken);
     }
 
-    public override void OnCancel(params string[] consumerTags)
+    protected override Task OnCancelAsync(string[] consumerTags, CancellationToken cancellationToken = default)
     {
-        base.OnCancel(consumerTags);
         Queue.Writer.TryComplete();
+        return base.OnCancelAsync(consumerTags, cancellationToken);
     }
 
-    public void Dispose()
+
+    public async ValueTask DisposeAsync()
     {
-        Model.SafeDrop();
         Queue.Writer.TryComplete();
+        await Channel.SafeDropAsync();
     }
 }

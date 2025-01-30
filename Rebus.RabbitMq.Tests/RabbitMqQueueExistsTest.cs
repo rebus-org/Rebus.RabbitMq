@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System.Threading.Tasks;
+using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
@@ -23,11 +24,12 @@ public class RabbitMqQueueExistsTest : FixtureBase
             .Start();
     }
 
+
     [Test]
-    public void ThrowExceptionWhenQueueDoesNotExist()
+    public async Task ThrowExceptionWhenQueueDoesNotExist()
     {
         var queueName = TestConfig.GetName("non-existing-queue");
-        RabbitMqTransportFactory.DeleteQueue(queueName);
+        await RabbitMqTransportFactory.DeleteQueue(queueName);
 
         Assert.ThrowsAsync<RebusApplicationException>(() => _bus.Advanced.Routing.Send(queueName, "hej"));
     }

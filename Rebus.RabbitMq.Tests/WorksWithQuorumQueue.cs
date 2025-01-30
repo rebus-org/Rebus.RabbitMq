@@ -13,11 +13,6 @@ using Rebus.Tests.Contracts.Extensions;
 namespace Rebus.RabbitMq.Tests;
 
 [TestFixture]
-[Explicit(@"Requires that the 'quorum_queue' feature flag has been enabled
-
-    rabbitmqctl.bat enable_feature_flag quorum_queue
-
-")]
 public class WorksWithQuorumQueue : FixtureBase
 {
     [Test]

@@ -24,7 +24,7 @@ public class RabbitMqPriorityQueueTest : FixtureBase
 
     protected override void SetUp()
     {
-        RabbitMqTransportFactory.DeleteQueue(_priorityQueueName);
+        RabbitMqTransportFactory.DeleteQueue(_priorityQueueName).GetAwaiter().GetResult();
     }
 
     [Test]
@@ -34,16 +34,16 @@ public class RabbitMqPriorityQueueTest : FixtureBase
         Using(StartServer(_priorityQueueName, 10));
 
         // Check if queues exists
-        Assert.DoesNotThrow(() =>
+        Assert.That(async () =>
         {
             var connectionFactory = new ConnectionFactory { Uri = new Uri(RabbitMqTransportFactory.ConnectionString) };
 
-            using var connection = connectionFactory.CreateConnection();
+            await using var connection = await connectionFactory.CreateConnectionAsync();
 
-            using var model = connection.CreateModel();
+            await using var model = await connection.CreateChannelAsync();
 
             // Throws exception if queue paramters differ
-            model.QueueDeclare(_priorityQueueName,
+            await model.QueueDeclareAsync(_priorityQueueName,
                 exclusive: false,
                 durable: true,
                 autoDelete: false,
@@ -51,7 +51,7 @@ public class RabbitMqPriorityQueueTest : FixtureBase
                 {
                     {"x-max-priority", 10}
                 });
-        });
+        }, Throws.Nothing);
     }
 
     [Test]
@@ -60,15 +60,15 @@ public class RabbitMqPriorityQueueTest : FixtureBase
         // Start a server with priority
         Using(StartServer(_priorityQueueName, 10));
 
-        Assert.Throws<OperationInterruptedException>(() =>
+        Assert.That(async () =>
         {
             var connectionFactory = new ConnectionFactory { Uri = new Uri(RabbitMqTransportFactory.ConnectionString) };
 
-            using var connection = connectionFactory.CreateConnection();
+            await using var connection = await connectionFactory.CreateConnectionAsync();
 
-            using var model = connection.CreateModel();
+            await using var model = await connection.CreateChannelAsync();
 
-            model.QueueDeclare(_priorityQueueName,
+            await model.QueueDeclareAsync(_priorityQueueName,
                 exclusive: false,
                 durable: true,
                 autoDelete: false,
@@ -76,7 +76,7 @@ public class RabbitMqPriorityQueueTest : FixtureBase
                 {
                     {"x-max-priority", 1}
                 });
-        });
+        }, Throws.TypeOf<OperationInterruptedException>());
     }
 
     [Test]

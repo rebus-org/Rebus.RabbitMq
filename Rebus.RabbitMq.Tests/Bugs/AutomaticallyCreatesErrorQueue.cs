@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System.Threading.Tasks;
+using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Config;
 using Rebus.Retry.Simple;
@@ -12,13 +13,13 @@ public class AutomaticallyCreatesErrorQueue : FixtureBase
     [TestCase("error")]
     [TestCase("error_customized")]
     [Description("Tried without success to reproduce an error where error queues would, for some reason, not be there after starting")]
-    public void WhatTheFixtureSays(string errorQueueName)
+    public async Task WhatTheFixtureSays(string errorQueueName)
     {
         var inputQueueName = TestConfig.GetName("input");
 
         // ensure the queues do not exist beforehand
-        RabbitMqTransportFactory.DeleteQueue(inputQueueName);
-        RabbitMqTransportFactory.DeleteQueue(errorQueueName);
+        await RabbitMqTransportFactory.DeleteQueue(inputQueueName);
+        await RabbitMqTransportFactory.DeleteQueue(errorQueueName);
 
         // ensure they're cleaned up afterwards too
         Using(new QueueDeleter(inputQueueName));
@@ -42,7 +43,7 @@ public class AutomaticallyCreatesErrorQueue : FixtureBase
             })
             .Start();
 
-        Assert.That(RabbitMqTransportFactory.QueueExists(errorQueueName), Is.True,
+        Assert.That(await RabbitMqTransportFactory.QueueExists(errorQueueName), Is.True,
             $"The error queue '{errorQueueName}' was not found as expected");
     }
 }

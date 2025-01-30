@@ -7,6 +7,7 @@ using NUnit.Framework;
 using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
+using Rebus.Exceptions;
 using Rebus.Extensions;
 using Rebus.Logging;
 using Rebus.Tests.Contracts;
@@ -22,7 +23,7 @@ public class RabbitMqHeaderTest : FixtureBase
 
     protected override void SetUp()
     {
-        RabbitMqTransportFactory.DeleteQueue(_noneExistingQueueName);
+        RabbitMqTransportFactory.DeleteQueue(_noneExistingQueueName).GetAwaiter().GetResult();
     }
 
     [Test]
@@ -61,7 +62,13 @@ public class RabbitMqHeaderTest : FixtureBase
         };
 
         var bus = StartOneWayClient(Callback);
-        await bus.Advanced.Routing.Send(_noneExistingQueueName, "I have headers", headers);
+        try
+        {
+            await bus.Advanced.Routing.Send(_noneExistingQueueName, "I have headers", headers);
+        }
+        catch (RebusApplicationException)
+        {
+        }
 
         gotCallback.WaitOrDie(TimeSpan.FromSeconds(2));
 

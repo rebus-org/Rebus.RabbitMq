@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Rebus.Logging;
 using Rebus.Tests.Contracts.Transports;
@@ -13,6 +14,7 @@ public class RabbitMqTransportFactory : ITransportFactory
     public static string ConnectionString => RabbitMqTestContainerManager.GetConnectionString();// "amqp://guest:guest@localhost:5672";
 
     readonly List<IDisposable> _disposables = new();
+    private readonly List<IAsyncDisposable> _asyncDisposables = new();
     readonly HashSet<string> _queuesToDelete = new();
 
     public ITransport CreateOneWayClient()
@@ -24,11 +26,11 @@ public class RabbitMqTransportFactory : ITransportFactory
     {
         var transport = CreateRabbitMqTransport(inputQueueAddress);
 
-        _disposables.Add(transport);
+        _asyncDisposables.Add(transport);
 
         if (inputQueueAddress != null)
         {
-            transport.PurgeInputQueue();
+            transport.PurgeInputQueue().GetAwaiter().GetResult();
         }
 
         transport.Initialize();
@@ -48,40 +50,45 @@ public class RabbitMqTransportFactory : ITransportFactory
             disposable.Dispose();
         }
         _disposables.Clear();
+        
+        foreach (var asyncDisposable in _asyncDisposables)
+        {
+            asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
 
         foreach (var queue in _queuesToDelete)
         {
-            DeleteQueue(queue);
+            DeleteQueue(queue).GetAwaiter().GetResult();
         }
         _queuesToDelete.Clear();
     }
 
-    public static void CreateQueue(string queueName)
+    public static async Task CreateQueue(string queueName)
     {
         var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
 
-        using var connection = connectionFactory.CreateConnection();
-        using var model = connection.CreateModel();
-        model.QueueDeclare(queueName, true, false, false);
+        await using var connection = await connectionFactory.CreateConnectionAsync();
+        await using var model = await connection.CreateChannelAsync();
+        await model.QueueDeclareAsync(queueName, true, false, false);
     }
 
-    public static void DeleteQueue(string queueName)
+    public static async Task DeleteQueue(string queueName)
     {
         var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
 
-        using var connection = connectionFactory.CreateConnection();
-        using var model = connection.CreateModel();
-        model.QueueDelete(queueName);
+        await using var connection = await connectionFactory.CreateConnectionAsync();
+        await using var model = await connection.CreateChannelAsync();
+        await model.QueueDeleteAsync(queueName);
     }
 
-    public static bool QueueExists(string queueName)
+    public static async Task<bool> QueueExists(string queueName)
     {
         var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
-        using var connection = connectionFactory.CreateConnection();
-        using var model = connection.CreateModel();
+        await using var connection = await connectionFactory.CreateConnectionAsync();
+        await using var model = await connection.CreateChannelAsync();
         try
         {
-            model.QueueDeclarePassive(queueName);
+            await model.QueueDeclarePassiveAsync(queueName);
             return true;
         }
         catch (RabbitMQ.Client.Exceptions.OperationInterruptedException)
@@ -90,13 +97,13 @@ public class RabbitMqTransportFactory : ITransportFactory
         }
     }
 
-    public static void DeleteExchange(string exchangeName)
+    public static async Task DeleteExchange(string exchangeName)
     {
         var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
 
-        using var connection = connectionFactory.CreateConnection();
-        using var model = connection.CreateModel();
-        model.ExchangeDelete(exchangeName);
+        await using var connection = await connectionFactory.CreateConnectionAsync();
+        await using var model = await connection.CreateChannelAsync();
+        await model.ExchangeDeleteAsync(exchangeName);
     }
 
     /// <summary>
@@ -104,29 +111,29 @@ public class RabbitMqTransportFactory : ITransportFactory
     /// randomly named exchange and trying to bind from the randomly named one to the one we want to check the existence of.
     /// This causes an exception if the exchange with the name <paramref name="exchangeName"/> does not exists.
     /// </summary>
-    public static bool ExchangeExists(string exchangeName)
+    public static async Task<bool> ExchangeExists(string exchangeName)
     {
         var connectionFactory = new ConnectionFactory { Uri = new Uri(ConnectionString) };
 
-        using var connection = connectionFactory.CreateConnection();
-        using var model = connection.CreateModel();
+        await using var connection = await connectionFactory.CreateConnectionAsync();
+        await using var model = await connection.CreateChannelAsync();
         try
         {
             const string nonExistentTopic = "6BE38CB8-089A-4B65-BA86-0801BBC064E9------DELETE-ME";
             const string fakeExchange = "FEBC2512-CEC6-46EB-A058-37F1A9642B35------DELETE-ME";
 
-            model.ExchangeDeclare(fakeExchange, ExchangeType.Direct);
+            await model.ExchangeDeclareAsync(fakeExchange, ExchangeType.Direct);
 
             try
             {
-                model.ExchangeBind(exchangeName, fakeExchange, nonExistentTopic);
-                model.ExchangeUnbind(exchangeName, fakeExchange, nonExistentTopic);
+                await model.ExchangeBindAsync(exchangeName, fakeExchange, nonExistentTopic);
+                await model.ExchangeUnbindAsync(exchangeName, fakeExchange, nonExistentTopic);
 
                 return true;
             }
             finally
             {
-                model.ExchangeDelete(fakeExchange);
+                await model.ExchangeDeleteAsync(fakeExchange);
             }
         }
         catch

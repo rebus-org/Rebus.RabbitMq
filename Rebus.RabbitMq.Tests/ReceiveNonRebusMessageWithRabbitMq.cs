@@ -29,7 +29,7 @@ public class ReceiveNonRebusMessageWithRabbitMq : FixtureBase
 
     protected override void SetUp()
     {
-        RabbitMqTransportFactory.DeleteQueue(_inputQueueName);
+        RabbitMqTransportFactory.DeleteQueue(_inputQueueName).GetAwaiter().GetResult();
 
         _activator = Using(new BuiltinHandlerActivator());
 
@@ -41,7 +41,7 @@ public class ReceiveNonRebusMessageWithRabbitMq : FixtureBase
     }
 
     [Test]
-    public void CanReceiveNonRebusMessage()
+    public async Task CanReceiveNonRebusMessage()
     {
         var receivedCustomStringMessage = new ManualResetEvent(false);
 
@@ -56,13 +56,12 @@ public class ReceiveNonRebusMessageWithRabbitMq : FixtureBase
 
         _starter.Start();
 
-        using (var connection = new ConnectionFactory { Uri = new Uri(ConnectionString) }.CreateConnection())
+        await using (var connection = await new ConnectionFactory { Uri = new Uri(ConnectionString) }.CreateConnectionAsync())
         {
-            using (var model = connection.CreateModel())
+            await using (var model = await connection.CreateChannelAsync())
             {
-                var headers = model.CreateBasicProperties();
                 var body = Encoding.UTF8.GetBytes("hej med dig min ven");
-                model.BasicPublish("RebusDirect", _inputQueueName, headers, body);
+                await model.BasicPublishAsync("RebusDirect", _inputQueueName, body);
             }
         }
 

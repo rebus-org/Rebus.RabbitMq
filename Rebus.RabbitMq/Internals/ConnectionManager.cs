@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Rebus.Logging;
 using Rebus.RabbitMq;
@@ -10,9 +11,9 @@ using Rebus.RabbitMq;
 
 namespace Rebus.Internals;
 
-class ConnectionManager : IDisposable
+class ConnectionManager : IAsyncDisposable
 {
-    readonly object _activeConnectionLock = new();
+    readonly SemaphoreSlim _activeConnectionLock = new(1, 1);
     readonly IConnectionFactory _connectionFactory;
     readonly IList<AmqpTcpEndpoint> _amqpTcpEndpoints;
     readonly ILog _log;
@@ -166,7 +167,7 @@ class ConnectionManager : IDisposable
         }
     }
 
-    public IConnection GetConnection()
+    public async ValueTask<IConnection> GetConnection(CancellationToken cancellationToken = default)
     {
         var connection = _activeConnection;
 
@@ -175,8 +176,9 @@ class ConnectionManager : IDisposable
             return connection;
         }
 
-        lock (_activeConnectionLock)
+        try
         {
+            await _activeConnectionLock.WaitAsync(cancellationToken);
             connection = _activeConnection;
 
             if (connection != null)
@@ -190,59 +192,66 @@ class ConnectionManager : IDisposable
 
                 try
                 {
-                    connection.Close();
-                    connection.Dispose();
+                    await connection.CloseAsync(cancellationToken);
+                    await connection.DisposeAsync();
                 }
-                catch { }
+                catch(Exception e)
+                {
+                    _log.Debug("Exception thrown while closing and disposing connection. This can probably be ignored, but for good measure, here it is: {exception}", e);
+                }
             }
 
             try
             {
-                _activeConnection = _connectionFactory.CreateConnection(_amqpTcpEndpoints);
+                _activeConnection = await _connectionFactory.CreateConnectionAsync(_amqpTcpEndpoints, cancellationToken);
 
                 return _activeConnection;
             }
             catch (Exception exception)
             {
                 _log.Warn("Could not establish connection: {message}", exception.Message);
-                Thread.Sleep(1000); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
+                await Task.Delay(1000, cancellationToken); // if CreateConnection fails fast for some reason, we wait a little while here to avoid thrashing tightly
                 throw;
             }
         }
+        finally
+        {
+            _activeConnectionLock.Release();
+        }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
 
         try
         {
-            lock (_activeConnectionLock)
+            await _activeConnectionLock.WaitAsync();
+            var connection = _activeConnection;
+
+            if (connection != null)
             {
-                var connection = _activeConnection;
+                _log.Info("Disposing RabbitMQ connection");
 
-                if (connection != null)
+                // WTF?!?!? RabbitMQ client disposal can THROW!
+                try
                 {
-                    _log.Info("Disposing RabbitMQ connection");
-
-                    // WTF?!?!? RabbitMQ client disposal can THROW!
-                    try
-                    {
-                        connection.Close();
-                        connection.Dispose();
-                    }
-                    catch
-                    {
-                    }
-                    finally
-                    {
-                        _activeConnection = null;
-                    }
+                    await connection.CloseAsync();
+                    await connection.DisposeAsync();
+                }
+                catch
+                {
+                    
+                }
+                finally
+                {
+                    _activeConnection = null;
                 }
             }
         }
         finally
         {
+            _activeConnectionLock.Release();
             _disposed = true;
         }
     }
@@ -308,7 +317,7 @@ class ConnectionManager : IDisposable
         {
             var currentProcess = Process.GetCurrentProcess();
             processName = currentProcess.ProcessName;
-            fileName = currentProcess.MainModule.FileName;
+            fileName = currentProcess.MainModule?.FileName ?? "n/a";
         }
         catch { } //In case of potentially insufficient permissions to get process information
 
