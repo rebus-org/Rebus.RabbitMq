@@ -177,6 +177,9 @@
 ## 9.4.1
 * Fix potential race condition in ModelObjectPool - thanks [mksergiy]
 
+## 10.0.0
+* Update RabbitMQ client to v7 - thanks [zlepper]
+
 ---
 
 [bzuu]: https://github.com/bzuu
