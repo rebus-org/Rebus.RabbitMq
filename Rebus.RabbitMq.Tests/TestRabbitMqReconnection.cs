@@ -24,10 +24,10 @@ public class TestRabbitMqReconnection : FixtureBase
 {
     readonly string _receiverQueueName = TestConfig.GetName("receiver");
 
-    IBus _sender;
+    RabbitMqContainer _rabbitMqContainer;
     BuiltinHandlerActivator _receiver;
-    private RabbitMqContainer _rabbitMqContainer;
-    private string _initialConnectionString;
+    string _initialConnectionString;
+    IBus _sender;
 
     protected override void SetUp()
     {
@@ -35,6 +35,9 @@ public class TestRabbitMqReconnection : FixtureBase
         // which obviously won't work with the previous connection string.
         _rabbitMqContainer = new RabbitMqBuilder().WithPortBinding(25672, 5672).Build();
         _rabbitMqContainer.StartAsync().GetAwaiter().GetResult();
+
+        Thread.Sleep(5000);
+
         _initialConnectionString = _rabbitMqContainer.GetConnectionString();
         
         using (var transport = new RabbitMqTransport(_initialConnectionString, _receiverQueueName, new NullLoggerFactory()))

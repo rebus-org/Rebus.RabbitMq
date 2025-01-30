@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Rebus.Tests.Contracts;
 using Testcontainers.RabbitMq;
 
 namespace Rebus.RabbitMq.Tests;
