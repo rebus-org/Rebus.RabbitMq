@@ -180,6 +180,9 @@
 ## 10.0.0
 * Update RabbitMQ client to v7 - thanks [zlepper]
 
+## 10.0.1
+* Fix Rebus.RabbitMQ not noticing if queues has been created after the initial check failed - thanks [zlepper]
+
 ---
 
 [bzuu]: https://github.com/bzuu

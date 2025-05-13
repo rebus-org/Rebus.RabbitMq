@@ -57,7 +57,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     private (IChannel expressPublisher, IChannel confirmedPublisher)? _publishers;
     private SemaphoreSlim _publisherInitLock = new(1, 1);
 
-    readonly ConcurrentDictionary<FullyQualifiedRoutingKey, Task<bool>> _verifiedQueues = new();
+    readonly ConcurrentDictionary<FullyQualifiedRoutingKey, Task> _verifiedQueues = new();
 
     readonly List<Subscription> _registeredSubscriptions = new();
     readonly SemaphoreSlim _subscriptionSemaphore = new(1, 1);
@@ -1008,13 +1008,23 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
         return (contentTypeResult, charsetResult);
     }
 
-    async ValueTask EnsureQueueExists(FullyQualifiedRoutingKey routingKey, IChannel model)
+    private Task EnsureQueueExists(FullyQualifiedRoutingKey routingKey, IChannel model)
     {
-        await _verifiedQueues
+        var task = _verifiedQueues
             .GetOrAdd(routingKey, _ => CheckQueueExistence(routingKey, model));
+
+        if (task.IsFaulted)
+        {
+            _verifiedQueues.TryRemove(routingKey, out _);
+            return _verifiedQueues.GetOrAdd(routingKey, _ => CheckQueueExistence(routingKey, model));
+        }
+        else
+        {
+            return task;
+        }
     }
 
-    async Task<bool> CheckQueueExistence(FullyQualifiedRoutingKey routingKey, IChannel model)
+    async Task CheckQueueExistence(FullyQualifiedRoutingKey routingKey, IChannel model)
     {
         var queueName = routingKey.RoutingKey;
 
@@ -1043,8 +1053,6 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
         // to proactively declare it, so we don't risk sending a message
         // "into the void":
         await model.QueueBindAsync(queueName, exchange, routingKey.RoutingKey);
-
-        return true;
     }
 
     /// <inheritdoc />
