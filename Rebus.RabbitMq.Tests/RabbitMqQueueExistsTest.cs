@@ -33,4 +33,20 @@ public class RabbitMqQueueExistsTest : FixtureBase
 
         Assert.ThrowsAsync<RebusApplicationException>(() => _bus.Advanced.Routing.Send(queueName, "hej"));
     }
+
+    [Test]
+    public async Task DiscoversThatQueuesHaveBeenCreated()
+    {
+        var queueName = TestConfig.GetName("non-existing-queue");
+        await RabbitMqTransportFactory.DeleteQueue(queueName);
+        
+        Assert.ThrowsAsync<RebusApplicationException>(() => _bus.Advanced.Routing.Send(queueName, "hej"));
+
+        await RabbitMqTransportFactory.CreateQueue(queueName);
+        
+        Assert.That(async () =>
+        {
+            await _bus.Advanced.Routing.Send(queueName, "hej");
+        }, Throws.Nothing);
+    }
 }
