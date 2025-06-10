@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using RabbitMQ.Client;
 using Rebus.Injection;
 using Rebus.Internals;
 using Rebus.Logging;
@@ -7,6 +6,8 @@ using Rebus.RabbitMq;
 using Rebus.Retry;
 using Rebus.Subscriptions;
 using Rebus.Transport;
+using System;
+using System.Collections.Generic;
 // ReSharper disable ExpressionIsAlwaysNull
 // ReSharper disable ArgumentsStyleNamedExpression
 
@@ -37,6 +38,16 @@ public static class RabbitMqConfigurationExtensions
         if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
 
         return BuildInternal(configurer, true, (context, options) => new RabbitMqTransport(endpoints, null, context.Get<IRebusLoggerFactory>(), customizer: options.ConnectionFactoryCustomizer));
+    }
+
+    /// <summary>
+    /// Configures Rebus to use RabbitMQ to move messages around
+    /// </summary>
+    public static RabbitMqOptionsBuilder UseRabbitMq(this StandardConfigurer<ITransport> configurer, List<AmqpTcpEndpoint> endpoints, string inputQueueName, IConnectionFactory? factory, IConnection? connection)
+    {
+        if (inputQueueName == null) throw new ArgumentNullException(nameof(inputQueueName));
+        return BuildInternal(configurer, false, (context, options) => new RabbitMqTransport(endpoints, inputQueueName, factory, connection, context.Get<IRebusLoggerFactory>()));
+
     }
 
     /// <summary>
