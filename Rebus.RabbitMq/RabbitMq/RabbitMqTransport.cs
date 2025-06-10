@@ -100,6 +100,21 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     }
 
     /// <summary>
+    /// Constructs the RabbitMQ transport with multiple amqp tcp endpoints. They should be also used in the connection factory.
+    ///  A Connection factory and an existing connection must also be provided
+    /// </summary>
+    public RabbitMqTransport(List<AmqpTcpEndpoint> endpoints, string inputQueueAddress, IConnectionFactory? factory, IConnection? connection,
+        IRebusLoggerFactory rebusLoggerFactory, int maxMessagesToPrefetch = 50)
+        : this(rebusLoggerFactory, maxMessagesToPrefetch, inputQueueAddress)
+    {
+        if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
+        if (factory == null) throw new ArgumentNullException(nameof(factory));
+        if (connection == null) throw new ArgumentNullException(nameof(connection));
+
+        _connectionManager = new ConnectionManager(rebusLoggerFactory, endpoints, inputQueueAddress, factory, connection);
+    }
+
+    /// <summary>
     /// Constructs the RabbitMQ transport with multiple connection endpoints. They will be tried in random order until working one is found
     ///  Credentials will be extracted from the connectionString of the first provided endpoint
     /// </summary>
