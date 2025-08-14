@@ -63,14 +63,14 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     readonly SemaphoreSlim _subscriptionSemaphore = new(1, 1);
     readonly ConnectionManager _connectionManager;
     readonly ILog _log;
-    
+
     ushort _maxMessagesToPrefetch;
 
     bool _declareExchanges = true;
     bool _declareInputQueue = true;
     bool _bindInputQueue = true;
     bool _publisherConfirmsEnabled = true;
-    
+
     TimeSpan _publisherConfirmsTimeout;
 
     string _consumerTag = null;
@@ -271,7 +271,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     {
         CreateQueueAsync(address).GetAwaiter().GetResult();
     }
-    
+
     /// <summary>
     /// Creates a queue with the given name and binds it to a topic with the same name in the direct exchange
     /// </summary>
@@ -438,7 +438,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
                 // strange i think.
                 await DoSend(expressMessages, expressChannel, isExpress: true);
                 await DoSend(ordinaryMessages, confirmedChannel, isExpress: false);
-                
+
                 return; //< success - we're done!
             }
             catch (Exception)
@@ -577,14 +577,19 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
             var deliveryTag = result.DeliveryTag;
 
-            context.OnAck(async _ => await _consumer.Channel.BasicAckAsync(deliveryTag, multiple: false, cancellationToken: cancellationToken));
+            context.OnAck(async _ =>
+            {
+                // intentionally not cancellable - if we get this far, we want to succeed in ACKing if at all possible
+                await _consumer.Channel.BasicAckAsync(deliveryTag, multiple: false, CancellationToken.None);
+            });
 
             context.OnNack(async _ =>
             {
                 // we might not be able to do this, but it doesn't matter that much if it succeeds
                 try
                 {
-                    await _consumer.Channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, cancellationToken: cancellationToken);
+                    // intentionally not cancellable - if we get this far, we want to succeed in NACKing if at all possible
+                    await _consumer.Channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, CancellationToken.None);
                 }
                 catch
                 {
@@ -726,23 +731,23 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
             throw;
         }
     }
-    
-    
+
+
     private async ValueTask<(IChannel expressPublisher, IChannel confirmedPublisher)> GetPublisherChannels(CancellationToken cancellationToken = default)
     {
         // `IModel`/`IChannel` is now thread-safe as per https://github.com/rabbitmq/rabbitmq-dotnet-client/issues/1722
         // So no reason to use one per publish, just keep it around.
-        
+
         var connection = await _connectionManager.GetConnection(cancellationToken);
 
-        if (_publishers is {} currentPublishers)
+        if (_publishers is { } currentPublishers)
         {
             if (currentPublishers.confirmedPublisher.IsClosed == false &&
                 currentPublishers.expressPublisher.IsClosed == false)
             {
                 return currentPublishers;
             }
-            
+
             await currentPublishers.confirmedPublisher.SafeDropAsync();
             await currentPublishers.expressPublisher.SafeDropAsync();
         }
