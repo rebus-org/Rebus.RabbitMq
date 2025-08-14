@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
@@ -51,11 +49,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     static readonly Encoding HeaderValueEncoding = Encoding.UTF8;
 
     readonly SemaphoreSlim _consumerLock = new(1, 1);
-
-    CustomQueueingConsumer _consumer;
-
-    private (IChannel expressPublisher, IChannel confirmedPublisher)? _publishers;
-    private SemaphoreSlim _publisherInitLock = new(1, 1);
+    readonly SemaphoreSlim _publisherInitLock = new(1, 1);
 
     readonly ConcurrentDictionary<FullyQualifiedRoutingKey, Task> _verifiedQueues = new();
 
@@ -63,6 +57,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     readonly SemaphoreSlim _subscriptionSemaphore = new(1, 1);
     readonly ConnectionManager _connectionManager;
     readonly ILog _log;
+
+    (IChannel expressPublisher, IChannel confirmedPublisher)? _publishers;
+    CustomQueueingConsumer _consumer;
 
     ushort _maxMessagesToPrefetch;
 
@@ -441,13 +438,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
                 return; //< success - we're done!
             }
-            catch (Exception)
+            catch (Exception) when (attempt <= WriterAttempts) //< if the built-in number of retries has been exceeded, let the error bubble out
             {
-                // if the built-in number of retries has been exceeded, let the error bubble out
-                if (attempt > WriterAttempts)
-                {
-                    throw;
-                }
             }
         }
     }
@@ -496,6 +488,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
                 }
             }
 
+            var consumer = _consumer;
+
             try
             {
                 // When a consumer is dequeued from the "consumers" pool, it might be bound to a queue, which does not exist anymore,
@@ -509,9 +503,9 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
                     // avoid hammering the QueueDeclarePassive method
                     if (Interlocked.Increment(ref _queueDeclarePassiveCounter) % 100 == 0)
                     {
-                        if (_consumer is { } c)
+                        if (consumer != null)
                         {
-                            await c.Channel.QueueDeclarePassiveAsync(Address, cancellationToken);
+                            await consumer.Channel.QueueDeclarePassiveAsync(Address, cancellationToken);
                         }
                     }
                 }
@@ -520,15 +514,15 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
             {
             }
 
-            if (_consumer == null)
+            if (consumer == null)
             {
-                // initialization must have failed
+                // initialization must have failed, or there was a race condition
                 return null;
             }
 
-            if (!_consumer.Channel.IsOpen)
+            if (!consumer.Channel.IsOpen)
             {
-                await _consumer.DisposeAsync();
+                await consumer.DisposeAsync();
                 _consumer = null;
                 return null;
             }
@@ -539,7 +533,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
             {
                 if (_blockOnReceive)
                 {
-                    result = await _consumer.Queue.Reader.ReadAsync(cancellationToken);
+                    result = await consumer.Queue.Reader.ReadAsync(cancellationToken);
                 }
                 else
                 {
@@ -549,7 +543,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
                     var combinedCancellationToken = linkedTokenSource.Token;
                     try
                     {
-                        result = await _consumer.Queue.Reader.ReadAsync(combinedCancellationToken);
+                        result = await consumer.Queue.Reader.ReadAsync(combinedCancellationToken);
                     }
                     catch (OperationCanceledException) when (combinedCancellationToken.IsCancellationRequested)
                     {
@@ -560,11 +554,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
             catch (ChannelClosedException)
             {
                 _log.Warn("Closed channel detected - consumer will be disposed");
-                if (_consumer is { } c)
-                {
-                    _consumer = null;
-                    await c.DisposeAsync();
-                }
+                await consumer.DisposeAsync();
+                _consumer = null;
                 return null;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -580,7 +571,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
             context.OnAck(async _ =>
             {
                 // intentionally not cancellable - if we get this far, we want to succeed in ACKing if at all possible
-                await _consumer.Channel.BasicAckAsync(deliveryTag, multiple: false, CancellationToken.None);
+                await consumer.Channel.BasicAckAsync(deliveryTag, multiple: false, CancellationToken.None);
             });
 
             context.OnNack(async _ =>
@@ -589,7 +580,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
                 try
                 {
                     // intentionally not cancellable - if we get this far, we want to succeed in NACKing if at all possible
-                    await _consumer.Channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, CancellationToken.None);
+                    await consumer.Channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, CancellationToken.None);
                 }
                 catch
                 {
@@ -714,7 +705,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
         return $"knuth-{Knuth.CalculateHash(base64String)}";
     }
 
-    internal async ValueTask<IChannel> CreateChannel(CancellationToken cancellationToken = default)
+    async ValueTask<IChannel> CreateChannel(CancellationToken cancellationToken = default)
     {
         var connection = await _connectionManager.GetConnection(cancellationToken);
 
@@ -733,37 +724,45 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     }
 
 
-    private async ValueTask<(IChannel expressPublisher, IChannel confirmedPublisher)> GetPublisherChannels(CancellationToken cancellationToken = default)
+    async ValueTask<(IChannel expressPublisher, IChannel confirmedPublisher)> GetPublisherChannels(CancellationToken cancellationToken = default)
     {
         // `IModel`/`IChannel` is now thread-safe as per https://github.com/rabbitmq/rabbitmq-dotnet-client/issues/1722
         // So no reason to use one per publish, just keep it around.
 
         var connection = await _connectionManager.GetConnection(cancellationToken);
 
-        if (_publishers is { } currentPublishers)
+        // double-check locking pattern around re-initialization
+        if (_publishers is { confirmedPublisher.IsOpen: true, expressPublisher.IsOpen: true } currentPublishers)
         {
-            if (currentPublishers.confirmedPublisher.IsClosed == false &&
-                currentPublishers.expressPublisher.IsClosed == false)
-            {
-                return currentPublishers;
-            }
-
-            await currentPublishers.confirmedPublisher.SafeDropAsync();
-            await currentPublishers.expressPublisher.SafeDropAsync();
+            return currentPublishers;
         }
 
         await _publisherInitLock.WaitAsync(cancellationToken);
+
         try
         {
-            var expressPublisher = await connection.CreateChannelAsync(
-                new CreateChannelOptions(publisherConfirmationsEnabled: false,
-                    publisherConfirmationTrackingEnabled: false), CancellationToken.None);
+            if (_publishers is { confirmedPublisher.IsOpen: true, expressPublisher.IsOpen: true } newPublishers)
+            {
+                return newPublishers;
+            }
+
+            if (_publishers is { } disposables)
+            {
+                await disposables.confirmedPublisher.SafeDropAsync();
+                await disposables.expressPublisher.SafeDropAsync();
+            }
+
+            var expressOptions = new CreateChannelOptions(publisherConfirmationsEnabled: false, publisherConfirmationTrackingEnabled: false);
+            var confirmOptions = new CreateChannelOptions(publisherConfirmationsEnabled: _publisherConfirmsEnabled, publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled);
+
+            var expressPublisher = await connection.CreateChannelAsync(expressOptions, CancellationToken.None);
+            var confirmedPublisher = await connection.CreateChannelAsync(confirmOptions, CancellationToken.None);
+
             _callbackOptions.ConfigureEvents(expressPublisher, _log);
-            var confirmedPublisher = await connection.CreateChannelAsync(
-                new CreateChannelOptions(publisherConfirmationsEnabled: _publisherConfirmsEnabled,
-                    publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled), CancellationToken.None);
             _callbackOptions.ConfigureEvents(confirmedPublisher, _log);
+
             _publishers = (expressPublisher, confirmedPublisher);
+
             return _publishers.Value;
         }
         finally
@@ -777,16 +776,21 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     /// </summary>
     async ValueTask<CustomQueueingConsumer> InitializeConsumer(CancellationToken cancellationToken = default)
     {
-        IChannel model = null;
+        var model = await CreateChannel(cancellationToken);
+
         try
         {
-            model = await CreateChannel(cancellationToken);
             await model.BasicQosAsync(prefetchSize: 0, prefetchCount: _maxMessagesToPrefetch, global: false, cancellationToken: cancellationToken);
 
             var consumer = new CustomQueueingConsumer(model);
 
-            await model.BasicConsumeAsync(queue: Address, autoAck: false, consumer: consumer,
-                consumerTag: _consumerTag != null ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}" : "", cancellationToken: cancellationToken);
+            await model.BasicConsumeAsync(
+                queue: Address,
+                autoAck: false,
+                consumer: consumer,
+                consumerTag: _consumerTag != null ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}" : "",
+                cancellationToken: cancellationToken
+            );
 
             _log.Info("Successfully initialized consumer for {queueName}", Address);
 
