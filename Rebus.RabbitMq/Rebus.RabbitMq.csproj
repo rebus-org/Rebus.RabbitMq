@@ -16,9 +16,9 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.8" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
 		<PackageReference Include="rebus" Version="8.2.2" />
-		<PackageReference Include="RabbitMq.Client" Version="7.0.0" />
+		<PackageReference Include="RabbitMq.Client" Version="7.1.2" />
 	</ItemGroup>
 	<ItemGroup>
 		<None Include="..\artwork\little_rebusbus2_copy-500x500.png">
