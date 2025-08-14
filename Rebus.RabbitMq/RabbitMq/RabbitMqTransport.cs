@@ -731,7 +731,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
         var connection = await _connectionManager.GetConnection(cancellationToken);
 
-        // double-check locking pattern around re-initialization
+        // double-checked locking pattern around re-initialization
         if (_publishers is { confirmedPublisher.IsOpen: true, expressPublisher.IsOpen: true } currentPublishers)
         {
             return currentPublishers;

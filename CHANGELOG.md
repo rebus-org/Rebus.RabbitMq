@@ -183,6 +183,9 @@
 ## 10.0.1
 * Fix Rebus.RabbitMQ not noticing if queues has been created after the initial check failed - thanks [zlepper]
 
+## 10.0.2
+* Make slight rearrangements (double-checked locking) around re-initialization of publisher channels
+
 ---
 
 [bzuu]: https://github.com/bzuu
