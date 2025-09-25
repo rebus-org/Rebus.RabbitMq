@@ -14,7 +14,7 @@ public class RabbitMqTransportFactory : ITransportFactory
     public static string ConnectionString => RabbitMqTestContainerManager.GetConnectionString();// "amqp://guest:guest@localhost:5672";
 
     readonly List<IDisposable> _disposables = new();
-    private readonly List<IAsyncDisposable> _asyncDisposables = new();
+    readonly List<IAsyncDisposable> _asyncDisposables = new();
     readonly HashSet<string> _queuesToDelete = new();
 
     public ITransport CreateOneWayClient()

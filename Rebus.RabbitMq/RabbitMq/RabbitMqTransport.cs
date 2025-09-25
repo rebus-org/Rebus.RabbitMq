@@ -59,7 +59,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     readonly ILog _log;
 
     (IChannel expressPublisher, IChannel confirmedPublisher)? _publishers;
-    CustomQueueingConsumer _consumer;
+    volatile CustomQueueingConsumer _consumer;
 
     ushort _maxMessagesToPrefetch;
 
@@ -475,20 +475,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
         try
         {
-            if (_consumer == null)
-            {
-                await _consumerLock.WaitAsync(cancellationToken);
-                try
-                {
-                    _consumer ??= await InitializeConsumer(cancellationToken);
-                }
-                finally
-                {
-                    _consumerLock.Release();
-                }
-            }
-
-            var consumer = _consumer;
+            var consumer = await GetConsumerAsync(cancellationToken);
 
             try
             {
@@ -522,12 +509,11 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
             if (!consumer.Channel.IsOpen)
             {
-                await consumer.DisposeAsync();
-                _consumer = null;
+                await DisposeConsumerAsync(writeWarning: true, cancellationToken: cancellationToken);
                 return null;
             }
 
-            BasicDeliverEventArgs result;
+            BasicDeliverEventArgsReplacement result;
 
             try
             {
@@ -553,9 +539,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
             }
             catch (ChannelClosedException)
             {
-                _log.Warn("Closed channel detected - consumer will be disposed");
-                await consumer.DisposeAsync();
-                _consumer = null;
+                await DisposeConsumerAsync(writeWarning: true, cancellationToken: cancellationToken);
                 return null;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -587,7 +571,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
                 }
             });
 
-            return CreateTransportMessage(result.BasicProperties, result.Body.ToArray());
+            return CreateTransportMessage(result.Properties, result.Body);
         }
         catch (EndOfStreamException)
         {
@@ -596,12 +580,7 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
         catch (ChannelClosedException)
         {
             _log.Warn("Though it was possible to receive, but the channel turned out to be closed... it will be renewed after a short wait");
-            if (_consumer is { } c)
-            {
-                _consumer = null;
-                await c.DisposeAsync();
-            }
-
+            await DisposeConsumerAsync(writeWarning: true, cancellationToken: cancellationToken);
             await Task.Delay(30000, cancellationToken);
             return null;
         }
@@ -611,6 +590,63 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
             throw new RebusApplicationException(exception,
                 $"Unexpected exception thrown while trying to dequeue a message from rabbitmq, queue address: {Address}");
+        }
+    }
+
+    async Task DisposeConsumerAsync(bool writeWarning, CancellationToken cancellationToken = default)
+    {
+        await _consumerLock.WaitAsync(cancellationToken);
+
+        try
+        {
+            if (writeWarning)
+            {
+                _log.Warn("Closed channel detected - consumer will be disposed");
+            }
+            else
+            {
+                _log.Info("Disposing consumer");
+            }
+
+            if (_consumer != null)
+            {
+                try
+                {
+                    await _consumer.DisposeAsync();
+                }
+                catch (Exception exception)
+                {
+                    _log.Warn(exception, "Caught exception when disposing consumer");
+                }
+            }
+        }
+        finally
+        {
+            _consumer = null;
+
+            _consumerLock.Release();
+        }
+    }
+
+    async ValueTask<CustomQueueingConsumer> GetConsumerAsync(CancellationToken cancellationToken)
+    {
+        if (_consumer != null) return _consumer;
+
+        await _consumerLock.WaitAsync(cancellationToken);
+
+        if (_consumer != null) return _consumer;
+
+        try
+        {
+            var consumer = await InitializeConsumer(cancellationToken);
+
+            _consumer = consumer;
+
+            return _consumer;
+        }
+        finally
+        {
+            _consumerLock.Release();
         }
     }
 
@@ -776,36 +812,48 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     /// </summary>
     async ValueTask<CustomQueueingConsumer> InitializeConsumer(CancellationToken cancellationToken = default)
     {
-        var model = await CreateChannel(cancellationToken);
-
         try
         {
-            await model.BasicQosAsync(prefetchSize: 0, prefetchCount: _maxMessagesToPrefetch, global: false, cancellationToken: cancellationToken);
+            var model = await CreateChannel(cancellationToken);
 
-            var consumer = new CustomQueueingConsumer(model);
+            try
+            {
+                await model.BasicQosAsync(prefetchSize: 0, prefetchCount: _maxMessagesToPrefetch, global: false,
+                    cancellationToken: cancellationToken);
 
-            await model.BasicConsumeAsync(
-                queue: Address,
-                autoAck: false,
-                consumer: consumer,
-                consumerTag: _consumerTag != null ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}" : "",
-                cancellationToken: cancellationToken
-            );
+                var consumer = new CustomQueueingConsumer(model);
 
-            _log.Info("Successfully initialized consumer for {queueName}", Address);
+                await model.BasicConsumeAsync(
+                    queue: Address,
+                    autoAck: false,
+                    consumer: consumer,
+                    consumerTag: _consumerTag != null
+                        ? $"{_consumerTag}-{Path.GetRandomFileName().Replace(".", "")}"
+                        : "",
+                    cancellationToken: cancellationToken
+                );
 
-            return consumer;
-        }
-        catch (OperationInterruptedException exception) when (exception.HasReplyCode(QueueDoesNotExist))
-        {
-            await model.SafeDropAsync();
-            _log.Warn("Queue not found - attempting to recreate queue and restore subscriptions.");
-            await ReconnectQueue();
-            return null;
+                _log.Info("Successfully initialized consumer for {queueName}", Address);
+
+                return consumer;
+            }
+            catch (OperationInterruptedException exception) when (exception.HasReplyCode(QueueDoesNotExist))
+            {
+                await model.SafeDropAsync();
+                _log.Warn("Queue not found - attempting to recreate queue and restore subscriptions.");
+                await ReconnectQueue();
+                return null;
+            }
+            catch (Exception)
+            {
+                await model.SafeDropAsync();
+                throw;
+            }
         }
         catch (Exception)
         {
-            await model.SafeDropAsync();
+            _log.Warn("Consumer initialization failed for queue {queueName} - waiting 1 m before trying again", Address);
+            await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
             throw;
         }
     }
@@ -1072,10 +1120,8 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
     public async ValueTask DisposeAsync()
     {
-        if (_consumer is { } c)
-        {
-            await c.DisposeAsync();
-        }
+        await DisposeConsumerAsync(writeWarning: false);
+
         await _connectionManager.DisposeAsync();
     }
 

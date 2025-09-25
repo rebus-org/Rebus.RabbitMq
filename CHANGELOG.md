@@ -186,6 +186,10 @@
 ## 10.0.2
 * Make slight rearrangements (double-checked locking) around re-initialization of publisher channels
 
+## 10.0.3
+* More double-checked locking also around disposal of consumer
+* Avoid one full message body byte array copy operation
+
 ---
 
 [bzuu]: https://github.com/bzuu
