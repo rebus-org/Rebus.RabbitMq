@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
 	<PropertyGroup>
 		<RootNamespace>Rebus</RootNamespace>
-		<LangVersion>12</LangVersion>
+		<LangVersion>13</LangVersion>
 		<AssemblyName>Rebus.RabbitMq</AssemblyName>
 		<TargetFrameworks>netstandard2.0;net8.0;net9.0</TargetFrameworks>
 		<Authors>mookid8000</Authors>
@@ -26,8 +26,8 @@
 			<PackagePath></PackagePath>
 		</None>
 		<None Include="..\README.md">
-		  <Pack>True</Pack>
-		  <PackagePath>\</PackagePath>
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
 		</None>
 	</ItemGroup>
 </Project>

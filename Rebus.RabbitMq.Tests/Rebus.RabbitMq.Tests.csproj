@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
-		<TargetFramework>net8.0</TargetFramework>
-		<LangVersion>12</LangVersion>
+		<TargetFramework>net9.0</TargetFramework>
+		<LangVersion>13</LangVersion>
 		<!-- NUnit1032: things should be disposed in methods annotated with `teardown` -->
 		<NoWarn>NUnit1032</NoWarn>
 	</PropertyGroup>
@@ -13,8 +13,8 @@
 		<PackageReference Include="microsoft.net.test.sdk" Version="17.14.1" />
 		<PackageReference Include="nunit" Version="3.14.0" />
 		<PackageReference Include="NUnit.Analyzers" Version="4.6.0">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
 			<PrivateAssets>all</PrivateAssets>
@@ -25,8 +25,5 @@
 		<PackageReference Include="rebus.serviceprovider" Version="10.0.0" />
 		<PackageReference Include="rebus.tests.contracts" Version="8.2.6" />
 		<PackageReference Include="Testcontainers.RabbitMq" Version="4.7.0" />
-	</ItemGroup>
-	<ItemGroup>
-		<Folder Include="Internals\" />
 	</ItemGroup>
 </Project>
