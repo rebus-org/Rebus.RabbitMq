@@ -9,6 +9,7 @@ using Rebus.Subscriptions;
 using Rebus.Transport;
 // ReSharper disable ExpressionIsAlwaysNull
 // ReSharper disable ArgumentsStyleNamedExpression
+// ReSharper disable UnusedMember.Global
 
 namespace Rebus.Config;
 

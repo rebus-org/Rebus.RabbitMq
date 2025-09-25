@@ -64,7 +64,9 @@ public class RabbitMqQueueOptionsBuilder
         SetAutoDelete(autoDelete);
 
         if (ttlInMs > 0)
+        {
             SetQueueTTL(ttlInMs);
+        }
 
         return this;
     }

@@ -10,6 +10,7 @@ using Rebus.Messages;
 using Rebus.RabbitMq;
 using Rebus.Timeouts;
 using Rebus.Transport;
+// ReSharper disable UnusedMember.Global
 
 namespace Rebus.Config;
 

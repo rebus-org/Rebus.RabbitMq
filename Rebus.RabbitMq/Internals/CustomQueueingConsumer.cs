@@ -15,16 +15,7 @@ sealed class CustomQueueingConsumer(IChannel model) : AsyncDefaultBasicConsumer(
         string routingKey, IReadOnlyBasicProperties properties, ReadOnlyMemory<byte> body,
         CancellationToken cancellationToken = default)
     {
-        var args = new BasicDeliverEventArgsReplacement(
-            consumerTag: consumerTag,
-            deliveryTag: deliveryTag,
-            redelivered: redelivered,
-            exchange: exchange,
-            routingKey: routingKey,
-            properties: properties,
-            body: body,
-            cancellationToken: cancellationToken
-        );
+        var args = new BasicDeliverEventArgsReplacement(deliveryTag: deliveryTag, properties: properties, body: body);
 
         Queue.Writer.TryWrite(args);
 

@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Rebus.RabbitMq;
-using Rebus.Transport;
+// ReSharper disable UnusedMember.Global
 
 namespace Rebus.Config;
 
@@ -14,7 +13,7 @@ namespace Rebus.Config;
 /// </summary>
 public class RabbitMqOptionsBuilder
 {
-    readonly Dictionary<string, string> _additionalClientProperties = new Dictionary<string, string>();
+    readonly Dictionary<string, string> _additionalClientProperties = new();
 
     /// <summary>
     /// Default name of the exchange of type DIRECT (used for point-to-point messaging)
