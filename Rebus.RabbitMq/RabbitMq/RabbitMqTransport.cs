@@ -634,10 +634,10 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
         await _consumerLock.WaitAsync(cancellationToken);
 
-        if (_consumer != null) return _consumer;
-
         try
         {
+            if (_consumer != null) return _consumer;
+
             var consumer = await InitializeConsumer(cancellationToken);
 
             _consumer = consumer;

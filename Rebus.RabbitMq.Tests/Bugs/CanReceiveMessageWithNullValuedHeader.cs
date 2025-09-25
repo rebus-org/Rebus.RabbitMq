@@ -7,6 +7,7 @@ using Rebus.Activation;
 using Rebus.Config;
 using Rebus.Tests.Contracts;
 using Rebus.Tests.Contracts.Extensions;
+// ReSharper disable AccessToDisposedClosure
 #pragma warning disable 1998
 
 namespace Rebus.RabbitMq.Tests.Bugs;
@@ -17,14 +18,12 @@ public class CanReceiveMessageWithNullValuedHeader : FixtureBase
     [Test]
     public async Task CanDoWhatTheFixtureSays()
     {
+        using var nullHeaderSuccessfullyReceived = new ManualResetEvent(false);
+
         const string headerKey = "custom-header";
 
-        var activator = new BuiltinHandlerActivator();
+        using var activator = new BuiltinHandlerActivator();
 
-        Using(activator);
-
-        var nullHeaderSuccessfullyReceived = new ManualResetEvent(false);
-            
         activator.Handle<string>(async (_, context, _) =>
         {
             if (context.Headers[headerKey] == null)
@@ -37,7 +36,7 @@ public class CanReceiveMessageWithNullValuedHeader : FixtureBase
             .Transport(t => t.UseRabbitMq(RabbitMqTransportFactory.ConnectionString, TestConfig.GetName("null-header")))
             .Start();
 
-        await bus.SendLocal("Hej søtte", new Dictionary<string, string> {{headerKey, null}});
+        await bus.SendLocal("Hej søtte", new Dictionary<string, string> { { headerKey, null } });
 
         nullHeaderSuccessfullyReceived.WaitOrDie(TimeSpan.FromSeconds(5));
     }

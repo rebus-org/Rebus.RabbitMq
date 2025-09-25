@@ -24,7 +24,7 @@
 		<PackageReference Include="rebus.fleetmanager" Version="6.2.0" />
 		<PackageReference Include="rebus.serviceprovider" Version="10.0.0" />
 		<PackageReference Include="rebus.tests.contracts" Version="8.2.6" />
-		<PackageReference Include="Testcontainers.RabbitMq" Version="4.6.0" />
+		<PackageReference Include="Testcontainers.RabbitMq" Version="4.7.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Internals\" />
