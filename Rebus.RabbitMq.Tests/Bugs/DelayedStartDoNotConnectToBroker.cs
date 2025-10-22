@@ -29,6 +29,6 @@ public class DelayedStartDoNotConnectToBroker : FixtureBase
 
         await using var provider = services.BuildServiceProvider();
 
-        provider.StartRebus();
+        provider.StartHostedServices();
     }
 }

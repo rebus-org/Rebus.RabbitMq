@@ -10,20 +10,20 @@
 		<ProjectReference Include="..\Rebus.RabbitMq\Rebus.RabbitMq.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="microsoft.net.test.sdk" Version="17.14.1" />
-		<PackageReference Include="nunit" Version="3.14.0" />
-		<PackageReference Include="NUnit.Analyzers" Version="4.6.0">
+		<PackageReference Include="microsoft.net.test.sdk" Version="18.0.0" />
+		<PackageReference Include="nunit" Version="4.4.0" />
+		<PackageReference Include="NUnit.Analyzers" Version="4.10.0">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
+		<PackageReference Include="NUnit3TestAdapter" Version="5.2.0">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="rabbitmq.client" Version="7.1.2" />
-		<PackageReference Include="rebus.fleetmanager" Version="6.2.0" />
-		<PackageReference Include="rebus.serviceprovider" Version="10.0.0" />
-		<PackageReference Include="rebus.tests.contracts" Version="8.2.6" />
-		<PackageReference Include="Testcontainers.RabbitMq" Version="4.7.0" />
+		<PackageReference Include="rebus.fleetmanager" Version="8.1.0" />
+		<PackageReference Include="rebus.serviceprovider" Version="10.6.0" />
+		<PackageReference Include="rebus.tests.contracts" Version="8.9.1" />
+		<PackageReference Include="Testcontainers.RabbitMq" Version="4.8.0" />
 	</ItemGroup>
 </Project>
