@@ -1,6 +1,18 @@
-﻿using System;
+﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
+using Rebus.Bus;
+using Rebus.Config;
+using Rebus.Exceptions;
+using Rebus.Internals;
+using Rebus.Logging;
+using Rebus.Messages;
+using Rebus.Subscriptions;
+using Rebus.Transport;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,17 +20,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
-using RabbitMQ.Client.Exceptions;
-using Rebus.Bus;
-using Rebus.Logging;
-using Rebus.Messages;
-using Rebus.Subscriptions;
-using Rebus.Transport;
-using Rebus.Config;
-using Rebus.Exceptions;
-using Rebus.Internals;
 using Headers = Rebus.Messages.Headers;
 
 // ReSharper disable AccessToDisposedClosure
@@ -419,29 +420,15 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
         var expressMessages = messages.Where(m => m.IsExpress).Select(m => m.Message).ToList();
         var ordinaryMessages = messages.Where(m => !m.IsExpress).Select(m => m.Message).ToList();
 
-        var attempt = 0;
-
-        while (true)
+        await MiniRetrier.ExecuteAsync(WriterAttempts, async () =>
         {
             var (expressChannel, confirmedChannel) = await GetPublisherChannels();
-
-            try
-            {
-                // otherwise, count this as an attempt and try to do it
-                attempt++;
-
-                // Should we consider rewriting this to iterate messages and then delegate to express vs confirmed based 
-                // on `Message.IsExpress`? It would avoid creating the temporary lists above, however it would make retrying
-                // strange i think.
-                await DoSend(expressMessages, expressChannel, isExpress: true);
-                await DoSend(ordinaryMessages, confirmedChannel, isExpress: false);
-
-                return; //< success - we're done!
-            }
-            catch (Exception) when (attempt <= WriterAttempts) //< if the built-in number of retries has been exceeded, let the error bubble out
-            {
-            }
-        }
+            // Should we consider rewriting this to iterate messages and then delegate to express vs confirmed based 
+            // on `Message.IsExpress`? It would avoid creating the temporary lists above, however it would make retrying
+            // strange i think.
+            await DoSend(expressMessages, expressChannel, isExpress: true);
+            await DoSend(ordinaryMessages, confirmedChannel, isExpress: false);
+        });
     }
 
     /// <summary>
@@ -554,8 +541,19 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
 
             context.OnAck(async _ =>
             {
-                // intentionally not cancellable - if we get this far, we want to succeed in ACKing if at all possible
-                await consumer.Channel.BasicAckAsync(deliveryTag, multiple: false, CancellationToken.None);
+                try
+                {
+                    await MiniRetrier.ExecuteAsync(3, async () =>
+                    {
+                        // intentionally not cancellable - if we get this far, we want to succeed in ACKing if at all possible
+                        await consumer.Channel.BasicAckAsync(deliveryTag, multiple: false, CancellationToken.None);
+                    });
+                }
+                catch (Exception exception)
+                {
+                    _log.Warn(exception, "BasicAck failed - disposing consumer to start over");
+                    await DisposeConsumerAsync(writeWarning: false, cancellationToken: cancellationToken);
+                }
             });
 
             context.OnNack(async _ =>
@@ -563,11 +561,16 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
                 // we might not be able to do this, but it doesn't matter that much if it succeeds
                 try
                 {
-                    // intentionally not cancellable - if we get this far, we want to succeed in NACKing if at all possible
-                    await consumer.Channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, CancellationToken.None);
+                    await MiniRetrier.ExecuteAsync(3, async () =>
+                    {
+                        // intentionally not cancellable - if we get this far, we want to succeed in NACKing if at all possible
+                        await consumer.Channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, CancellationToken.None);
+                    });
                 }
-                catch
+                catch (Exception exception)
                 {
+                    _log.Warn(exception, "BasicNack failed - disposing consumer to start over");
+                    await DisposeConsumerAsync(writeWarning: false, cancellationToken: cancellationToken);
                 }
             });
 

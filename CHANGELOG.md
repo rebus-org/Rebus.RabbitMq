@@ -190,6 +190,9 @@
 * More double-checked locking also around disposal of consumer
 * Avoid one full message body byte array copy operation
 
+## 10.1.0
+* Even more defensive measures to detect errors on the channel and force it to be re-initialized
+
 ---
 
 [bzuu]: https://github.com/bzuu
