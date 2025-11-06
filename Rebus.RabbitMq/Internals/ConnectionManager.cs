@@ -21,6 +21,56 @@ class ConnectionManager : IAsyncDisposable
     IConnection _activeConnection;
     bool _disposed;
 
+    public ConnectionManager(IRebusLoggerFactory rebusLoggerFactory, IList<AmqpTcpEndpoint> endpoints, string inputQueueAddress, IConnectionFactory? factory, IConnection? connection)
+    {
+        if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
+        if (factory == null) throw new ArgumentNullException(nameof(factory));
+        if (connection == null) throw new ArgumentNullException(nameof(connection));
+        if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
+
+        _log = rebusLoggerFactory.GetLogger<ConnectionManager>();
+
+        if (inputQueueAddress != null)
+        {
+            _log.Info("Initializing RabbitMQ connection manager for transport with input queue {queueName}", inputQueueAddress);
+        }
+        else
+        {
+            _log.Info("Initializing RabbitMQ connection manager for one-way transport");
+        }
+
+        if (endpoints.Count == 0)
+        {
+            throw new ArgumentException("Please remember to specify at least one endpoints for a RabbitMQ server. You can also add multiple connection strings separated by ; or , which RabbitMq will use in failover scenarios");
+        }
+
+        if (endpoints.Count > 1)
+        {
+            _log.Info("RabbitMQ transport has {count} endpoints available", endpoints.Count);
+        }
+
+        foreach (var endpoint in endpoints)
+        {
+            if (endpoint == null)
+            {
+                throw new ArgumentException("Provided endpoint collection should not contain null values");
+            }
+
+            if (string.IsNullOrEmpty(endpoint.ToString()))
+            {
+                throw new ArgumentException("null or empty value is not valid for ConnectionString");
+            }
+        }
+
+        var uri = new Uri(endpoints.First().ToString());
+
+        _connectionFactory = ModifyConnectionFactory((ConnectionFactory)factory, uri, inputQueueAddress);
+
+        _amqpTcpEndpoints = endpoints;
+
+        _activeConnection = connection ?? throw new ArgumentNullException(nameof(connection), "Connection cannot be null. Please provide a valid connection.");
+    }
+
     public ConnectionManager(IList<ConnectionEndpoint> endpoints, string inputQueueAddress, IRebusLoggerFactory rebusLoggerFactory, Func<IConnectionFactory, IConnectionFactory> customizer)
     {
         if (endpoints == null) throw new ArgumentNullException(nameof(endpoints));
@@ -138,6 +188,22 @@ class ConnectionManager : IAsyncDisposable
                 }
             })
             .ToList();
+    }
+
+    ConnectionFactory ModifyConnectionFactory(ConnectionFactory factory, Uri uri, string inputQueueAddress)
+    {
+        factory.AutomaticRecoveryEnabled = true;
+        factory.NetworkRecoveryInterval = TimeSpan.FromSeconds(30);
+        factory.ClientProperties = CreateClientProperties(inputQueueAddress);
+        factory.VirtualHost = GetVirtualHostPath();
+        return factory;
+
+        string GetVirtualHostPath()
+        {
+            return uri.LocalPath == "/"
+                ? uri.LocalPath
+                : uri.LocalPath.Substring(1);
+        }
     }
 
     ConnectionFactory CreateConnectionFactory(Uri uri, string inputQueueAddress)
