@@ -875,27 +875,53 @@ public class RabbitMqTransport : AbstractRebusTransport, IAsyncDisposable, IDisp
     {
         if (!outgoingMessages.Any()) return;
 
-        // TODO: figure out how the handle express messages under publisher confirms
-        // As that functionality has changed drastically and might require manual management.
-        // see this PR: https://github.com/rabbitmq/rabbitmq-dotnet-client/pull/1687
+        var publishInfos = new List<RabbitMqPublishInfo>(outgoingMessages.Count);
         foreach (var outgoingMessage in outgoingMessages)
         {
-            var info = await GetPublishInfo(model, outgoingMessage);
+            publishInfos.Add(await GetPublishInfo(model, outgoingMessage));
+        }
 
-            try
-            {
-                await model.BasicPublishAsync(
-                    exchange: info.Exchange,
-                    routingKey: info.RoutingKey,
-                    mandatory: info.Mandatory,
-                    basicProperties: info.Properties,
-                    body: info.Body
-                );
-            }
-            catch (PublishException e) when (info.Mandatory)
-            {
-                throw new RebusApplicationException(e, $"Failed to publish message to exchange '{info.Exchange}' with routing key '{info.RoutingKey}'. IsReturn {e.IsReturn}, PublishSequenceNumber: {e.PublishSequenceNumber}");
-            }
+        using var timeoutCancellationTokenSource = !isExpress && _publisherConfirmsEnabled && _publisherConfirmsTimeout > TimeSpan.Zero
+            ? new CancellationTokenSource(_publisherConfirmsTimeout)
+            : null;
+
+        var cancellationToken = timeoutCancellationTokenSource?.Token ?? CancellationToken.None;
+
+        // With publisher confirms enabled, BasicPublishAsync only completes once the broker has confirmed the message,
+        // so all publishes are started before awaiting any of them - this way the confirms of the entire transaction
+        // are awaited concurrently instead of one round-trip at a time
+        var publishes = new Task[publishInfos.Count];
+        for (var index = 0; index < publishInfos.Count; index++)
+        {
+            publishes[index] = Publish(model, publishInfos[index], cancellationToken);
+        }
+
+        try
+        {
+            await Task.WhenAll(publishes);
+        }
+        catch (OperationCanceledException exception) when (timeoutCancellationTokenSource?.IsCancellationRequested == true)
+        {
+            throw new RebusApplicationException(exception, $"Did not receive publisher confirms for all {publishInfos.Count} messages within the timeout of {_publisherConfirmsTimeout}");
+        }
+    }
+
+    static async Task Publish(IChannel model, RabbitMqPublishInfo info, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await model.BasicPublishAsync(
+                exchange: info.Exchange,
+                routingKey: info.RoutingKey,
+                mandatory: info.Mandatory,
+                basicProperties: info.Properties,
+                body: info.Body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (PublishException e) when (info.Mandatory)
+        {
+            throw new RebusApplicationException(e, $"Failed to publish message to exchange '{info.Exchange}' with routing key '{info.RoutingKey}'. IsReturn {e.IsReturn}, PublishSequenceNumber: {e.PublishSequenceNumber}");
         }
     }
 

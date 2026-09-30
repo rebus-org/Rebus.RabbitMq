@@ -223,7 +223,9 @@ public class RabbitMqOptionsBuilder
     /// Set whether the publisher confirms protocol is enabled. To avoid message loss, publisher confirms ARE ENABLED BY DEFAULT.
     /// Please note that you can opt out of publisher confirms ON A PER-MESSAGE BASIS by adding the <see cref="Messages.Headers.Express"/>
     /// header to a message.
-    /// Calling this method with <paramref name="enabled"/> = false will disable publisher confirms alltogether.
+    /// Calling this method with <paramref name="enabled"/> = false will disable publisher confirms altogether.
+    /// The messages of a transaction are published concurrently and their confirms awaited together, so the order
+    /// in which they reach the broker is NOT guaranteed.
     /// </summary>
     public RabbitMqOptionsBuilder SetPublisherConfirms(bool enabled)
     {
@@ -235,8 +237,12 @@ public class RabbitMqOptionsBuilder
     /// Set whether the publisher confirms protocol is enabled. To avoid message loss, publisher confirms ARE ENABLED BY DEFAULT.
     /// Please note that you can opt out of publisher confirms ON A PER-MESSAGE BASIS by adding the <see cref="Messages.Headers.Express"/>
     /// header to a message.
-    /// Calling this method with <paramref name="enabled"/> = false will disable publisher confirms alltogether.
+    /// Calling this method with <paramref name="enabled"/> = false will disable publisher confirms altogether.
+    /// The messages of a transaction are published concurrently and their confirms awaited together, so the order
+    /// in which they reach the broker is NOT guaranteed.
     /// </summary>
+    /// <param name="enabled">Whether to use publisher confirms.</param>
+    /// <param name="timeout">How long to wait for the broker to confirm the messages of a transaction before failing it. Use <code>TimeSpan.Zero</code> for INFINITE timeout.</param>
     public RabbitMqOptionsBuilder SetPublisherConfirms(bool enabled, TimeSpan timeout)
     {
         PublisherConfirmsEnabled = enabled;
