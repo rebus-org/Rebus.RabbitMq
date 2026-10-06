@@ -197,6 +197,11 @@
 * Pass custom connection name to customized connection factory - thanks [MarkMenchavez]
 * Clean up unnecessary code and pass custom connection name to connection
 
+## 10.1.2
+* Fixed RabbitMQ publisher confirms to run concurrently within transactions and correctly honor the configured confirmation timeout - thanks [zlepper]
+
+
+
 ---
 
 [bzuu]: https://github.com/bzuu
